@@ -116,4 +116,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation("com.naver.maps:map-sdk:3.21.0")
 }
