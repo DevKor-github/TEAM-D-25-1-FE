@@ -1,7 +1,7 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
-import MapScreen from './screens/MapScreen';
+import MapScreen from './src/screens/MapScreen';
 
 const Stack = createStackNavigator();
 
