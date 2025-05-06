@@ -5,6 +5,26 @@ import {
 import {View} from 'react-native';
 
 const MapScreen = () => {
+  const markers = [
+    {
+      id: '1',
+      latitude: 37.587479,
+      longitude: 127.028872,
+      image: require('../assets/tree.png'),
+    },
+    {
+      id: '2',
+      latitude: 37.583293,
+      longitude: 127.028825,
+      image: require('../assets/tree.png'),
+    },
+    {
+      id: '3',
+      latitude: 37.585877,
+      longitude: 127.034402,
+      image: require('../assets/tree.png'),
+    },
+  ];
   return (
     <View style={{flex: 1}}>
       <NaverMapView
@@ -14,23 +34,17 @@ const MapScreen = () => {
           longitude: 127.03184890085161,
           zoom: 15,
         }}>
-        <NaverMapMarkerOverlay
-          latitude={37.587479}
-          longitude={127.028872}
-          onTap={() => console.log(1)}
-          anchor={{x: 0.5, y: 1}}
-          width={100}
-          height={100}
-          image={require('../assets/tree.png')}></NaverMapMarkerOverlay>
-
-        <NaverMapMarkerOverlay
-          latitude={37.583293}
-          longitude={127.028825}
-          onTap={() => console.log(1)}
-          anchor={{x: 0.5, y: 1}}
-          width={100}
-          height={100}
-          image={require('../assets/tree.png')}></NaverMapMarkerOverlay>
+        {markers.map(marker => (
+          <NaverMapMarkerOverlay
+            key={marker.id}
+            latitude={marker.latitude}
+            longitude={marker.longitude}
+            anchor={{x: 0.5, y: 1}}
+            width={100}
+            height={100}
+            image={marker.image}
+          />
+        ))}
       </NaverMapView>
     </View>
   );
