@@ -5,31 +5,42 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# ① 여기를 min_ios_version_supported 대신 직접 버전으로 지정
+platform :ios, '15.1'
+
+# ② Swift 프로젝트라면 use_frameworks! 을 켜 줍니다.
+use_frameworks!
+
 prepare_react_native_project!
 
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  # (이 라인은 없어도 되지만, ENV로 다이나믹하게 제어하고 싶다면 남겨두세요)
   use_frameworks! :linkage => linkage.to_sym
 end
 
 target 'Groo' do
   config = use_native_modules!
 
+  # 순수 iOS SDK
+  pod 'NMapsMap', '3.21.0'
+
   use_react_native!(
     :path => config[:reactNativePath],
-    # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+    # React Native용 네이버맵 래퍼
+  pod 'react-native-nmap', path: '../node_modules/react-native-nmap'
+
+
   post_install do |installer|
-    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
+      :mac_catalyst_enabled => false
     )
   end
 end
+
