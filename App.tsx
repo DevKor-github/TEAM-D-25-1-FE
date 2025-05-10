@@ -1,15 +1,17 @@
 import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
-import {createStackNavigator} from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 import MapScreen from './screens/MapScreen';
+import LoginScreen from './screens/LoginScreen'; 
 
 const Stack = createStackNavigator();
 
 const App = () => {
-  console.log('🚀 App.js loaded');
+  console.log('📲 App.js loaded!');
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Map">
+      <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Map" component={MapScreen} />
       </Stack.Navigator>
     </NavigationContainer>
@@ -17,3 +19,4 @@ const App = () => {
 };
 
 export default App;
+
