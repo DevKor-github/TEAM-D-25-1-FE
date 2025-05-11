@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,13 @@ import {
   Image,
 } from 'react-native';
 
-const LoginScreen = () => {
+const LoginScreen = ({navigation}: {navigation: any}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const onPress = () => {
+    navigation.navigate('Map');
+  };
 
   return (
     <View style={styles.container}>
@@ -44,7 +48,7 @@ const LoginScreen = () => {
       />
 
       {/* 로그인 버튼 */}
-      <TouchableOpacity style={styles.loginButton}>
+      <TouchableOpacity style={styles.loginButton} onPress={onPress}>
         <Text style={styles.loginText}>로그인</Text>
       </TouchableOpacity>
 
@@ -52,15 +56,15 @@ const LoginScreen = () => {
       <View style={styles.socialRow}>
         <Image
           source={require('../assets/google_icon.png')}
-          style={[styles.icon, { marginTop: 40 }]}
+          style={[styles.icon, {marginTop: 40}]}
         />
         <Image
           source={require('../assets/kakaotalk_icon.png')}
-          style={[styles.icon, { marginTop: 40 }]}
+          style={[styles.icon, {marginTop: 40}]}
         />
         <Image
           source={require('../assets/naver_icon.png')}
-          style={[styles.icon, { marginTop: 40 }]}
+          style={[styles.icon, {marginTop: 40}]}
         />
       </View>
 
@@ -106,7 +110,7 @@ const styles = StyleSheet.create({
   loginButton: {
     width: 181,
     height: 46,
-    backgroundColor: '#6BDE45', 
+    backgroundColor: '#6BDE45',
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
@@ -139,6 +143,3 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
-
-
-

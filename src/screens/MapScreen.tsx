@@ -2,7 +2,7 @@ import {
   NaverMapView,
   NaverMapMarkerOverlay,
 } from '@mj-studio/react-native-naver-map';
-import {View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 
 const MapScreen = () => {
   const markers = [
@@ -26,7 +26,7 @@ const MapScreen = () => {
     },
   ];
   return (
-    <View style={{flex: 1}}>
+    <View style={{flex: 1, width: '100%', height: '100%'}}>
       <NaverMapView
         style={{flex: 1}}
         initialCamera={{
