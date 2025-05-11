@@ -12,10 +12,10 @@
       android:supportsRtl="true">
        <meta-data
             android:name="com.naver.maps.map.NCP_KEY_ID"
-            android:value=${NAVER_MAP_CLIENT_ID}"/>
+            android:value="@string/NAVER_CLIENT_ID"/>
       <meta-data
             android:name="com.naver.maps.map.CLIENT_ID"
-            android:value=${NAVER_MAP_CLIENT_ID}" />
+            android:value="@string/NAVER_CLIENT_ID"/>
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
