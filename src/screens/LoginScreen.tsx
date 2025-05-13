@@ -13,7 +13,7 @@ const LoginScreen = ({navigation}: {navigation: any}) => {
   const [password, setPassword] = useState('');
 
   const onPress = () => {
-    navigation.navigate('Map');
+    navigation.navigate('Home');
   };
 
   return (
