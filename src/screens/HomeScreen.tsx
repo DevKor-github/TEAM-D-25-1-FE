@@ -7,7 +7,7 @@ import {Modal, Text, TouchableOpacity, View} from 'react-native';
 import {getRestaruant} from '../apis/api/restaurant';
 import {Restaurant} from '../types/restaruant';
 
-const MapScreen = () => {
+const MapScreen = ({navigation}: {navigation: any}) => {
   // 식당 목록 불럭오기
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
 
@@ -79,10 +79,18 @@ const MapScreen = () => {
                 shadowRadius: 20,
                 elevation: 3,
               }}>
-              <Text style={{fontSize: 18, fontWeight: 'bold'}}>
-                {selectedRestaurant?.name}
-              </Text>
-              <Text>{selectedRestaurant?.address}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setModalVisible(false);
+                  navigation.navigate('Detail', {
+                    restaurant: selectedRestaurant,
+                  });
+                }}>
+                <Text style={{fontSize: 18, fontWeight: 'bold'}}>
+                  {selectedRestaurant.name}
+                </Text>
+                <Text>{selectedRestaurant.address}</Text>
+              </TouchableOpacity>
             </View>
           </TouchableOpacity>
         </Modal>
