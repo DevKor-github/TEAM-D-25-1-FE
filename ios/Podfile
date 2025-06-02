@@ -20,20 +20,19 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
+use_frameworks! :linkage => :static
+
 target 'Groo' do
   config = use_native_modules!
 
+
   # 순수 iOS SDK
-  pod 'NMapsMap', '3.21.0'
+  pod 'NMapsMap'
 
   use_react_native!(
     :path => config[:reactNativePath],
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
-
-    # React Native용 네이버맵 래퍼
-  pod 'react-native-nmap', path: '../node_modules/react-native-nmap'
-
 
   post_install do |installer|
     react_native_post_install(
