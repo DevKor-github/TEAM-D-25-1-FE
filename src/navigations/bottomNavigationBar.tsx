@@ -1,7 +1,7 @@
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {NavigationContainer} from '@react-navigation/native';
 import React from 'react';
-import HomeScreen from '../screens/HomeScreen';
+import MapScreen from '../screens/MapScreen';
 import LinearGradient from 'react-native-linear-gradient';
 import HomeIcon from '../assets/home.svg';
 import PlantIcon from '../assets/plant.svg';
@@ -13,7 +13,7 @@ const Tab = createBottomTabNavigator();
 const BottomNavigationBar = () => {
   return (
     <Tab.Navigator
-      initialRouteName="Home"
+      initialRouteName="Map"
       screenOptions={{
         tabBarStyle: {
           height: 80,
@@ -22,8 +22,8 @@ const BottomNavigationBar = () => {
         },
       }}>
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Map"
+        component={MapScreen}
         options={{
           title: '홈',
           tabBarIcon: ({color}) => <HomeIcon color={color} />,
@@ -32,7 +32,7 @@ const BottomNavigationBar = () => {
       />
       <Tab.Screen
         name="Planting"
-        component={HomeScreen}
+        component={MapScreen}
         options={{
           title: '씨앗 심기',
           tabBarIcon: ({color, size}) => (
@@ -60,7 +60,7 @@ const BottomNavigationBar = () => {
       />
       <Tab.Screen
         name="MyPage"
-        component={HomeScreen}
+        component={MapScreen}
         options={{
           title: 'MY',
           tabBarIcon: ({color, size}) => <MyPageIcon color={color} />,
