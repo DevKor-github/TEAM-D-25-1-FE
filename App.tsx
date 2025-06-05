@@ -4,6 +4,7 @@ import {createStackNavigator} from '@react-navigation/stack';
 import LoginScreen from './src/screens/LoginScreen';
 import BottomNavigationBar from './src/navigations/bottomNavigationBar';
 import DetailScreen from './src/screens/DetailScreen';
+import SearchScreen from './src/screens/SearchScreen';
 
 const Stack = createStackNavigator();
 
@@ -16,7 +17,8 @@ const App = () => {
         screenOptions={{headerShown: false}}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Map" component={BottomNavigationBar} />
-        <Stack.Screen name="Detail" component={DetailScreen} />
+        {/* <Stack.Screen name="Detail" component={DetailScreen} /> */}
+        <Stack.Screen name="Search" component={SearchScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

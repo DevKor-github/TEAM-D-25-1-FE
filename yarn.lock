@@ -1577,7 +1577,7 @@
     picocolors "^1.1.1"
     plist "^3.1.0"
 
-"@react-native-vector-icons/ionicons@*":
+"@react-native-vector-icons/ionicons@*", "@react-native-vector-icons/ionicons@^12.0.0":
   version "12.0.0"
   resolved "https://registry.npmjs.org/@react-native-vector-icons/ionicons/-/ionicons-12.0.0.tgz"
   integrity sha512-V5cbt9ayVZF4qXt1cuGutSPAKXzECt0k5P112POGckubJIYdgM+HlvgxaQnmg/bb0cCVH6d38zPe8tWqsAiyfQ==
