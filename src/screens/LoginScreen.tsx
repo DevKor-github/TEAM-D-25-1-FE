@@ -1,3 +1,4 @@
+// 파일 경로: src/screens/LoginScreen.tsx
 import React, {useState} from 'react';
 import {
   View,
@@ -5,7 +6,7 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
+  Image,     
 } from 'react-native';
 
 const LoginScreen = ({navigation}: {navigation: any}) => {
@@ -18,7 +19,7 @@ const LoginScreen = ({navigation}: {navigation: any}) => {
 
   return (
     <View style={styles.container}>
-      {/* 상단 로고: 이름 + 그림 분리 되어있음*/}
+      {/* 상단 로고 */}
       <View style={styles.logoRow}>
         <Image
           source={require('../assets/groo_name_icon.png')}
@@ -30,83 +31,132 @@ const LoginScreen = ({navigation}: {navigation: any}) => {
         />
       </View>
 
-      {/* 이메일 입력 */}
-      <TextInput
-        style={styles.input}
-        placeholder="이메일"
-        value={email}
-        onChangeText={setEmail}
-      />
+      {/* 이메일 입력 (아이콘 + TextInput) */}
+      <View style={styles.inputWrapper}>
+        <Image
+          source={require('../assets/email.png')} 
+          style={styles.icon}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="이메일 주소를 입력해주세요"
+          value={email}
+          onChangeText={setEmail}
+          placeholderTextColor="#999"
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+      </View>
 
-      {/* 비밀번호 입력 */}
-      <TextInput
-        style={styles.input}
-        placeholder="비밀번호"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
+      {/* 비밀번호 입력 (아이콘 + TextInput) */}
+      <View style={styles.inputWrapper}>
+        <Image
+          source={require('../assets/lock.png')} 
+          style={styles.icon}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="비밀번호를 입력해주세요"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholderTextColor="#999"
+        />
+      </View>
 
       {/* 로그인 버튼 */}
       <TouchableOpacity style={styles.loginButton} onPress={onPress}>
         <Text style={styles.loginText}>로그인</Text>
       </TouchableOpacity>
 
-      {/* 소셜 로그인 아이콘 */}
+      {/* 구분선 */}
+      <View style={styles.divider} />
+
+      {/* 소셜 로그인 아이콘 + 레이블 */}
       <View style={styles.socialRow}>
-        <Image
-          source={require('../assets/google_icon.png')}
-          style={[styles.icon, {marginTop: 40}]}
-        />
-        <Image
-          source={require('../assets/kakaotalk_icon.png')}
-          style={[styles.icon, {marginTop: 40}]}
-        />
-        <Image
-          source={require('../assets/naver_icon.png')}
-          style={[styles.icon, {marginTop: 40}]}
-        />
+        {/* Apple */}
+        <View style={styles.socialItem}>
+          <View style={styles.socialBox}>
+            <Image
+              source={require('../assets/apple_icon.png')}
+              style={styles.socialIcon}
+            />
+          </View>
+          <Text style={styles.socialLabel}>apple</Text>
+        </View>
+        {/* Google */}
+        <View style={styles.socialItem}>
+          <View style={styles.socialBox}>
+            <Image
+              source={require('../assets/google_icon.png')}
+              style={styles.socialIcon}
+            />
+          </View>
+          <Text style={styles.socialLabel}>Google</Text>
+        </View>
       </View>
 
       {/* 하단 회원가입 */}
-      <TouchableOpacity>
-        <Text style={styles.signupText}>이메일로 회원가입</Text>
+      <TouchableOpacity
+        style={styles.signupButton}
+        onPress={() => navigation.navigate('SignUp')}
+      >
+        <Text style={styles.signupText}>회원가입</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  // 전체 컨테이너
   container: {
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 36,
     justifyContent: 'center',
   },
+  // 로고 행
   logoRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 110,
+    marginTop: 110,
   },
   logoName: {
-    width: 92,
+    width: 100,
     height: 69,
     resizeMode: 'contain',
     marginRight: 4,
   },
   logoPic: {
-    width: 64.5,
+    width: 68,
     height: 45,
     resizeMode: 'contain',
   },
-  input: {
+  // 입력창 래퍼 (아이콘 + TextInput)
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#F2F2F2',
     borderRadius: 10,
-    padding: 14,
-    fontSize: 16,
     marginBottom: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    
   },
+  icon: {
+    width: 20,
+    height: 20,
+    marginRight: 8,
+    resizeMode: 'contain',
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  // 로그인 버튼
   loginButton: {
     width: 181,
     height: 46,
@@ -114,31 +164,61 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 149, // 화면 가로 기준 가운데 배치
-    marginVertical: 16,
     alignSelf: 'center',
+    marginVertical: 16,
+    marginTop: 10,
   },
   loginText: {
     color: '#000',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: 'normal',
+    fontSize: 14,
   },
+  // 구분선
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0, 0, 0, 0.20);',
+    marginVertical: 50,
+    marginHorizontal: 5,
+    marginTop: 150,
+  },
+  // 소셜 행
   socialRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     marginBottom: 16,
   },
-  icon: {
-    width: 48,
-    height: 48,
+  // 각 소셜 아이템 (원 + 레이블)
+  socialItem: {
+    alignItems: 'center',
+    marginHorizontal: 14,
+  },
+  // 원형 박스
+  socialBox: {
+    backgroundColor: 'rgba(217,217,217,0.3)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  socialIcon: {
+    width: 32,
+    height: 32,
     resizeMode: 'contain',
-    marginHorizontal: 6,
+  },
+  socialLabel: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#767676',
+  },
+  // 회원가입 링크
+  signupButton: {
+    marginTop: 16,
+    alignSelf: 'center',
   },
   signupText: {
-    textAlign: 'center',
     fontSize: 14,
-    color: '#666',
-    textDecorationLine: 'underline',
+    color: '#43C217',
   },
 });
 
