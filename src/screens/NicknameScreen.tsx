@@ -16,7 +16,7 @@ export default function NicknameScreen({ navigation }: { navigation: any }) {
   const [nickname, setNickname] = useState('');
 
   // (예시) “다음” 버튼을 누르면 Main 화면으로 이동하거나,
-  // 회원가입 완료 로직을 호출하도록 구현..예정
+  // 회원가입 완료 로직을 호출하도록 구현..예정 -> 이거는 정해야하요
   const onPressNext = () => {
     // 닉네임이 빈 칸이 아닌지만 간단히 체크
     if (nickname.trim() === '') {
@@ -109,7 +109,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 12,
-    tintColor: '#999', // 아이콘 회색톤 (흑백 PNG일 때)
   },
   input: {
     flex: 1,
