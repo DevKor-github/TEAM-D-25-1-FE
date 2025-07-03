@@ -2,11 +2,13 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {NavigationContainer} from '@react-navigation/native';
 import React from 'react';
 import MapScreen from '../screens/MapScreen';
+import PlantScreen from '../screens/Planting/PlantScreen';
 import LinearGradient from 'react-native-linear-gradient';
 import HomeIcon from '../assets/home.svg';
 import PlantIcon from '../assets/plant.svg';
 import MyPageIcon from '../assets/mypage.svg';
-import {StyleSheet, View} from 'react-native';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import PlantingNavigator from './plantingNavigator';
 
 const Tab = createBottomTabNavigator();
 
@@ -31,10 +33,10 @@ const BottomNavigationBar = () => {
         }}
       />
       <Tab.Screen
-        name="Planting"
-        component={MapScreen}
-        options={{
-          title: '씨앗 심기',
+        name="Plant"
+        component={PlantingNavigator}
+        options={({}) => ({
+          headerShown: false,
           tabBarIcon: ({color, size}) => (
             <View
               style={[
@@ -55,8 +57,7 @@ const BottomNavigationBar = () => {
               </LinearGradient>
             </View>
           ),
-          tabBarActiveTintColor: '#00D100',
-        }}
+        })}
       />
       <Tab.Screen
         name="MyPage"
@@ -83,6 +84,11 @@ const styles = StyleSheet.create({
     borderRadius: 30, // Create a circle (half of width/height)
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitleText: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#333',
   },
 });
 

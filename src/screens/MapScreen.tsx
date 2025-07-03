@@ -2,16 +2,20 @@ import {
   NaverMapView,
   NaverMapMarkerOverlay,
 } from '@mj-studio/react-native-naver-map';
-import {useEffect, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   Modal,
+  StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
 import {getRestaruant} from '../apis/api/restaurant';
 import {Restaurant} from '../types/restaruant';
+import HamburgerIcon from '../assets/hamburger.svg';
+import SearchIcon from '../assets/search.svg';
 
 const MapScreen = ({navigation}: {navigation: any}) => {
   // 식당 목록 불럭오기
@@ -20,6 +24,8 @@ const MapScreen = ({navigation}: {navigation: any}) => {
   // 선택한 식당 상태 저장
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<Restaurant | null>(null);
+
+  // 모달 상태 저장장
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
@@ -30,9 +36,8 @@ const MapScreen = ({navigation}: {navigation: any}) => {
     fetchData();
   }, []);
 
-  const handleMarkerTap = (restaurant: Restaurant) => {
-    setSelectedRestaurant(restaurant);
-    setModalVisible(true);
+  const handleSearchClick = () => {
+    navigation.navigate('Search');
   };
 
   const handleCloseCustomModal = () => {
@@ -41,7 +46,52 @@ const MapScreen = ({navigation}: {navigation: any}) => {
   };
 
   return (
-    <View style={{flex: 1, width: '100%', height: '100%'}}>
+    <View style={{flex: 1}}>
+      <View
+        style={{
+          position: 'absolute',
+          //폰에 따라 달라야 할 것 같은데
+          top: 50,
+          left: 20,
+          right: 20,
+          backgroundColor: 'white',
+          borderRadius: 50,
+          paddingHorizontal: 15,
+          paddingVertical: 10,
+          zIndex: 1,
+          shadowColor: '#000',
+          shadowOffset: {width: 0, height: 2},
+          shadowOpacity: 0.2,
+          shadowRadius: 2,
+          elevation: 3,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <TouchableOpacity onPress={() => console.log('메뉴 클릭')}>
+            <View
+              style={{
+                marginLeft: 10,
+                marginRight: 10,
+              }}>
+              <HamburgerIcon />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleSearchClick}>
+            <TextInput
+              style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
+              placeholder="장소, 음식, 가게 검색"
+              editable={false}
+              pointerEvents="none"
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={{marginRight: 10}}>
+          <SearchIcon />
+        </View>
+      </View>
       <NaverMapView
         style={{flex: 1}}
         initialCamera={{
