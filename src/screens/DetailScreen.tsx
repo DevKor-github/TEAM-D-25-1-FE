@@ -1,11 +1,18 @@
 import {Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {Restaurant} from '../types/restaruant';
+import {ParamListBase, RouteProp} from '@react-navigation/native';
+
+// ParamListBase를 확장하여 Detail 스크린의 파라미터 타입을 정의합니다.
+interface RootStackParamList extends ParamListBase {
+  Detail: {restaurant: Restaurant};
+  // 다른 스크린들의 파라미터 타입도 여기에 정의할 수 있습니다.
+}
+
+// Detail 스크린에 전달되는 route prop의 타입을 정의합니다.
+type DetailScreenRouteProp = RouteProp<RootStackParamList, 'Detail'>;
+
 interface DetailScreenProps {
-  route: {
-    params: {
-      restaurant: Restaurant;
-    };
-  };
+  route: DetailScreenRouteProp;
 }
 const DetailScreen: React.FC<DetailScreenProps> = ({route}) => {
   const {restaurant} = route.params;
