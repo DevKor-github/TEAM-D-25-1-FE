@@ -28,6 +28,7 @@ target 'Groo' do
 
   # 순수 iOS SDK
   pod 'NMapsMap'
+  pod 'BVLinearGradient', :path => '../node_modules/react-native-linear-gradient'
 
   use_react_native!(
     :path => config[:reactNativePath],
