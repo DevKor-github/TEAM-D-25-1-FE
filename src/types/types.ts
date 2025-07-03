@@ -1,3 +1,5 @@
+import {RootState, AppDispatch} from '../redux/store';
+
 export type SeedType = {
   id: number;
   name: string;
@@ -10,3 +12,21 @@ export type PlantingStackParamList = {
 
   PlantSelection: {initialParam?: number; selectedSeedId?: number}; // <-- Add selectedSeedId here
 };
+
+export type PlaceType = {
+  id: string;
+  name: string;
+  address: string;
+  // 필요한 다른 장소 속성 추가
+};
+
+export type SeedPlantingState = {
+  locationQuery: string;
+  selectedLocation: PlaceType | null;
+  selectedSeed: SeedType | null;
+  selectedTags: string[]; // 태그는 문자열 배열이라고 가정
+  selectedPhotos: string[]; // 사진 URI는 문자열 배열이라고 가정
+  reviewText: string;
+};
+
+export type {RootState, AppDispatch};

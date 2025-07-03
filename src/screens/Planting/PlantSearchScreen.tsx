@@ -13,6 +13,13 @@ import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
 } from '@gorhom/bottom-sheet';
+import {AppDispatch, RootState} from '../../redux/store';
+import {useDispatch, useSelector} from 'react-redux';
+import {
+  setLocationQuery,
+  setSelectedLocation,
+} from '../../redux/seedPlantingSlice';
+import {PlaceType} from '../../types/types';
 
 // SearchHistoryItem 타입 정의 (TypeScript 오류 해결)
 interface SearchHistoryItem {
@@ -50,20 +57,51 @@ const PlantSearchScreen = ({
   navigation: any;
   route: any;
 }) => {
-  const [value, onChangeText] = useState('');
+  //const [value, onChangeText] = useState('');
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [selectedItem, setSelectedItem] = useState<SearchHistoryItem | null>(
     null,
   );
+  const dispatch: AppDispatch = useDispatch(); // AppDispatch 타입 명시
 
-  const initialSelectedSeed = route.params?.currentSelectedSeed;
+  // Redux 스토어에서 검색어(locationQuery) 상태를 가져옵니다.
+  const {locationQuery} = useSelector((state: RootState) => state.seedPlanting);
 
+  //const initialSelectedSeed = route.params?.currentSelectedSeed;
+  const handleSearchInputChange = useCallback(
+    (text: string) => {
+      dispatch(setLocationQuery(text)); // Redux 스토어의 locationQuery 업데이트
+    },
+    [dispatch],
+  );
   const handleItemPress = useCallback((item: SearchHistoryItem) => {
     setSelectedItem(item);
     if (bottomSheetRef.current) {
       bottomSheetRef.current.snapToIndex(0); // BottomSheet를 첫 번째 스냅 포인트(25%)로 엽니다.
     }
   }, []);
+
+  const handleSelectPlace = useCallback(() => {
+    if (selectedItem) {
+      // 선택된 장소 정보를 Redux 스토어에 디스패치합니다.
+      // PlaceType에 맞게 객체를 구성하여 전달하는 것이 좋습니다.
+      const placeToSave: PlaceType = {
+        id: String(selectedItem.id), // ID가 숫자일 수 있으므로 string으로 변환
+        name: selectedItem.keyword,
+        address: selectedItem.address,
+        // 필요하다면 다른 속성도 추가
+      };
+      dispatch(setSelectedLocation(placeToSave)); // Redux 액션 디스패치
+      console.log('Redux에 장소 저장:', placeToSave);
+      // BottomSheet 닫기
+      if (bottomSheetRef.current) {
+        bottomSheetRef.current.close();
+      }
+
+      // PlantScreen으로 돌아가기
+      navigation.navigate('PlantHome'); // 'Plant'는 App.tsx에 정의된 PlantScreen의 name
+    }
+  }, [selectedItem, dispatch, navigation]);
 
   const handleCloseBottomSheet = useCallback(() => {
     setSelectedItem(null); // 선택된 항목 상태 초기화
@@ -124,8 +162,8 @@ const PlantSearchScreen = ({
 
           <TextInput
             editable
-            onChangeText={text => onChangeText(text)}
-            value={value}
+            onChangeText={text => handleSearchInputChange(text)}
+            value={locationQuery}
             style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
             placeholder="장소, 음식, 가게 검색"
           />
@@ -179,13 +217,7 @@ const PlantSearchScreen = ({
               </Text>
               <TouchableOpacity
                 style={styles.bottomSheetButton}
-                onPress={() => {
-                  // PlantScreen으로 돌아가면서 선택된 장소 이름을 전달합니다.
-                  navigation.navigate('PlantHome', {
-                    selectedPlace: selectedItem.keyword,
-                    selectedSeed: initialSelectedSeed,
-                  });
-                }}>
+                onPress={handleSelectPlace}>
                 <Text style={styles.bottomSheetButtonText}>이 장소 선택</Text>
               </TouchableOpacity>
             </>

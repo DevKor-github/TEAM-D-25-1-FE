@@ -7,92 +7,48 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
-import {useSelector, useDispatch} from 'react-redux';
-import {
-  setLocationQuery,
-  setSelectedLocation,
-  setSelectedSeed,
-  addPhoto,
-  setReviewText,
-  resetSeedPlanting,
-} from '../../redux/seedPlantingSlice';
-
 import SearchIcon from '../../assets/search.svg';
 import ArrowRightIcon from '../../assets/chevron-right.svg';
 import CameraIcon from '../../assets/camera.svg';
 import {useCallback, useState} from 'react';
 import {useFocusEffect} from '@react-navigation/native';
 import React from 'react';
-
 import BottomNavigationBar from '../../navigations/bottomNavigationBar';
 import {SeedType} from '../../types/types';
 
 import * as ImagePicker from 'react-native-image-picker';
-import {RootState} from '../../types/types';
 
 const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
-  const dispatch = useDispatch();
+  const [reviewText, setReviewText] = useState(''); // 한줄평 텍스트 상태 관리
+  const [selectedPlaceName, setSelectedPlaceName] = useState(null);
 
-  //const [reviewText, setReviewText] = useState(''); // 한줄평 텍스트 상태 관리
-  //const [selectedPlaceName, setSelectedPlaceName] = useState(null);
-
-  //const [selectedSeed, setSelectedSeed] = useState<SeedType | null>(null);
+  const [selectedSeed, setSelectedSeed] = useState<SeedType | null>(null);
   const [addedImages, setAddedImages] = useState<string[]>([]); // 이미지 URI를 저장할 상태
 
-  // Redux 스토어에서 상태 가져오기
-  const {
-    locationQuery,
-    selectedLocation, // 선택된 장소 객체 (name, address 등 포함)
-    selectedSeed, // 선택된 씨앗 객체
-    selectedPhotos, // 추가된 이미지 URI 배열
-    reviewText, // 한줄평 텍스트
-  } = useSelector((state: RootState) => state.seedPlanting);
+  React.useEffect(() => {
+    return () => {
+      console.log('PlantScreen 언마운트됨'); // <-- 이 로그가 뜨는지 확인합니다.
+    };
+  }, []); // 의존성 배열이 비어있으므로 컴포넌트 마운트/언마운트 시에만 실행
 
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     // 화면이 포커스를 잃을 때 (즉, 다른 화면으로 이동할 때) 실행될 클린업 함수
-  //     return () => {
-  //       console.log('PlantScreen: 화면을 떠나며 상태 초기화');
-  //       dispatch(resetSeedPlanting()); // Redux 상태 초기화 액션 디스패치
-  //     };
-  //   }, [route.params?.selectedSeed, dispatch]), // 의존성 배열
-  // );
-
-  // React.useEffect(() => {
-  //   return () => {
-  //     console.log('PlantScreen 언마운트됨'); // <-- 이 로그가 뜨는지 확인합니다.
-  //   };
-  // }, []); // 의존성 배열이 비어있으므로 컴포넌트 마운트/언마운트 시에만 실행
-
-  // useFocusEffect(
-  //   React.useCallback(() => {
-  //     if (route.params?.selectedLocation != undefined) {
-  //       dispatch(route.params.selectedLocation);
-  //       console.log(
-  //         'PlantScreen - 선택된 장소:',
-  //         route.params.selectedLocation,
-  //       );
-  //       // 장소 선택 후에는 params를 클리어하여 다음에 다시 이 화면으로 올 때
-  //       // 이전 장소 정보가 남아있지 않도록 합니다 (필요시).
-  //       // navigation.setParams({selectedPlace: undefined});
-  //     }
-  //     if (route.params?.selectedSeed != undefined) {
-  //       // <-- 여기가 변경된 부분! selectedSeed 객체를 확인
-  //       dispatch(route.params.selectedSeed); // selectedSeed 객체 전체를 저장
-  //       console.log(
-  //         'PlantScreen - 선택된 씨앗:',
-  //         route.params.selectedSeed.name,
-  //       );
-  //       navigation.setParams({selectedPlace: undefined});
-  //     }
-
-  //     return () => {
-  //       //   console.log('PlantScreen: 화면을 떠나며 상태 초기화');
-  //       //   dispatch(resetSeedPlanting()); // Redux 상태 초기화 액션 디스패치
-  //     };
-  //   }, [route.params?.selectedPlace, route.params?.selectedSeed, dispatch]),
-  // );
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.selectedPlace != undefined) {
+        setSelectedPlaceName(route.params.selectedPlace);
+        // 장소 선택 후에는 params를 클리어하여 다음에 다시 이 화면으로 올 때
+        // 이전 장소 정보가 남아있지 않도록 합니다 (필요시).
+        // navigation.setParams({selectedPlace: undefined});
+      }
+      if (route.params?.selectedSeed != undefined) {
+        // <-- 여기가 변경된 부분! selectedSeed 객체를 확인
+        setSelectedSeed(route.params.selectedSeed); // selectedSeed 객체 전체를 저장
+        console.log(
+          'PlantScreen - 선택된 씨앗:',
+          route.params.selectedSeed.name,
+        );
+      }
+    }, [route.params?.selectedPlace, route.params?.selectedSeed, navigation]),
+  );
 
   const handleAddPhoto = useCallback(() => {
     console.log('addphoth');
@@ -119,12 +75,12 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
           .map(asset => asset.uri)
           .filter(uri => uri !== undefined) as string[];
         if (newImageUris.length > 0) {
-          newImageUris.forEach(uri => dispatch(addPhoto(uri)));
+          setAddedImages(prevImages => [...prevImages, ...newImageUris]);
           console.log('선택된 이미지 URI:', newImageUris);
         }
       }
     });
-  }, [dispatch]); // 의
+  }, []); // 의
 
   return (
     <View
@@ -136,18 +92,22 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>장소 검색</Text>
 
-        {selectedLocation ? (
+        {selectedPlaceName ? (
           <TouchableOpacity
             style={styles.selectField}
             onPress={() => navigation.navigate('PlantSearch')}>
-            <Text style={styles.selectFieldText}>{selectedLocation?.name}</Text>
+            <Text style={styles.selectFieldText}>{selectedPlaceName}</Text>
             {/* 오른쪽 화살표 아이콘 */}
             <SearchIcon width={20} height={20} color="#888" />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={styles.selectField}
-            onPress={() => navigation.navigate('PlantSearch')}>
+            onPress={() =>
+              navigation.navigate('PlantSearch', {
+                currentSelectedSeed: selectedSeed,
+              })
+            }>
             <Text style={styles.selectFieldPlaceholder}>
               씨앗을 심을 장소를 검색해보세요.
             </Text>
@@ -194,7 +154,7 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
             <CameraIcon width={40} height={40} color="#B0B0B0" />
             <Text style={styles.addPhotoText}>사진 추가</Text>
           </TouchableOpacity>
-          {selectedPhotos.map((uri, index) => (
+          {addedImages.map((uri, index) => (
             <Image
               key={index.toString()}
               source={{uri}}
@@ -212,7 +172,7 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
           multiline={true} // 여러 줄 입력 가능
           maxLength={80} // 최대 글자 수 제한
           value={reviewText}
-          onChangeText={(text: string) => dispatch(setReviewText(text))}
+          onChangeText={setReviewText}
         />
         <Text style={styles.charCount}>
           {reviewText.length} / {100}

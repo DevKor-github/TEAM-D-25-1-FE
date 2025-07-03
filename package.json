@@ -16,6 +16,7 @@
     "@react-navigation/bottom-tabs": "^7.3.13",
     "@react-navigation/native": "^7.1.9",
     "@react-navigation/stack": "^7.3.1",
+    "@reduxjs/toolkit": "^2.8.2",
     "@types/react-navigation": "^3.0.8",
     "axios": "^1.9.0",
     "react": "19.0.0",
@@ -32,7 +33,9 @@
     "react-native-search-bar-animated": "^1.0.0",
     "react-native-svg": "^15.12.0",
     "react-native-svg-transformer": "^1.5.1",
-    "react-native-vector-icons": "^10.2.0"
+    "react-native-vector-icons": "^10.2.0",
+    "react-redux": "^9.2.0",
+    "redux": "^5.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
