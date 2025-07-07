@@ -24,7 +24,7 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
   /**
    * 이메일 중복 검사 함수
    * 예시로 'eina05@korea.ac.kr'만 중복이라고 가정
-   * 실제 앱에서는 서버 API를 호출해서 확인하세요.
+   * 실제 앱에서는 서버 API를 호출해서 확인
    */
   const isEmailDuplicate = (input: string) => {
     return input.trim().toLowerCase() === 'eina05@korea.ac.kr';
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     color: '#111',
   },
   label: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#111',
     marginLeft: 20,
     marginBottom: 8,
@@ -210,15 +210,15 @@ const styles = StyleSheet.create({
   nextButton: {
     backgroundColor: '#6CDF44',
     borderRadius: 999,
-    height: 48,
-    marginLeft: 20,
-    marginRight: 20,
+    height: 54,
+    marginLeft: 25,
+    marginRight: 25,
     justifyContent: 'center',
     alignItems: 'center',
   },
   nextButtonText: {
     color: '#111',
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '500',
   },
 });

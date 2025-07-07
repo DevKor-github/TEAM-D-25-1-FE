@@ -9,6 +9,8 @@ import BottomNavigationBar from './src/navigations/bottomNavigationBar';
 import DetailScreen from './src/screens/DetailScreen';
 import ProfileEditScreen from './src/screens/ProfileEditScreen';
 import KeywordSelectionScreen from './src/screens/KeywordSelectionScreen';
+import WelcomeScreen from './src/screens/WelcomeScreen';
+
 
 const Stack = createStackNavigator();
 
@@ -17,12 +19,13 @@ const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Nickname"
+        initialRouteName="SignUp"
         screenOptions={{headerShown: false}}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Password" component={PasswordScreen} /> 
         <Stack.Screen name="Nickname" component={NicknameScreen} />
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="ProfileEdit" component={ProfileEditScreen}/>
         <Stack.Screen name="KeywordSelection" component={KeywordSelectionScreen}/>
         <Stack.Screen name="Map" component={BottomNavigationBar} />

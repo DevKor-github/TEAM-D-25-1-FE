@@ -110,13 +110,13 @@ const styles = StyleSheet.create({
   },
   headerButton: { width: 40, alignItems: 'center' },
   headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
-  headerTitle: { fontSize: 20, fontWeight: '600' },
-  headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
+  headerTitle: { fontSize: 23, fontWeight: '600' },
+  headerConfirm: { fontSize: 23, color: '#0DBC65', fontWeight: '600' },
 
   container: { flex: 1, paddingHorizontal: 20 },
 
   card: {
-    backgroundColor: '#F7F7F7',
+    backgroundColor: '#F6F6F8',
     borderRadius: 20,
     paddingVertical: 40,
     paddingHorizontal: 20,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
 
   introWrapper: { width: '100%', position: 'relative' },
   introInput: {
-    backgroundColor: '#EFEFEF',
+    backgroundColor: '#EEEEF0',
     borderRadius: 8,
     padding: 15,
     fontSize: 14,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     margin: 4,
     backgroundColor: '#FFF',
   },
-  chipText: { fontSize: 15, color: '#333' },
+  chipText: { fontSize: 17, color: '#333' },
 
   // MBTI
   chipSelectedMBTI: { backgroundColor: '#6CDF44', borderColor: '#6CDF44' },
