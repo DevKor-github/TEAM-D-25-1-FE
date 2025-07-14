@@ -1,3 +1,24 @@
+// tsconfig.json
 {
-  "extends": "@react-native/typescript-config/tsconfig.json"
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "baseUrl": ".", // 프로젝트의 루트 디렉토리를 기준으로 경로를 해석합니다.
+    "paths": {
+      "@env": ["./.env"] // @env 모듈을 .env 파일로 매핑합니다.
+    },
+    // TypeScript가 컴파일할 때 .ts, .tsx 파일을 포함하도록 명시적으로 설정
+    "include": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "src/**/*.d.ts" // 타입 정의 파일 포함
+    ]
+  },
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    ".vscode"
+  ]
 }

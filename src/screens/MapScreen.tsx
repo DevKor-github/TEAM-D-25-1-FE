@@ -12,7 +12,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import {getRestaruant} from '../apis/api/restaurant';
+import {getTree} from '../apis/api/restaurant';
 import {Restaurant} from '../types/restaruant';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
@@ -30,7 +30,7 @@ const MapScreen = ({navigation}: {navigation: any}) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await getRestaruant();
+      const res = await getTree();
       setRestaurantList(res as Restaurant[]);
     };
     fetchData();

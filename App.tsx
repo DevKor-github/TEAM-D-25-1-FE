@@ -16,31 +16,32 @@ import {Provider} from 'react-redux';
 import {store} from './src/redux/store';
 import ProfileEditScreen from './src/screens/ProfileEditScreen';
 import KeywordSelectionScreen from './src/screens/KeywordSelectionScreen';
+import auth from '@react-native-firebase/auth';
 
 const Stack = createStackNavigator();
 
 const App = () => {
   console.log('📲 App.js loaded!');
   return (
-
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Nickname"
-        screenOptions={{headerShown: false}}>
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="Password" component={PasswordScreen} />
-        <Stack.Screen name="Nickname" component={NicknameScreen} />
-        <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
-        <Stack.Screen
-          name="KeywordSelection"
-          component={KeywordSelectionScreen}
-        />
-        <Stack.Screen name="Map" component={BottomNavigationBar} />
-        <Stack.Screen name="Search" component={SearchScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
-
+    <Provider store={store}>
+      <NavigationContainer>
+        <Stack.Navigator
+          initialRouteName="Login"
+          screenOptions={{headerShown: false}}>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen name="Password" component={PasswordScreen} />
+          <Stack.Screen name="Nickname" component={NicknameScreen} />
+          <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
+          <Stack.Screen
+            name="KeywordSelection"
+            component={KeywordSelectionScreen}
+          />
+          <Stack.Screen name="Map" component={BottomNavigationBar} />
+          <Stack.Screen name="Search" component={SearchScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </Provider>
   );
 };
 

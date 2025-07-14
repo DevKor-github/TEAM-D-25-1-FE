@@ -11,15 +11,23 @@ import {
 import {
   appleAuth,
   AppleButton,
-  AppleAuthRequestScope,
-  AppleAuthRequestOperation,
+  AppleRequestScope,
+  AppleRequestOperation,
 } from '@invertase/react-native-apple-authentication';
+
+import auth from '@react-native-firebase/auth';
 
 const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const onPressLogin = () => {
+  const onPressLogin = async() => {
+    try {
+      await auth().signInWithEmailAndPassword(email, password);
+      Alert.alert('로그인 성공');
+    } catch (error: any) {
+      Alert.alert('로그인 실패', error.message);
+    }
     navigation.navigate('Map');
   };
 
@@ -35,8 +43,8 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
 
       // 실제 Apple 로그인 요청
       const response = await appleAuth.performRequest({
-        requestedOperation: AppleAuthRequestOperation.LOGIN,
-        requestedScopes: [AppleAuthRequestScope.EMAIL, AppleAuthRequestScope.FULL_NAME],
+        requestedOperation: AppleRequestOperation.LOGIN,
+        requestedScopes: [AppleRequestScope.EMAIL, AppleRequestScope.FULL_NAME],
       });
 
       if (response.identityToken) {

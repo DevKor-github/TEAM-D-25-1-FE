@@ -1,5 +1,5 @@
-export const getRestaurantList = (
-  rawRestaurant: {
+export const getTreeList = (
+  rawTree: {
     id: number;
     placeId: string;
     name: string;
@@ -9,7 +9,7 @@ export const getRestaurantList = (
     createdAt: string;
   }[],
 ) => {
-  return rawRestaurant.map(
+  return rawTree.map(
     ({id, placeId, name, address, latitude, longitude, createdAt}) => {
       return {
         id: id,
