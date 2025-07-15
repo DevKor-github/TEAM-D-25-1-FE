@@ -30,8 +30,20 @@ const MapScreen = ({navigation}: {navigation: any}) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await getTree();
-      setRestaurantList(res as Restaurant[]);
+      try {
+        const user = auth().currentUser;
+        const idToken = await user?.getIdToken();
+
+        if (!idToken) {
+          console.warn('로그인된 사용자가 없습니다.');
+          return;
+        }
+
+        const res = await getTree(lon, lat, idToken); // 내부에서 토큰 포함된 요청으로 호출
+        setRestaurantList(res as Restaurant[]);
+      } catch (error) {
+        console.error('식당 목록을 불러오지 못했습니다:', error);
+      }
     };
     fetchData();
   }, []);
@@ -204,3 +216,7 @@ const MapScreen = ({navigation}: {navigation: any}) => {
 };
 
 export default MapScreen;
+function auth() {
+  throw new Error('Function not implemented.');
+}
+

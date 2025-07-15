@@ -23,12 +23,13 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
 
   const onPressLogin = async() => {
     try {
-      await auth().signInWithEmailAndPassword(email, password);
-      Alert.alert('로그인 성공');
+      const result = await auth().signInWithEmailAndPassword(email, password);
+      console.log(result);
+      navigation.navigate('Map');
     } catch (error: any) {
       Alert.alert('로그인 실패', error.message);
     }
-    navigation.navigate('Map');
+    
   };
 
   const handleAppleSignIn = async () => {
