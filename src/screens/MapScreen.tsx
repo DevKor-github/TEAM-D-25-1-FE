@@ -11,11 +11,13 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Alert,
 } from 'react-native';
 import {getTree} from '../apis/api/restaurant';
 import {Restaurant} from '../types/restaruant';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 const MapScreen = ({navigation}: {navigation: any}) => {
   // 식당 목록 불럭오기
@@ -28,25 +30,35 @@ const MapScreen = ({navigation}: {navigation: any}) => {
   // 모달 상태 저장장
   const [modalVisible, setModalVisible] = useState(false);
 
+  const [lon, setLon] = useState(127.03184890085161); // Initial longitude
+  const [lat, setLat] = useState(37.58653559343726); // Initial latitude
+const [zoom, setZoom] = useState(15);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const user = auth().currentUser;
-        const idToken = await user?.getIdToken();
+    const auth = getAuth(); // Get the auth instance once
 
-        if (!idToken) {
-          console.warn('로그인된 사용자가 없습니다.');
-          return;
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      // This callback runs whenever the auth state changes
+      if (user) {
+        // User is signed in
+        try {
+        
+          const res = await getTree(lon.toString(), lat.toString()); // Your function call
+          setRestaurantList(res as Restaurant[]);
+          console.log(restaurantList);
+        } catch (error) {
+          console.error('식당 목록을 불러오지 못했습니다:', error);
         }
-
-        const res = await getTree(lon, lat, idToken); // 내부에서 토큰 포함된 요청으로 호출
-        setRestaurantList(res as Restaurant[]);
-      } catch (error) {
-        console.error('식당 목록을 불러오지 못했습니다:', error);
+      } else {
+        // No user is signed in
+        console.warn('로그인된 사용자가 없습니다.');
+        // You might want to navigate to a login screen or show a message here
       }
-    };
-    fetchData();
-  }, []);
+    });
+
+    // Clean up the listener when the component unmounts
+    return () => unsubscribe();
+  }, [lon, lat]);
 
   const handleSearchClick = () => {
     navigation.navigate('Search');
@@ -55,6 +67,26 @@ const MapScreen = ({navigation}: {navigation: any}) => {
   const handleCloseCustomModal = () => {
     setModalVisible(false);
     setSelectedRestaurant(null);
+  };
+
+  const onCameraChange = (e: any) => {
+    setLat(e.latitude);
+    setLon(e.longitude);
+    setZoom(e.zoom);
+  };
+
+  const handleHamburgerPress = () => {
+    Alert.alert(
+      '메뉴', // Title of the alert
+      '햄버거 메뉴가 클릭되었습니다!', // Message of the alert
+      [
+        {
+          text: '확인', // Text for the button
+          onPress: () => console.log('확인 버튼 클릭'), // Optional callback when '확인' is pressed
+        },
+      ],
+      { cancelable: true } // Allows dismissing the alert by tapping outside
+    );
   };
 
   return (
@@ -81,7 +113,7 @@ const MapScreen = ({navigation}: {navigation: any}) => {
           justifyContent: 'space-between',
         }}>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity onPress={() => console.log('메뉴 클릭')}>
+          <TouchableOpacity onPress={handleHamburgerPress}>
             <View
               style={{
                 marginLeft: 10,
@@ -107,27 +139,30 @@ const MapScreen = ({navigation}: {navigation: any}) => {
       <NaverMapView
         style={{flex: 1}}
         initialCamera={{
-          latitude: 37.58653559343726,
-          longitude: 127.03184890085161,
-          zoom: 15,
+          latitude: lat,
+          longitude: lon,
+          zoom: zoom,
         }}
         isShowScaleBar={false}
-        isShowLocationButton={false}>
-        {restaurantList.map(restaurant => (
-          <NaverMapMarkerOverlay
-            key={restaurant.id}
-            latitude={restaurant.latitude}
-            longitude={restaurant.longitude}
-            anchor={{x: 0.5, y: 1}}
-            width={34}
-            height={54}
-            image={require('../assets/tree_example.png')}
-            onTap={() => {
-              setSelectedRestaurant(restaurant);
-              setModalVisible(true);
-            }}
-          />
-        ))}
+        isShowLocationButton={false}
+        onCameraIdle={onCameraChange}>
+        {restaurantList &&
+          Array.isArray(restaurantList) &&
+          restaurantList.map(restaurant => (
+            <NaverMapMarkerOverlay
+              key={restaurant.id}
+              latitude={restaurant.latitude}
+              longitude={restaurant.longitude}
+              anchor={{x: 0.5, y: 1}}
+              width={34}
+              height={54}
+              image={require('../assets/tree_example.png')}
+              onTap={() => {
+                setSelectedRestaurant(restaurant);
+                setModalVisible(true);
+              }}
+            />
+          ))}
       </NaverMapView>
       {
         selectedRestaurant && modalVisible && (

@@ -3,7 +3,7 @@ import { defaultInstance } from '../utils/axios';
 
 
 
-export const getTree = async (lon: string, lat: string, idToken: string) => {
+export const getTree = async (lon: string, lat: string) => {
   try {
     
     const {data} = await defaultInstance.get('/tree', {
@@ -11,12 +11,13 @@ export const getTree = async (lon: string, lat: string, idToken: string) => {
         lon: lon,
         lat: lat,
       },
-      headers: {
-        Authorization: `Bearer ${idToken}`, // ✅ 여기 추가
-      },
     });
+    console.log("트리 가져오기");
+    console.log(data.items);
+    
     return getTreeList(data.items);
   } catch (error) {
+    console.log(error);
     return error;
   }
 };

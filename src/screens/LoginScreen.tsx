@@ -16,6 +16,7 @@ import {
 } from '@invertase/react-native-apple-authentication';
 
 import auth from '@react-native-firebase/auth';
+import { exchangeFirebaseTokenWithBackend } from '../apis/api/login';
 
 const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [email, setEmail] = useState('');
@@ -23,8 +24,27 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
 
   const onPressLogin = async() => {
     try {
-      const result = await auth().signInWithEmailAndPassword(email, password);
-      console.log(result);
+      const userCredential = await auth().signInWithEmailAndPassword(
+        email,
+        password,
+      );
+      const user = userCredential.user;
+      if (!user) {
+        throw new Error('Firebase user not found after login.');
+      }
+
+      const firebaseIdToken = await user.getIdToken();
+      console.log('Firebase ID Token:', firebaseIdToken);
+
+      // 3. Exchange the Firebase ID Token with your backend
+      const customApplicationToken = await exchangeFirebaseTokenWithBackend(
+        firebaseIdToken,
+      );
+
+      console.log(
+        '로그인 성공! 커스텀 애플리케이션 토큰:',
+        customApplicationToken,
+      );
       navigation.navigate('Map');
     } catch (error: any) {
       Alert.alert('로그인 실패', error.message);
