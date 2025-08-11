@@ -8,8 +8,9 @@ import PlantSelectionScreen from '../screens/Planting/PlantSelectionScreen';
 import {TouchableOpacity, Text, StyleSheet} from 'react-native';
 import {AppDispatch, PlantingStackParamList, SeedType} from '../types/types';
 import seedData from '../data/seedData';
-import {useDispatch} from 'react-redux';
+import {Provider, useDispatch} from 'react-redux';
 import {resetSeedPlanting} from '../redux/seedPlantingSlice';
+import {store} from '../redux/store';
 const PlantStack = createStackNavigator<PlantingStackParamList>();
 
 const PlantingNavigator = () => {
@@ -55,14 +56,16 @@ const PlantingNavigator = () => {
         component={PlantScreen}
         options={({navigation}) => ({
           title: '씨앗 심기',
-          // headerRight: () => (
-          //   <TouchableOpacity
-          //     onPress={() => {
-          //       console.log('확인 버튼 눌림 (Direct Tab Screen Header)');
-          //     }}>
-          //     <Text style={{paddingRight: 20}}>확인</Text>
-          //   </TouchableOpacity>
-          // ),
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={() => {
+                // 필드 입력 조건 걸기
+                navigation.goBack();
+                console.log('확인 버튼 눌림 (Direct Tab Screen Header)');
+              }}>
+              <Text style={{paddingRight: 20}}>확인</Text>
+            </TouchableOpacity>
+          ),
           // headerStyle: {
           //   backgroundColor: '#fff',
           //   elevation: 0,

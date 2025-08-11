@@ -1,6 +1,6 @@
-// src/components/FooterNavigation.tsx
+// src/navigations/signupNavigation.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Platform } from 'react-native';
 
 type Props = {
   onBack: () => void;
@@ -13,13 +13,16 @@ type Props = {
 export default function SignupNavigation({
   onBack,
   onNext,
-  backLabel = '← 이전으로',
+  backLabel = '이전',
   nextLabel = '다음',
   disabledNext = false,
 }: Props) {
   return (
     <SafeAreaView style={styles.footer}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={onBack}
+      >
         <Text style={styles.backButtonText}>{backLabel}</Text>
       </TouchableOpacity>
 
@@ -36,35 +39,52 @@ export default function SignupNavigation({
 
 const styles = StyleSheet.create({
   footer: {
-    flexDirection: 'column',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingBottom: 34,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingTop: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'space-between',
   },
   backButton: {
-    marginBottom: 16,
-  },
-  backButtonText: {
-    fontSize: 18,
-    color: '#999',
-    fontWeight: 500,
-    marginLeft: 25,
-  },
-  nextButton: {
-    backgroundColor: '#6CDF44',
-    borderRadius: 999,
-    height: 54,
+    // flex: 1 제거
+    width: 100,             
+    height: 48,
+    borderRadius: 24,       
+    backgroundColor: '#F6F6F8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 25,
-    marginRight: 25,
-    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F6F6F8',
+    marginRight: 8,
+    marginLeft: 20,
+    marginBottom: 25,
+  },
+  backButtonText: {
+    color: '#111',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  nextButton: {
+    flex: 1,                 //이전버튼을 고정너비설정 후 나머지..일케함
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#6CDF44',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 2,
+    marginRight:20,
   },
   nextButtonDisabled: {
     backgroundColor: '#C1F8AE',
   },
   nextButtonText: {
     color: '#111',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
 });

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "674290009241",
+    "project_id": "devkor-groo-space",
+    "storage_bucket": "devkor-groo-space.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:674290009241:android:be56ec175f9b07952aa408",
+        "android_client_info": {
+          "package_name": "com.groo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCU776h4qKlAHvfyX13CQxTOrOlC9TdONY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -9,33 +9,15 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TopBar from '../components/TopBar';
 import PrimaryButton from '../components/PrimaryButton';
 
 const { width, height } = Dimensions.get('window');
 const CARD_MARGIN = 16;
 const HERO_HEIGHT = 360;
-const TREE_WIDTH = 300;
-const TREE_HEIGHT = 320;
-const BUTTON_HEIGHT = 48;      // PrimaryButton 기본 높이
-const BUTTON_GAP = 10;         // 버튼과 화면 하단 사이 여유
-
-// ▼ 네가 맞춰둔 파넬 위치/크기를 그대로 상수화 (가독성용)
-const PANEL_W = 120;
-const PANEL_H = 110;
-const PANEL_BOTTOM = 60;   // bottom: 60
-const PANEL_SHIFT_X = 110; // marginLeft: 110
 
 export default function CafeDetailScreen() {
   const [bookmarked, setBookmarked] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  // 시트를 화면 끝까지 보이게 하기 위한 동적 패딩/높이
-  const sheetDynamicStyle = {
-    minHeight: height - HERO_HEIGHT + 24, // 히어로 아래부터 화면 끝까지
-    paddingBottom: insets.bottom + BUTTON_HEIGHT + BUTTON_GAP + 16, // 버튼 영역까지 포함
-  };
 
   return (
     <SafeAreaView style={styles.root}>
@@ -60,40 +42,38 @@ export default function CafeDetailScreen() {
             resizeMode="cover"
           />
 
-          {/* 트리 + 우드 패널(표지판) : 항상 시트 위 레이어 */}
+          {/* 트리 + 우드 패널(표지판) */}
           <View style={styles.treeWrapper}>
+            {/* 트리 */}
             <Image
               source={require('../assets/extree.png')}
               style={styles.treeImg}
               resizeMode="contain"
             />
-
-            {/* ▼ 파넬 그룹: 우드판넬 + 텍스트를 한 덩어리로 묶어서, 텍스트를 '파넬 내부 좌표'로 딱 고정 */}
-            <View style={styles.panelGroup}>
-              <Image
-                source={require('../assets/wood_panel.png')}
-                style={styles.woodPanelImg}
-                resizeMode="contain"
-              />
-              <View style={styles.signTextBox}>
-                <Text style={styles.signLine1}>나무 3단계</Text>
-                <Text style={styles.signLine2}>참나무·13m</Text>
-              </View>
+            {/* 우드 패널 이미지 */}
+            <Image
+              source={require('../assets/wood_panel.png')}
+              style={styles.woodPanelImg}
+              resizeMode="contain"
+            />
+            {/* 표지판 텍스트 */}
+            <View style={styles.signTextBox}>
+              <Text style={styles.signLine1}>나무 3단계</Text>
+              <Text style={styles.signLine2}>참나무 · 13m</Text>
             </View>
           </View>
-        </View>
 
-        {/* 하얀 시트(도트/콘텐츠 포함, 화면 끝까지 확장) */}
-        <View style={[styles.sheet, sheetDynamicStyle]}>
-          {/* 도트 */}
-          <View style={styles.pagerOnCard}>
+          {/* 페이지 도트 */}
+          <View style={styles.pager}>
             <View style={[styles.dot, styles.activeDot]} />
             <View style={styles.dot} />
             <View style={styles.dot} />
             <View style={styles.dot} />
           </View>
+        </View>
 
-          {/* 텍스트 */}
+        {/* 하얀 시트: 화면 아래까지 꽉 차게 */}
+        <View style={styles.sheet}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>카페 브레숑</Text>
             <Text style={styles.subTag}>카페</Text>
@@ -125,19 +105,19 @@ export default function CafeDetailScreen() {
               </View>
             </View>
           </View>
+
+          {/* 시트 내부 여백 (하단 버튼과 겹치지 않게) */}
+          <View style={{ height: 80 }} />
         </View>
       </ScrollView>
 
-      {/* 화면 하단 고정 버튼(시트 위에 시각적으로 포함됨) */}
-      <View
-        style={[
-          styles.actionWrapper,
-          { bottom: insets.bottom + BUTTON_GAP },
-        ]}
-      >
+      {/*  PrimaryButton 사용 - 물주기*/}
+      <View style={styles.actionWrapper}>
         <PrimaryButton
           label="물주기"
-          onPress={() => {}}
+          onPress={() => {
+            // 물주기 로직
+          }}
         />
       </View>
     </SafeAreaView>
@@ -150,92 +130,64 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   scrollContent: {
-    paddingBottom: 0, // 시트가 자체 paddingBottom으로 버튼 공간 확보
+    paddingBottom: 150, // 하단 버튼 여유
   },
-
-  /* 히어로 */
   hero: {
     height: HERO_HEIGHT,
     justifyContent: 'flex-end',
-    overflow: 'visible',
   },
   heroBackground: {
     ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
-    opacity: 0.28,
+    opacity: 0.80,
   },
 
-  /** 트리 & 표지판 — 항상 시트 위로 보이게 zIndex 높임 */
+  /** 트리 & 표지판 */
   treeWrapper: {
     position: 'absolute',
     top: 96,
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 10,
   },
   treeImg: {
-    width: TREE_WIDTH,
-    height: TREE_HEIGHT,
-  },
-
-  panelGroup: {
-    position: 'absolute',
-    width: PANEL_W,
-    height: PANEL_H,
-    bottom: PANEL_BOTTOM,     // 60
-    marginLeft: PANEL_SHIFT_X, // 110
-    zIndex: 11,
+    width: 200,
+    height: 200,
+    marginBottom: 8,
   },
   woodPanelImg: {
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    right: width * 0.2, // 기기 폭 기준으로 살짝 오른쪽에
+    bottom: -156,
   },
-
-  /** ▼ 사인 텍스트 박스: 파넬 내부 좌표로 미세조정 가능 */
   signTextBox: {
     position: 'absolute',
-    // 아래 값들만 조금씩 ±1~3px 조절하면 원하는 자리로 딱 고정됨
-    top: Math.round(PANEL_H * 1),   // 예: 패널 높이의 40% 지점
-    left: Math.round(PANEL_W * 1),  // 예: 패널 너비의 20% 지점
-    width: Math.round(PANEL_W * 1),
+    right: width * 0.285,
+    bottom: 8,
+    width: 76,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  /** ▼ 커스텀 폰트 적용: pannel.ttf의 실제 PostScript 이름으로 교체 필요할 수 있음... -> 다운만 해뒀음*/
   signLine1: {
     fontSize: 12,
-    fontWeight: '400',
+    fontWeight: '600',
     color: '#4a3a24',
-    fontFamily: 'pannel', 
   },
   signLine2: {
     fontSize: 11,
     color: '#4a3a24',
     marginTop: 2,
-    fontFamily: 'pannel', // ← 적용 안 되면 실제 폰트 이름으로 바꿔줘
   },
 
-  /* 시트(카드) */
-  sheet: {
-    marginHorizontal: CARD_MARGIN,
-    marginTop: -24, // 히어로와 겹치도록
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    backgroundColor: '#fff',
-    padding: 16,
-    elevation: 5,
-    zIndex: 1, // 트리보다 아래
-  },
-
-  /* 도트 */
-  pagerOnCard: {
+  /** 도트 */
+  pager: {
+    position: 'absolute',
+    bottom: 10,
     alignSelf: 'center',
     flexDirection: 'row',
-    marginTop: 25,
-    marginBottom: 10,
   },
   dot: {
     width: 6,
@@ -248,25 +200,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#3C3C3C',
   },
 
-  /* 텍스트 */
+  /** 하얀 시트(카드 역할) */
+  sheet: {
+    marginTop: -34, // 히어로와 겹치게
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#fff',
+    padding: 16,
+    // 화면 아래까지 꽉 차도록 최소 높이 보장
+    minHeight: height - HERO_HEIGHT + 34,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   title: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '800',
   },
   subTag: {
-    fontSize: 14,
+    fontSize: 13,
     marginLeft: 6,
-    color: '#767676',
+    color: '#7A7A7A',
     fontWeight: '600',
   },
   address: {
-    fontSize: 14,
-    color: '#767676',
-    fontWeight: '400',
+    fontSize: 13,
+    color: '#8B8B8B',
     marginTop: 6,
   },
 
@@ -276,19 +236,19 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   largeImage: {
-    width: (width - CARD_MARGIN * 2) * 0.58,
-    height: 200,
-    borderRadius: 4,
+    width: (width - CARD_MARGIN * 2) * 0.62,
+    height: 118,
+    borderRadius: 10,
   },
   rightColumn: {
     flex: 1,
-    marginLeft: 1,
+    marginLeft: 8,
     justifyContent: 'space-between',
   },
   smallImage: {
     width: '100%',
-    height: 100,
-    borderRadius: 4,
+    height: 56,
+    borderRadius: 10,
   },
   overlayContainer: {
     position: 'relative',
@@ -305,13 +265,14 @@ const styles = StyleSheet.create({
   plusText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '400',
+    fontWeight: '700',
   },
 
-  /* 물주기 */
+  /** 하단 버튼 */
   actionWrapper: {
     position: 'absolute',
     left: CARD_MARGIN,
     right: CARD_MARGIN,
+    bottom: 26,
   },
 });

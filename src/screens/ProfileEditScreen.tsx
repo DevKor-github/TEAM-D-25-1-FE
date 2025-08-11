@@ -1,45 +1,49 @@
-// 파일 경로: src/screens/ProfileEditScreen.tsx
-import React, { useState, useEffect } from 'react';
+// src/screens/ProfileEditScreen.tsx
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  SafeAreaView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
+  SafeAreaView, View, Text, TextInput, TouchableOpacity, Image,
+  StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import CameraIcon from '../assets/camera.svg';
+import Chip from '../components/Chip';
 
-export default function ProfileEditScreen({ navigation, route }: { navigation: any; route: any }) {
-  const [intro, setIntro] = useState('');
-  const [mbti, setMbti] = useState<string | null>(null);
-  const [stylesArr, setStylesArr] = useState<string[]>([]);
-  const [foodsArr, setFoodsArr] = useState<string[]>([]);
+export default function ProfileEditScreen({ navigation, route }: any) {
+  // ✅ MyPage에서 전달한 초기값
+  const [intro, setIntro] = useState<string>(route.params?.intro ?? '');
+  const [mbti, setMbti] = useState<string | null>(route.params?.mbti ?? null);
+  const [stylesArr, setStylesArr] = useState<string[]>(route.params?.styles ?? []);
+  const [foodsArr, setFoodsArr] = useState<string[]>(route.params?.foods ?? []);
 
-  // route.params가 바뀔 때마다 선택값 state에 반영
+  // ✅ onSave 콜백을 ref에 보관 (KeywordSelection 왕복 후에도 유실 방지)
+  const onSaveRef = useRef(route.params?.onSave);
+  useEffect(() => {
+    if (route.params?.onSave) onSaveRef.current = route.params.onSave;
+  }, [route.params?.onSave]);
+
+  // ✅ KeywordSelection에서 돌아왔을 때 표시용 동기화(보조용)
   useEffect(() => {
     if (route.params?.mbti !== undefined) setMbti(route.params.mbti);
     if (route.params?.styles) setStylesArr(route.params.styles);
     if (route.params?.foods) setFoodsArr(route.params.foods);
-  }, [route.params]);
+  }, [route.params?.mbti, route.params?.styles, route.params?.foods]);
 
-  const renderChip = (label: string, chipStyle: any, textStyle: any) => (
-    <View key={label} style={[styles.chip, chipStyle]}>
-      <Text style={[styles.chipText, textStyle]}>{label}</Text>
-    </View>
-  );
+  // ✅ 확인: 저장 콜백 호출 후, 기존 MyPage로 '뒤로가기'
+  const onConfirm = () => {
+    const payload = { intro, mbti, styles: stylesArr, foods: foodsArr };
+    try { onSaveRef.current?.(payload); } catch {}
+    navigation.goBack(); // ✨ navigate('MyPage') 쓰지 말고 goBack!
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
+        {/* '이전'도 무조건 MyPage로 돌아가게: goBack이면 바로 기존 MyPage로 */}
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Image source={require('../assets/arrow.png')} style={styles.headerIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>프로필 수정</Text>
-        <TouchableOpacity onPress={() => {/* 확인 로직 */}} style={styles.headerButton}>
+        <TouchableOpacity onPress={onConfirm} style={styles.headerButton}>
           <Text style={styles.headerConfirm}>확인</Text>
         </TouchableOpacity>
       </View>
@@ -47,14 +51,13 @@ export default function ProfileEditScreen({ navigation, route }: { navigation: a
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
       >
         {/* Profile Card */}
         <View style={styles.card}>
           <View style={styles.avatarWrapper}>
             <View style={styles.avatarBackground} />
             <TouchableOpacity style={styles.cameraButton}>
-              <Image source={require('../assets/camera.png')} style={styles.cameraIcon} />
+              <CameraIcon width={40} height={40} />
             </TouchableOpacity>
           </View>
           <Text style={styles.nickname}>이지윤</Text>
@@ -79,16 +82,30 @@ export default function ProfileEditScreen({ navigation, route }: { navigation: a
           <Text style={styles.sectionTitle}>내 키워드</Text>
           <Text style={styles.sectionSubtitle}>키워드를 등록해서 취향을 알려주세요!</Text>
         </View>
-        <View style={styles.chipsWrapper}>
-          {mbti && renderChip(mbti, styles.chipSelectedMBTI, styles.chipTextSelectedMBTI)}
-          {stylesArr.map(label => renderChip(label, styles.chipSelectedStyle, styles.chipTextSelectedStyle))}
-          {foodsArr.map(label => renderChip(label, styles.chipSelectedFood, styles.chipTextSelectedFood))}
 
-          {/* 플러스 아이콘: 칩 뒤에, 칩 스타일 없이 */}
+        <View style={styles.chipsWrapper}>
+          {mbti && <Chip label={mbti} variant="mbti" selected />}
+
+          {stylesArr.map((label: string) => (
+            <Chip key={`style-${label}`} label={label} variant="style" selected />
+          ))}
+
+          {foodsArr.map((label: string) => (
+            <Chip key={`food-${label}`} label={label} variant="food" selected />
+          ))}
+
+          {/* ➕ 키워드 선택으로 이동 — onApply 콜백으로 자기 상태 갱신 */}
           <TouchableOpacity
             style={styles.plusIconWrapper}
             onPress={() =>
-              navigation.navigate('KeywordSelection', { mbti, styles: stylesArr, foods: foodsArr })
+              navigation.navigate('KeywordSelection', {
+                mbti, styles: stylesArr, foods: foodsArr,
+                onApply: (next: { mbti: string | null; styles: string[]; foods: string[] }) => {
+                  setMbti(next.mbti);
+                  setStylesArr(next.styles);
+                  setFoodsArr(next.foods);
+                },
+              })
             }
           >
             <Image source={require('../assets/plus_icon.png')} style={styles.plusIconSmall} />
@@ -101,13 +118,7 @@ export default function ProfileEditScreen({ navigation, route }: { navigation: a
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
   headerButton: { width: 40, alignItems: 'center' },
   headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
   headerTitle: { fontSize: 23, fontWeight: '600' },
@@ -115,113 +126,23 @@ const styles = StyleSheet.create({
 
   container: { flex: 1, paddingHorizontal: 20 },
 
-  card: {
-    backgroundColor: '#F6F6F8',
-    borderRadius: 20,
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  avatarWrapper: {
-    width: 150,
-    height: 150,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    position: 'relative',
-  },
-  avatarBackground: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#DDD',
-  },
-  avatarImage: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-  },
-  cameraButton: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cameraIcon: { width: 50, height: 50, resizeMode: 'contain' },
+  card: { backgroundColor: '#F7F7F7', borderRadius: 20, paddingVertical: 40, paddingHorizontal: 20, alignItems: 'center', marginTop: 16 },
+  avatarWrapper: { width: 150, height: 150, justifyContent: 'center', alignItems: 'center', marginBottom: 16, position: 'relative' },
+  avatarBackground: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: '#DDD' },
+  cameraButton: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
 
   nickname: { fontSize: 21, fontWeight: '600', color: '#111', marginTop: 8 },
   handle: { fontSize: 18, color: '#777', marginBottom: 16, marginTop: 5 },
 
   introWrapper: { width: '100%', position: 'relative' },
-  introInput: {
-    backgroundColor: '#EEEEF0',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 14,
-    color: '#333',
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    position: 'absolute',
-    right: 16,
-    bottom: 12,
-    fontSize: 12,
-    color: '#999',
-  },
+  introInput: { backgroundColor: '#EFEFEF', borderRadius: 8, padding: 15, fontSize: 14, color: '#333', height: 80, textAlignVertical: 'top' },
+  charCount: { position: 'absolute', right: 16, bottom: 12, fontSize: 12, color: '#999' },
 
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 24,
-    marginHorizontal: 20,
-  },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginHorizontal: 20 },
   sectionTitle: { fontSize: 20, fontWeight: '600' },
   sectionSubtitle: { fontSize: 13, color: '#999' },
 
-  chipsWrapper: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    marginVertical: 15,
-    marginHorizontal: 15,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#B9B9B9',
-    margin: 4,
-    backgroundColor: '#FFF',
-  },
-  chipText: { fontSize: 17, color: '#333' },
-
-  // MBTI
-  chipSelectedMBTI: { backgroundColor: '#6CDF44', borderColor: '#6CDF44' },
-  chipTextSelectedMBTI: { color: '#111' },
-
-  // Styles
-  chipSelectedStyle: { backgroundColor: '#474747', borderColor: '#474747' },
-  chipTextSelectedStyle: { color: '#FFF' },
-
-  // Foods
-  chipSelectedFood: { backgroundColor: '#FFF', borderColor: '#000', borderWidth: 2 },
-  chipTextSelectedFood: { color: '#000' },
-
-  // 플러스 아이콘(wrapper + size)
-  plusIconWrapper: {
-    margin: 4,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  plusIconSmall: {
-    width: 35,
-    height: 35,
-    resizeMode: 'contain',
-  },
+  chipsWrapper: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginVertical: 15, marginHorizontal: 15 },
+  plusIconWrapper: { margin: 4, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  plusIconSmall: { width: 35, height: 35, resizeMode: 'contain' },
 });

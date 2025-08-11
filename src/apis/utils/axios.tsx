@@ -2,8 +2,15 @@ import axios, {AxiosRequestConfig} from 'axios';
 
 const BASE_URL = 'https://api.groo.space';
 
-const axiosApi = (url: any, options: AxiosRequestConfig = {}) => {
-  const instance = axios.create({baseURL: url, ...options});
+const axiosApi = (url: any, options: AxiosRequestConfig = {}, token?: string) => {
+  const instance = axios.create({
+    baseURL: url,
+    headers: {
+      ...(options.headers || {}),
+      ...(token && {Authorization: `Bearer ${token}`}),
+    },
+    ...options,
+  });
   return instance;
 };
 

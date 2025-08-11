@@ -12,7 +12,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
-import {getRestaruant} from '../apis/api/restaurant';
+import {getTree} from '../apis/api/restaurant';
 import {Restaurant} from '../types/restaruant';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
@@ -30,8 +30,20 @@ const MapScreen = ({navigation}: {navigation: any}) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const res = await getRestaruant();
-      setRestaurantList(res as Restaurant[]);
+      try {
+        const user = auth().currentUser;
+        const idToken = await user?.getIdToken();
+
+        if (!idToken) {
+          console.warn('로그인된 사용자가 없습니다.');
+          return;
+        }
+
+        const res = await getTree(lon, lat, idToken); // 내부에서 토큰 포함된 요청으로 호출
+        setRestaurantList(res as Restaurant[]);
+      } catch (error) {
+        console.error('식당 목록을 불러오지 못했습니다:', error);
+      }
     };
     fetchData();
   }, []);
@@ -204,3 +216,7 @@ const MapScreen = ({navigation}: {navigation: any}) => {
 };
 
 export default MapScreen;
+function auth() {
+  throw new Error('Function not implemented.');
+}
+
