@@ -6,11 +6,12 @@ import PlantScreen from '../screens/Planting/PlantScreen';
 import PlantSearchScreen from '../screens/Planting/PlantSearchScreen';
 import PlantSelectionScreen from '../screens/Planting/PlantSelectionScreen';
 import {TouchableOpacity, Text, StyleSheet} from 'react-native';
-import {AppDispatch, PlantingStackParamList, SeedType} from '../types/types';
+import {AppDispatch, PlantingStackParamList, SavedSeedType} from '../types/types';
 import seedData from '../data/seedData';
 import {Provider, useDispatch} from 'react-redux';
 import {resetSeedPlanting} from '../redux/seedPlantingSlice';
 import {store} from '../redux/store';
+import TagSelectionScreen from '../screens/Planting/TagSelectionScreen';
 const PlantStack = createStackNavigator<PlantingStackParamList>();
 
 const PlantingNavigator = () => {
@@ -66,15 +67,6 @@ const PlantingNavigator = () => {
               <Text style={{paddingRight: 20}}>확인</Text>
             </TouchableOpacity>
           ),
-          // headerStyle: {
-          //   backgroundColor: '#fff',
-          //   elevation: 0,
-          //   shadowOpacity: 0,
-          //   borderBottomWidth: StyleSheet.hairlineWidth,
-          //   borderBottomColor: '#eee',
-          //   padding: 20,
-          // },
-          // headerTitleAlign: 'center',
         })}
       />
       <PlantStack.Screen
@@ -87,6 +79,13 @@ const PlantingNavigator = () => {
         component={PlantSelectionScreen}
         options={{
           title: '씨앗 고르기',
+        }}
+      />
+      <PlantStack.Screen
+        name="TagSelection"
+        component={TagSelectionScreen}
+        options={{
+          title: '태그 고르기',
         }}
       />
     </PlantStack.Navigator>

@@ -13,11 +13,12 @@ import {
   View,
   Alert,
 } from 'react-native';
-import {getTree} from '../apis/api/restaurant';
+import {getTree} from '../apis/api/tree';
 import {Restaurant} from '../types/restaruant';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { typography }  from '../styles/typography'
 
 const MapScreen = ({navigation}: {navigation: any}) => {
   // 식당 목록 불럭오기
@@ -26,6 +27,8 @@ const MapScreen = ({navigation}: {navigation: any}) => {
   // 선택한 식당 상태 저장
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<Restaurant | null>(null);
+  const [isNotificationVisible, setNotificationVisible] = useState(false);
+
 
   // 모달 상태 저장장
   const [modalVisible, setModalVisible] = useState(false);
@@ -76,6 +79,7 @@ const [zoom, setZoom] = useState(15);
   };
 
   const handleHamburgerPress = () => {
+    setNotificationVisible(true);
     Alert.alert(
       '메뉴', // Title of the alert
       '햄버거 메뉴가 클릭되었습니다!', // Message of the alert
@@ -87,6 +91,9 @@ const [zoom, setZoom] = useState(15);
       ],
       { cancelable: true } // Allows dismissing the alert by tapping outside
     );
+  };
+  const handleCloseNotification = () => {
+    setNotificationVisible(false);
   };
 
   return (
@@ -127,6 +134,7 @@ const [zoom, setZoom] = useState(15);
             <TextInput
               style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
               placeholder="장소, 음식, 가게 검색"
+              placeholderTextColor={typography.Inputbox_Placeholder_Big.color}
               editable={false}
               pointerEvents="none"
             />
@@ -246,6 +254,26 @@ const [zoom, setZoom] = useState(15);
         //   </Modal>,
         // )
       }
+      <Modal
+        visible={isNotificationVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCloseNotification}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={handleCloseNotification}>
+          <View style={styles.notificationContainer}>
+            <Text style={styles.title}>새 알림</Text>
+            {/* 여기서 이미지처럼 알림 리스트를 넣으면 됩니다 */}
+            <Text>
+              - 해민님의 카페 브레스송의 아름드리 나무에 물을 주었어요.
+            </Text>
+            <Text>- 민쭈쭈님이 나를 팔로우하기 시작했어요.</Text>
+            <Text>- 주웅님이 나를 팔로우하기 시작했어요.</Text>
+            {/* 더 많은 알림들 */}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -255,3 +283,25 @@ function auth() {
   throw new Error('Function not implemented.');
 }
 
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-start',
+  },
+  notificationContainer: {
+    width: 300,
+    backgroundColor: 'white',
+    padding: 20,
+    marginTop: 50,
+    marginLeft: 0,
+    borderTopRightRadius: 10,
+    borderBottomRightRadius: 10,
+    // 왼쪽에서 슬라이드로 뜨는 느낌을 주려면 애니메이션 더 추가 가능
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+});

@@ -5,54 +5,126 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
-import {useState} from 'react';
+import ArrowLeftIcon from '../assets/arrow-left.svg'
+import { useEffect, useState } from 'react';
+import {getSearchRestaurants, getSearchUsers} from '../apis/api/search';
 
-const searchHistory = [
-  {id: 1, keyword: '카페', date: '05. 14.', icon: 'search-outline'},
-  {id: 2, keyword: '안암역', date: '05. 14.', icon: 'search-outline'},
-  {id: 3, keyword: '야마토텐동', date: '05. 14.', icon: 'location-outline'},
-  {id: 4, keyword: '한솔식당', date: '05. 12.', icon: 'location-outline'},
-  {id: 5, keyword: '종암동', date: '05. 12.', icon: 'search-outline'},
-  {id: 6, keyword: '카페 브레송', date: '05. 09.', icon: 'location-outline'},
-];
+// SearchHistoryItem 타입 정의 (TypeScript 오류 해결)
+interface SearchRestaurant {
+  id: number;
+  placeId: string;
+  name: string;
+  address: string;
+}
 
-const searchChildren = [
-  {id: 1, keyword: '지수', date: '05. 14.', icon: 'search-outline'},
-  {id: 2, keyword: '태현', date: '05. 14.', icon: 'search-outline'},
-  {id: 3, keyword: '유나유나', date: '05. 14.', icon: 'location-outline'},
-  {id: 4, keyword: '돈까스킬러', date: '05. 12.', icon: 'location-outline'},
-];
+interface SearchUser {
+  id: number;
+  username: string;
+  nickname: string;
+  profileImageUrl: string;
+}
+
+
+// const searchHistory = [
+//   {id: 1, keyword: '카페', date: '05. 14.', icon: 'search-outline'},
+//   {id: 2, keyword: '안암역', date: '05. 14.', icon: 'search-outline'},
+//   {id: 3, keyword: '야마토텐동', date: '05. 14.', icon: 'location-outline'},
+//   {id: 4, keyword: '한솔식당', date: '05. 12.', icon: 'location-outline'},
+//   {id: 5, keyword: '종암동', date: '05. 12.', icon: 'search-outline'},
+//   {id: 6, keyword: '카페 브레송', date: '05. 09.', icon: 'location-outline'},
+// ];
+
+// const searchChildren = [
+//   {id: 1, keyword: '지수', date: '05. 14.', icon: 'search-outline'},
+//   {id: 2, keyword: '태현', date: '05. 14.', icon: 'search-outline'},
+//   {id: 3, keyword: '유나유나', date: '05. 14.', icon: 'location-outline'},
+//   {id: 4, keyword: '돈까스킬러', date: '05. 12.', icon: 'location-outline'},
+// ];
 
 const SearchScreen = ({navigation}: {navigation: any}) => {
   const [value, onChangeText] = useState('');
   const [activeTab, setActiveTab] = useState('검색');
 
+
+  const [searchRestaurants, setSearchRestaruants] = useState<SearchRestaurant[]>([]);
+  const [searchUsers, setSearchUsers] = useState<SearchUser[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // const fetchResults = async () => {
+  //   if (!value.trim()) {
+  //     setSearchRestaruants([]);
+  //     setSearchUsers([]);
+  //     return;
+  //   }
+  //   setLoading(true);
+  //   try {
+  //     if (activeTab === '검색') {
+  //       const data = await getSearchRestaurants(value, 1, 10);
+  //       setSearchRestaruants(data as SearchRestaurant[]);
+  //     } else {
+  //       const data = await getSearchUsers(value, 1, 10);
+  //       setSearchUsers(data as SearchUser[]);
+  //     }
+  //   } catch (e) {
+  //     console.error('검색 실패:', e);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  useEffect(() => {
+    const fetchResults = async () => {
+      if (!value) {
+        setSearchRestaruants([]);
+        setSearchUsers([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        if (activeTab === '검색') {
+          const data = await getSearchRestaurants(value, 1,10);
+          setSearchRestaruants(data as SearchRestaurant[]);
+        } else {
+          const data = await getSearchUsers(value, 1, 10);
+          setSearchUsers(data as SearchUser[]);
+        }
+      } catch (e) {
+        console.error('검색 실패:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const debounce = setTimeout(fetchResults, 300); // debounce 처리
+
+    return () => clearTimeout(debounce);
+  }, [value, activeTab]);
+
   const tabPress = (tabName: string) => {
     setActiveTab(tabName);
   };
 
-  const renderHistoryItem = (item: (typeof searchHistory)[0]) => (
+  const renderRestaurant = (item: SearchRestaurant) => (
     <TouchableOpacity key={item.id} style={styles.itemContainer}>
       {/* 검색어 텍스트 */}
-      <Text style={styles.keywordText}>{item.keyword}</Text>
+      <Text style={styles.keywordText}>{item.name}</Text>
 
       {/* 날짜와 삭제 아이콘 영역 */}
       <View style={styles.rightContentContainer}>
-        <Text style={styles.dateText}>{item.date}</Text>
+        <Text style={styles.dateText}>{item.name}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  const renderChildrenItem = (item: (typeof searchChildren)[0]) => (
+  const renderUser = (item: SearchUser) => (
     <TouchableOpacity key={item.id} style={styles.itemContainer}>
       {/* 검색어 텍스트 */}
-      <Text style={styles.keywordText}>{item.keyword}</Text>
+      <Text style={styles.keywordText}>{item.nickname}</Text>
 
       {/* 날짜와 삭제 아이콘 영역 */}
       <View style={styles.rightContentContainer}>
-        <Text style={styles.dateText}>{item.date}</Text>
+        <Text style={styles.dateText}>{item.nickname}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -87,13 +159,16 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
           justifyContent: 'space-between',
         }}>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity onPress={() => console.log('메뉴 클릭')}>
+          <TouchableOpacity
+            onPress={() => {
+              navigation.goBack();
+            }}>
             <View
               style={{
                 marginLeft: 10,
                 marginRight: 10,
               }}>
-              <HamburgerIcon />
+              <ArrowLeftIcon />
             </View>
           </TouchableOpacity>
 
@@ -105,9 +180,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
             placeholder="장소, 음식, 가게 검색"
           />
         </View>
-        <View style={{marginRight: 10}}>
-          <SearchIcon />
-        </View>
+        <SearchIcon />
       </View>
       <View
         style={{
@@ -163,7 +236,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
             width: '100%',
             height: '80%',
           }}>
-          {searchHistory.map(item => renderHistoryItem(item))}
+          {searchRestaurants.map(item => renderRestaurant(item))}
         </View>
       )}
       {activeTab === '친구' && (
@@ -173,7 +246,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
             width: '100%',
             height: '80%',
           }}>
-          {searchChildren.map(item => renderChildrenItem(item))}
+          {searchUsers.map(item => renderUser(item))}
         </View>
       )}
     </View>

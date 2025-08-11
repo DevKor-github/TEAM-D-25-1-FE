@@ -1,3 +1,4 @@
+import { getAuth } from '@react-native-firebase/auth';
 import { defaultInstance } from '../utils/axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
