@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, StyleSheet, ScrollView,
+  Image,
 } from 'react-native';
 
 export default function KeywordSelectionScreen({ navigation, route }: any) {
   const { mbti: prevMBTI, styles: prevStyles, foods: prevFoods } = route.params || {};
 
-  const MBTIs = ['ESTJ','INFP','ISFP','INTJ','INFJ','ENTP','ISTJ','ESTP'];
+  const MBTIs = ['ESTJ','INFP','ISFP','INTJ','INFJ','ENTP','ISTJ','ESTP','ENTJ', 'ENFJ','ESFP','ISFJ'];
   const FoodStyles = ['애주가','비건/채식','맵부심','편식쟁이','혈당 스파이크','건강식','가성비','육식러','길거리 음식','맵찔이','소식좌','대식가'];
   const FavoriteFoods = ['떡볶이','스테이크','빵','햄버거','곱창','디저트','라면','파스타','삼겹살','소주','초밥','국밥','피자','회'];
 
@@ -40,14 +41,19 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <Text style={styles.headerBack}>←</Text>
+            <Image source={require('../assets/arrow.png')} style={styles.headerIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>내 키워드 등록</Text>
         <TouchableOpacity onPress={onConfirm} style={styles.headerButton}>
           <Text style={styles.headerConfirm}>확인</Text>
         </TouchableOpacity>
       </View>
-
+      <View style={styles.examplewrapper}>
+        <Image
+          source={require('../assets/selection_ex.png')}
+          style={styles.exampleImage}
+        />
+      </View>
       <ScrollView contentContainerStyle={styles.body}>
         {/* MBTI */}
         <View style={styles.sectionHeader}>
@@ -160,8 +166,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEE' },
   headerButton: { width: 40, alignItems: 'center' },
   headerBack: { fontSize: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '600' },
-  headerConfirm: { fontSize: 20, color: '#43C217', fontWeight: '600' },
+  headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
+  headerTitle: { fontSize: 23, fontWeight: '600' },
+  headerConfirm: { fontSize: 23, color: '#0DBC65', fontWeight: '600' },
   body: { padding: 16 },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 20 },
@@ -176,9 +183,15 @@ const styles = StyleSheet.create({
   chipTextSelectedMBTI: { color: '#111' },
   chipSelectedStyle: { backgroundColor: '#474747', borderColor: '#474747' },
   chipTextSelectedStyle: { color: '#FFF' },
-  chipSelectedFood: { borderColor: '#000', borderWidth: 2, backgroundColor: '#FFF' },
+  chipSelectedFood: { borderColor: '#000', borderWidth: 1.5, backgroundColor: '#FFF' },
   chipTextSelectedFood: { color: '#000' },
 
   chipDisabled: { opacity: 0.8 },
   chipTextDisabled: { color: '#B9B9B9' },
+  examplewrapper: {alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 5, paddingVertical: 10, margin:20},
+  exampleImage: {
+   width: 160,    // 원하는 너비
+   height: 100,   // 원하는 높이
+   resizeMode: 'contain',
+ },
 });

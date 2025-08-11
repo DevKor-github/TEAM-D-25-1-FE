@@ -121,8 +121,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
   headerButton: { width: 40, alignItems: 'center' },
   headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
-  headerTitle: { fontSize: 20, fontWeight: '600' },
-  headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
+  headerTitle: { fontSize: 23, fontWeight: '600' },
+  headerConfirm: { fontSize: 23, color: '#0DBC65', fontWeight: '600' },
 
   container: { flex: 1, paddingHorizontal: 20 },
 
