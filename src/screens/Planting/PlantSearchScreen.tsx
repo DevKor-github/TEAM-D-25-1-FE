@@ -8,7 +8,7 @@ import {
 import ArrowLeftIcon from '../../assets/arrow-left.svg';
 import SearchIcon from '../../assets/search.svg';
 import PinIcon from '../../assets/pinicon.svg';
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
@@ -16,39 +16,45 @@ import BottomSheet, {
 import {AppDispatch, RootState} from '../../redux/store';
 import {useDispatch, useSelector} from 'react-redux';
 import {
-  setLocationQuery,
-  setSelectedLocation,
+  setRestaurantQuery,
+  setSavedRestaurant,
 } from '../../redux/seedPlantingSlice';
-import {PlaceType} from '../../types/types';
+import {SavedRestaurantType} from '../../types/types';
+import { getSearchRestaurants } from '../../apis/api/search'; // 경로는 맞게 수정
+
 
 // SearchHistoryItem 타입 정의 (TypeScript 오류 해결)
-interface SearchHistoryItem {
-  id: number;
-  keyword: string;
-  genre: string;
+interface SelectRestaurant {
+  // id: number;
+  // keyword: string;
+  // genre: string;
+  // address: string;
+  id: string;
+  placeId: string;
+  name: string;
   address: string;
 }
 
-const searchHistory: SearchHistoryItem[] = [
-  {
-    id: 1,
-    keyword: '달링스테이크',
-    genre: '스테이크, 립',
-    address: '서울특별시 성북구 고려대로 27길 9',
-  },
-  {
-    id: 2,
-    keyword: '달링스테이크',
-    genre: '스테이크, 립',
-    address: '서울특별시 성북구 고려대로 27길 9',
-  },
-  {
-    id: 3,
-    keyword: '달링스테이크',
-    genre: '스테이크, 립',
-    address: '서울특별시 성북구 고려대로 27길 9',
-  },
-];
+// const searchHistory: SearchHistoryItem[] = [
+//   {
+//     id: 1,
+//     keyword: '달링스테이크',
+//     genre: '스테이크, 립',
+//     address: '서울특별시 성북구 고려대로 27길 9',
+//   },
+//   {
+//     id: 2,
+//     keyword: '달링스테이크',
+//     genre: '스테이크, 립',
+//     address: '서울특별시 성북구 고려대로 27길 9',
+//   },
+//   {
+//     id: 3,
+//     keyword: '달링스테이크',
+//     genre: '스테이크, 립',
+//     address: '서울특별시 성북구 고려대로 27길 9',
+//   },
+// ];
 
 const PlantSearchScreen = ({
   navigation,
@@ -56,43 +62,73 @@ const PlantSearchScreen = ({
 }: {
   navigation: any;
   route: any;
-}) => {
+  }) => {
+  
+  const [searchRestaurant, setSearchRestaruant] = useState<SelectRestaurant[]>(
+    [],
+  );
+  const [loading, setLoading] = useState(false);
+
+
+
   //const [value, onChangeText] = useState('');
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const [selectedItem, setSelectedItem] = useState<SearchHistoryItem | null>(
-    null,
-  );
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<SelectRestaurant | null>(null);
   const dispatch: AppDispatch = useDispatch(); // AppDispatch 타입 명시
 
   // Redux 스토어에서 검색어(locationQuery) 상태를 가져옵니다.
-  const {locationQuery} = useSelector((state: RootState) => state.seedPlanting);
+  const {restaurantQuery} = useSelector((state: RootState) => state.seedPlanting);
+
+
+  useEffect(() => {
+    const fetchSearchResults = async () => {
+      if (!restaurantQuery) {
+        setSearchRestaruant([]); // 검색어 없을 경우 초기화
+        return;
+      }
+      setLoading(true);
+      try {
+        const results = await getSearchRestaurants(restaurantQuery);
+        setSearchRestaruant(results as SelectRestaurant[]); // API에서 받은 목록 저장
+      } catch (error) {
+        console.error('검색 결과 가져오기 실패:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      fetchSearchResults();
+    }, 300); // debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [restaurantQuery]);
+
 
   //const initialSelectedSeed = route.params?.currentSelectedSeed;
   const handleSearchInputChange = useCallback(
     (text: string) => {
-      dispatch(setLocationQuery(text)); // Redux 스토어의 locationQuery 업데이트
+      dispatch(setRestaurantQuery(text)); // Redux 스토어의 locationQuery 업데이트
     },
     [dispatch],
   );
-  const handleItemPress = useCallback((item: SearchHistoryItem) => {
-    setSelectedItem(item);
+  const handleItemPress = useCallback((item: SelectRestaurant) => {
+    setSelectedRestaurant(item);
     if (bottomSheetRef.current) {
       bottomSheetRef.current.snapToIndex(0); // BottomSheet를 첫 번째 스냅 포인트(25%)로 엽니다.
     }
   }, []);
 
   const handleSelectPlace = useCallback(() => {
-    if (selectedItem) {
-      // 선택된 장소 정보를 Redux 스토어에 디스패치합니다.
-      // PlaceType에 맞게 객체를 구성하여 전달하는 것이 좋습니다.
-      const placeToSave: PlaceType = {
-        id: String(selectedItem.id), // ID가 숫자일 수 있으므로 string으로 변환
-        name: selectedItem.keyword,
-        address: selectedItem.address,
-        // 필요하다면 다른 속성도 추가
+    if (selectedRestaurant) {
+      // 선택된 장소 정보를 Redux 스토어에 디스패치
+      const RestaurantToSave: SavedRestaurantType = {
+        name: selectedRestaurant.name,
+        id: selectedRestaurant.id,
       };
-      dispatch(setSelectedLocation(placeToSave)); // Redux 액션 디스패치
-      console.log('Redux에 장소 저장:', placeToSave);
+      dispatch(setSavedRestaurant(RestaurantToSave)); // Redux 액션 디스패치
+      console.log('Redux에 장소 저장:', RestaurantToSave);
       // BottomSheet 닫기
       if (bottomSheetRef.current) {
         bottomSheetRef.current.close();
@@ -101,20 +137,20 @@ const PlantSearchScreen = ({
       // PlantScreen으로 돌아가기
       navigation.navigate('PlantHome'); // 'Plant'는 App.tsx에 정의된 PlantScreen의 name
     }
-  }, [selectedItem, dispatch, navigation]);
+  }, [selectedRestaurant, dispatch, navigation]);
 
   const handleCloseBottomSheet = useCallback(() => {
-    setSelectedItem(null); // 선택된 항목 상태 초기화
+    setSelectedRestaurant(null); // 선택된 항목 상태 초기화
   }, []);
 
-  const renderHistoryItem = (item: SearchHistoryItem) => (
+  const renderSearchRestaurant = (item: SelectRestaurant) => (
     <TouchableOpacity
       key={item.id}
       style={styles.itemContainer}
       onPress={() => handleItemPress(item)}>
       <PinIcon />
       <View>
-        <Text style={styles.keywordText}>{item.keyword}</Text>
+        <Text style={styles.keywordText}>{item.name}</Text>
         <Text style={styles.addressText}>{item.address}</Text>
       </View>
     </TouchableOpacity>
@@ -139,7 +175,6 @@ const PlantSearchScreen = ({
           borderRadius: 50,
           paddingHorizontal: 15,
           paddingVertical: 10,
-          zIndex: 1,
           shadowColor: '#000',
           shadowOffset: {width: 0, height: 2},
           shadowOpacity: 0.2,
@@ -163,7 +198,7 @@ const PlantSearchScreen = ({
           <TextInput
             editable
             onChangeText={text => handleSearchInputChange(text)}
-            value={locationQuery}
+            value={restaurantQuery}
             style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
             placeholder="장소, 음식, 가게 검색"
           />
@@ -187,7 +222,15 @@ const PlantSearchScreen = ({
           width: '100%',
           height: '80%',
         }}>
-        {searchHistory.map(item => renderHistoryItem(item))}
+        {loading ? (
+          <Text style={{textAlign: 'center', marginTop: 20}}>로딩 중...</Text>
+        ) : searchRestaurant.length === 0 ? (
+          <Text style={{textAlign: 'center', marginTop: 20}}>
+            검색 결과가 없습니다
+          </Text>
+        ) : (
+          searchRestaurant.map(item => renderSearchRestaurant(item))
+        )}
       </View>
       <BottomSheet
         ref={bottomSheetRef}
@@ -204,16 +247,16 @@ const PlantSearchScreen = ({
           />
         )}>
         <BottomSheetView style={styles.bottomSheetContent}>
-          {selectedItem ? (
+          {selectedRestaurant ? (
             <>
               <Text style={styles.bottomSheetTitle}>
-                {selectedItem.keyword}
+                {selectedRestaurant.name}
               </Text>
+              {/* <Text style={styles.bottomSheetDetail}>
+                장르: {selectedRestaurant.genre}
+              </Text> */}
               <Text style={styles.bottomSheetDetail}>
-                장르: {selectedItem.genre}
-              </Text>
-              <Text style={styles.bottomSheetDetail}>
-                주소: {selectedItem.address}
+                주소: {selectedRestaurant.address}
               </Text>
               <TouchableOpacity
                 style={styles.bottomSheetButton}

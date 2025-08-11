@@ -2,6 +2,7 @@ import {useCallback, useLayoutEffect, useState} from 'react';
 
 import {
   Image,
+  ImageSourcePropType,
   Modal,
   ScrollView,
   StyleSheet,
@@ -12,16 +13,23 @@ import {Text} from 'react-native-gesture-handler';
 
 import seedData from '../../data/seedData';
 import React from 'react';
-import {AppDispatch, RootState, SeedType} from '../../types/types';
+import {AppDispatch, RootState, SavedSeedType} from '../../types/types';
 import {useDispatch, useSelector} from 'react-redux';
-import {setSelectedSeed} from '../../redux/seedPlantingSlice';
+import { setSavedSeed } from '../../redux/seedPlantingSlice';
+
+interface SelectSeed {
+  seedId: number;
+  name: string;
+  image: ImageSourcePropType;
+  description: string;
+}
 
 const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
   const dispatch: AppDispatch = useDispatch();
-  const {selectedSeed} = useSelector((state: RootState) => state.seedPlanting);
+  const {savedSeed} = useSelector((state: RootState) => state.seedPlanting);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalSeed, setModalSeed] = useState<SeedType | null>(null); // 모달에 표시될 씨앗 정보
+  const [modalSeed, setModalSeed] = useState<SavedSeedType | null>(null); // 모달에 표시될 씨앗 정보
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -29,8 +37,8 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
         <TouchableOpacity
           onPress={() => {
             // 선택된 씨앗이 있다면 PlantHome으로 이동하면서 파라미터로 전달
-            if (selectedSeed) {
-              console.log('씨앗을 선택해주세요.', selectedSeed);
+            if (savedSeed) {
+              console.log('씨앗을 선택해주세요.', modalSeed);
               navigation.goBack();
             } else {
               // 씨앗을 선택하지 않고 확인을 누른 경우 처리 (예: 알림)
@@ -40,14 +48,14 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
             }
           }}
           style={{paddingRight: 20}}>
-          <Text style={selectedSeed && {color: 'green'}}>확인</Text>
+          <Text style={savedSeed && {color: 'green'}}>확인</Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, selectedSeed]); // selectedSeed가 변경될 때마다 헤더 버튼 로직이 업데이트되도록
+  }, [navigation, savedSeed]); // selectedSeed가 변경될 때마다 헤더 버튼 로직이 업데이트되도록
 
   // 씨앗 항목 클릭 핸들러: 모달을 띄웁니다.
-  const handleSeedItemPress = useCallback((seed: SeedType) => {
+  const handleSeedItemPress = useCallback((seed: SelectSeed) => {
     setModalSeed(seed); // 모달에 표시할 씨앗 설정
     setIsModalVisible(true); // 모달 열기
   }, []);
@@ -55,7 +63,7 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
   // 모달 내 "이 씨앗 선택" 버튼 핸들러
   const handleSelectSeedFromModal = useCallback(() => {
     if (modalSeed) {
-      dispatch(setSelectedSeed(modalSeed)); // Redux 스토어에 씨앗 정보 디스패치
+      dispatch(setSavedSeed(modalSeed)); // Redux 스토어에 씨앗 정보 디스패치
       setIsModalVisible(false); // 모달 닫기
       //navigation.goBack(); // 이전 화면(PlantScreen)으로 돌아가기
     }
@@ -68,20 +76,18 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
   }, []);
 
   // 씨앗 항목 렌더링 함수
-  const renderSeedItem = (seed: SeedType) => (
+  const renderSeedItem = (seed: SelectSeed) => (
     <TouchableOpacity
-      key={seed.id}
+      key={seed.seedId}
       style={[
         styles.seedItem,
-        selectedSeed?.id === seed.id && styles.selectedSeedItem, // Redux 상태에 따라 선택 스타일 적용
+        savedSeed?.seedId === seed.seedId && styles.selectedSeedItem, // Redux 상태에 따라 선택 스타일 적용
       ]}
       onPress={() => handleSeedItemPress(seed)} // 클릭 시 모달 띄우기
     >
       <View style={styles.imageWrapper}>
         <Image
-          source={
-            typeof seed.image === 'string' ? {uri: seed.image} : seed.image
-          }
+          source={seed.image}
           style={styles.seedImage}
           resizeMode="contain"
         />
@@ -92,11 +98,6 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
       </View>
     </TouchableOpacity>
   );
-
-  const handleSeedSelect = (seed: SeedType) => {
-    dispatch(setSelectedSeed(seed));
-    console.log(`PlantSelectionScreen - Selected seed ID: ${seed.id}`);
-  };
 
   return (
     <View
@@ -155,8 +156,12 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
                 {/* 예시: <Image source={modalSeed.detailImage} style={styles.modalDetailImage} /> */}
                 <Text style={styles.modalDescription}>
                   {/* 여기에 씨앗 상세 설명 추가 (예: modalSeed.description) */}
-                  참나무는 도토리가 열리는 나무예요. 느리게 자라지만 뿌리가 깊고
-                  수백 년을 살 수 있을 만큼 오래 가요.
+                  <Text>
+                    {
+                      seedData.find(seed => seed.seedId === modalSeed.seedId)
+                        ?.description
+                    }
+                  </Text>
                 </Text>
                 {/* 성장 단계 이미지 (스크린샷 참고) */}
                 <Image
