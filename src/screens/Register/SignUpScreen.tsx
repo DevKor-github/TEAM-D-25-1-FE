@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import SignupNavigation from '../navigations/signupNavigation';
+import SignupNavigation from '../../components/signupNavigation';
 
 type EmailErrorKind = null | 'empty' | 'invalid' | 'duplicate';
 
@@ -69,7 +69,7 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
         {/* 이름 입력 */}
         <Text style={styles.label}>이름</Text>
         <View style={styles.inputWrapper}>
-          <Image source={require('../assets/user-fill.png')} style={styles.icon} />
+          <Image source={require('../../assets/user-fill.png')} style={styles.icon} />
           <TextInput
             style={styles.input}
             placeholder="이름을 입력해주세요"
@@ -88,7 +88,7 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
             !!emailErrorKind && styles.inputWrapperErrorBg,
           ]}
         >
-          <Image source={require('../assets/email.png')} style={styles.icon} />
+          <Image source={require('../../assets/email.png')} style={styles.icon} />
           <TextInput
             style={styles.input}
             placeholder="이메일 주소를 입력해주세요"

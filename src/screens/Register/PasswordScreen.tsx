@@ -1,6 +1,6 @@
 // 파일 경로: src/screens/PasswordScreen.tsx
 import React, { useState } from 'react';
-import SignupNavigation from '../navigations/signupNavigation';
+import SignupNavigation from '../../components/signupNavigation';
 import {
   View,
   Text,
@@ -59,7 +59,7 @@ export default function PasswordScreen({ navigation }: { navigation: any }) {
 
           <Text style={styles.label}>비밀번호</Text>
           <View style={[styles.inputWrapper, passwordError && styles.inputWrapperError]}>
-            <Image source={require('../assets/key-fill.png')} style={styles.icon} />
+            <Image source={require('../../assets/key-fill.png')} style={styles.icon} />
             <TextInput
               style={styles.input}
               placeholder="비밀번호를 입력해주세요"
@@ -79,7 +79,7 @@ export default function PasswordScreen({ navigation }: { navigation: any }) {
           <View style={[styles.inputWrapper,
             (confirmError || (!isMatch && confirmPassword.length > 0)) && styles.inputWrapperError
           ]}>
-            <Image source={require('../assets/key-fill.png')} style={styles.icon} />
+            <Image source={require('../../assets/key-fill.png')} style={styles.icon} />
             <TextInput
               style={styles.input}
               placeholder="비밀번호를 다시 입력해주세요"

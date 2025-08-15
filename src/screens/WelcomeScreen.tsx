@@ -1,20 +1,35 @@
-// 파일 경로: src/screens/WelcomeScreen.tsx
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 
-export default function WelcomeScreen({ route, navigation }: { route: any; navigation: any }) {
-  const { nickname } = route.params;
+export default function WelcomeScreen({
+  route,
+  navigation,
+}: {
+  route: any;
+  navigation: any;
+}) {
+  const {nickname} = route.params;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.avoidContainer}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeAreaContainer}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20} // Adjust offset as needed
+      >
         {/* 상단 콘텐츠 */}
         <View style={styles.content}>
           <Image
-            source={require('../assets/complete.svg')} 
+            source={require('../assets/welcome.png')}
             style={styles.seedImage}
             resizeMode="contain"
           />
@@ -28,21 +43,22 @@ export default function WelcomeScreen({ route, navigation }: { route: any; navig
         <TouchableOpacity
           style={styles.startButton}
           activeOpacity={0.8}
-          onPress={() => navigation.replace('Login')}
-        >
+          onPress={() => navigation.replace('Login')}>
           <Text style={styles.startButtonText}>시작하기</Text>
         </TouchableOpacity>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  avoidContainer: { flex: 1 },
-  container: {
+  safeAreaContainer: {
     flex: 1,
     backgroundColor: '#fff',
-    justifyContent: 'space-between',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: 'space-between', // Ensures content and button are spaced out
   },
   content: {
     flex: 1,
@@ -70,10 +86,10 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: '#6CDF44',
-    borderRadius: 999,
+    borderRadius: 20,
     height: 55,
     marginHorizontal: 20,
-    marginBottom: Platform.OS === 'ios' ? 34 : 20,
+    marginBottom: Platform.OS === 'ios' ? 34 : 30,
     justifyContent: 'center',
     alignItems: 'center',
   },

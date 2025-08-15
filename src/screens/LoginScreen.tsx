@@ -177,7 +177,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       {/* 회원가입 */}
       <TouchableOpacity
         style={styles.signupButton}
-        onPress={() => navigation.navigate('SignUp')}
+        onPress={() => navigation.navigate('Register')}
       >
         <Text style={styles.signupText}>회원가입</Text>
       </TouchableOpacity>
