@@ -11,18 +11,19 @@ import BottomNavigationBar from './src/navigations/bottomNavigationBar';
 import DetailScreen from './src/screens/DetailScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import PhotoDetailScreen from './src/screens/PhotoDetailScreen';
-import MyPageScreen from './src/screens/MypageScreen';
+import MyPageScreen from './src/screens/Mypage/MypageScreen';
 import SearchScreen from './src/screens/SearchScreen';
 import PlantScreen from './src/screens/Planting/PlantScreen';
 import PlantSearchScreen from './src/screens/Planting/PlantSearchScreen';
 import PlantSelectionScreen from './src/screens/Planting/PlantSelectionScreen';
 import { Provider } from 'react-redux';
 import { store } from './src/redux/store';
-import ProfileEditScreen from './src/screens/ProfileEditScreen';
-import KeywordSelectionScreen from './src/screens/KeywordSelectionScreen';
+import ProfileEditScreen from './src/screens/Mypage/ProfileEditScreen';
+import KeywordSelectionScreen from './src/screens/Mypage/KeywordSelectionScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import CafeDetailScreen from './src/screens/CafeDetailScreen';
+import FollowListScreen from './src/screens/Mypage/FollowListScreen';
 
 // ✅ RNFirebase 코어: 앱 초기화 보장
 import { getApps, initializeApp } from '@react-native-firebase/app';
@@ -41,7 +42,7 @@ const App = () => {
     <Provider store={store}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="Login"
+          initialRouteName="FollowList"
           screenOptions={{headerShown: false}}>
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Onboard" component={OnboardingScreen} />
@@ -54,6 +55,7 @@ const App = () => {
           <Stack.Screen name="Detail" component={CafeDetailScreen} />
           <Stack.Screen name="PhotoDetail" component={PhotoDetailScreen} />
           <Stack.Screen name="Mypage" component={MyPageScreen} />
+          <Stack.Screen name="FollowList" component={FollowListScreen} />
           <Stack.Screen
             name="KeywordSelection"
             component={KeywordSelectionScreen}

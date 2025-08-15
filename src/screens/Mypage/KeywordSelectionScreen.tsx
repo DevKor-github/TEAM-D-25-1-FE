@@ -41,7 +41,7 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-            <Image source={require('../assets/arrow.png')} style={styles.headerIcon} />
+            <Image source={require('../../assets/arrow.png')} style={styles.headerIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>내 키워드 등록</Text>
         <TouchableOpacity onPress={onConfirm} style={styles.headerButton}>
@@ -50,7 +50,7 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
       </View>
       <View style={styles.examplewrapper}>
         <Image
-          source={require('../assets/selection_ex.png')}
+          source={require('../../assets/selection_ex.png')}
           style={styles.exampleImage}
         />
       </View>
@@ -167,8 +167,8 @@ const styles = StyleSheet.create({
   headerButton: { width: 40, alignItems: 'center' },
   headerBack: { fontSize: 20 },
   headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
-  headerTitle: { fontSize: 23, fontWeight: '600' },
-  headerConfirm: { fontSize: 23, color: '#0DBC65', fontWeight: '600' },
+  headerTitle: { fontSize: 20, fontWeight: '600' },
+  headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
   body: { padding: 16 },
 
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 20 },
