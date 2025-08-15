@@ -81,10 +81,16 @@ export default function FollowerScreen({ navigation, route }: any) {
        // 이미 팔로우 중이면 언팔
        await unfollowUser(selectedUser.id); // API 호출
        setIsFollowing(false);
+       setUserData((prev: { followerCount: number; }) =>
+         prev ? {...prev, followerCount: prev.followerCount - 1} : prev,
+       );
      } else {
        // 팔로우하지 않은 상태면 팔로우
        await followUser(selectedUser.id); // API 호출
        setIsFollowing(true);
+       setUserData((prev: {followerCount: number}) =>
+         prev ? {...prev, followerCount: prev.followerCount - 1} : prev,
+       );
      }
    } catch (error) {
      console.error('팔로우/언팔 요청 실패:', error);
