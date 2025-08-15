@@ -1,5 +1,18 @@
 
 import { defaultInstance } from '../utils/axios';
+export type UserSummary = {
+  id: string;
+  username: string;
+  nickname: string;
+  email: string;
+  socialProvider: string;
+  socialId: string;
+  isPrivate: boolean;
+  createdAt: string;
+};
+
+type UserListResponse = { items: UserSummary[] };
+
 
 
 export const getUser = async () => {
@@ -21,6 +34,26 @@ export const getMyTree = async () => {
     
     const {data} = await defaultInstance.get('/users/me/restaurants');
     console.log("내가 심은 나무 가져오기");
+    console.log(data);
+    
+    return data;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
+};
+
+export const getFollowingList = async (userId: string): Promise<UserSummary[]> => {
+  const { data } = await defaultInstance.get<UserListResponse>(`/users/${userId}/following`);
+  // 필요하면 pagination: defaultInstance.get(..., { params: { page, size } })
+  return data.items;
+};
+
+export const getFollwerList = async () => {
+  try {
+    
+    const {data} = await defaultInstance.get('/users/me/followers');
+    console.log("팔로워 가져오기");
     console.log(data);
     
     return data;
