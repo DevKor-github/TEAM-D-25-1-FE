@@ -1,5 +1,5 @@
 // src/screens/MyPageScreen.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import Chip from '../components/Chip';
 import SettingsIcon from '../assets/icons/setting.svg';
 import PencilIcon from '../assets/icons/edit-pen.svg';
 import BookmarkIcon from '../assets/icons/bookmark.svg';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import {getUser} from '../apis/api/user';
 
 // PNG 리소스
 const avatar = require('../assets/image/profile.png');
@@ -95,6 +97,30 @@ export default function MyPageScreen({ navigation }: any) {
     { id: 'main', colors: ['#F4F4F4', '#BDEABC'] }, // 기존
     { id: 'alt',  colors: ['#F4F4F4', '#EABCD2'] }, // 추가
   ];
+
+  useEffect(() => {
+    const auth = getAuth(); // Get the auth instance once
+  
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      // This callback runs whenever the auth state changes
+      if (user) {
+        // User is signed in
+        try {
+          
+          const res = await getUser(); // Your function call
+          console.log(res);
+        } catch (error) {
+          console.error('유저를 불러오지 못했습니다:', error);
+        }
+      } else {
+        // No user is signed in
+        console.warn('로그인된 사용자가 없습니다.');
+        // You might want to navigate to a login screen or show a message here
+      }
+    });
+  })
+
+  
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
