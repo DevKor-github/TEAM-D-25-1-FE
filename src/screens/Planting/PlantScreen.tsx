@@ -62,13 +62,20 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
   // 씨앗 심기 API 호출 함수
   const handlePlantSeed = async () => {
     console.log("handlePlant 호출");
+    
     if (!savedSeed || !savedRestaurant) {
       
     return;
     }
+    console.log('treeType:', savedSeed.seedId);
+    console.log('restaurantId:', savedRestaurant.id);
+    console.log('review:', reviewText);
+    console.log('description:', reviewText);
+    console.log('tags:', savedTags);
 
     try {
       console.log('POST');
+      
       const response = await postTree(
         savedSeed.seedId,
         savedRestaurant.id,
@@ -96,12 +103,12 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
           onPress={() => {
             if (isConfirmEnabled) {
               // 여기에 씨앗 심기 로직 또는 다음 화면으로 이동 로직 추가
-              console.log('씨앗 심기 완료!');
+              //console.log('씨앗 심기 완료!');
               // 예시: 모든 상태 초기화 후 홈 화면으로 이동
               // dispatch(resetSeedPlanting());
 
               handlePlantSeed();
-              navigation.navigate('Map');
+              //navigation.navigate('Map');
             } else {
               console.log("");
             }

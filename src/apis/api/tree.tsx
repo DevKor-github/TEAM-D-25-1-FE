@@ -28,8 +28,9 @@ export const postTree = async (
   description: string,
   tags: string[],
 ) => {
-    console.log('씨앗을 심어보자');
+  
   try {
+    console.log('씨앗을 심어보자');
     const payload = {
       treeType: treeType,
       restaurantId: restaurantId,
@@ -37,6 +38,9 @@ export const postTree = async (
       description: description,
       tags: tags,
     };
+    console.log(payload);
+    console.log('보낼 payload:', payload);
+    
 
     // POST 요청을 보낼 엔드포인트는 '/tree'로 가정합니다.
     // 실제 API 명세에 따라 엔드포인트를 조정해주세요.

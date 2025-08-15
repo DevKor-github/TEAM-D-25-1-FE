@@ -32,7 +32,7 @@ const App = () => {
     <Provider store={store}>
       <NavigationContainer>
         <Stack.Navigator
-          initialRouteName="Detail"
+          initialRouteName="Login"
           screenOptions={{headerShown: false}}>
           <Stack.Screen name="Splash" component={SplashScreen}/>
           <Stack.Screen name="Onboard" component={OnboardingScreen}/>
