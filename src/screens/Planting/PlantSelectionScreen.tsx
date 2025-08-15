@@ -1,5 +1,5 @@
-import {useCallback, useLayoutEffect, useState} from 'react';
-
+// src/screens/Planting/PlantSelectionScreen.tsx
+import React, {useCallback, useLayoutEffect, useState} from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -12,10 +12,12 @@ import {
 import {Text} from 'react-native-gesture-handler';
 
 import seedData from '../../data/seedData';
-import React from 'react';
 import {AppDispatch, RootState, SavedSeedType} from '../../types/types';
 import {useDispatch, useSelector} from 'react-redux';
-import { setSavedSeed } from '../../redux/seedPlantingSlice';
+import {setSavedSeed} from '../../redux/seedPlantingSlice';
+
+// ✅ 커스텀 백 아이콘
+const backIcon = require('../../assets/arrow.png');
 
 interface SelectSeed {
   seedId: number;
@@ -29,68 +31,74 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
   const {savedSeed} = useSelector((state: RootState) => state.seedPlanting);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [modalSeed, setModalSeed] = useState<SavedSeedType | null>(null); // 모달에 표시될 씨앗 정보
+  const [modalSeed, setModalSeed] = useState<SavedSeedType | null>(null);
 
+  // ✅ 헤더: 좌측 커스텀 back, 중앙 타이틀, 우측 확인(선택 시만 활성색)
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerBackVisible: false,
+      headerTitle: '씨앗 선택',
+      headerTitleAlign: 'center',
+      headerTitleStyle: {fontSize: 19, fontWeight: '600', color: '#111'},
+
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{marginLeft: 12, padding: 6}}
+          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+          <Image source={backIcon} style={{width: 24, height: 24, resizeMode: 'contain'}} />
+        </TouchableOpacity>
+      ),
+
       headerRight: () => (
         <TouchableOpacity
           onPress={() => {
-            // 선택된 씨앗이 있다면 PlantHome으로 이동하면서 파라미터로 전달
             if (savedSeed) {
-              console.log('씨앗을 선택해주세요.', modalSeed);
-              navigation.goBack();
-            } else {
-              // 씨앗을 선택하지 않고 확인을 누른 경우 처리 (예: 알림)
-              console.log('씨앗을 선택해주세요?.');
-              // 선택하지 않고 '확인' 버튼을 누른 경우 PlantHome으로 아무 파라미터 없이 돌아갈 수도 있습니다.
-              // navigation.navigate('PlantHome', {});
+              navigation.goBack(); // 선택되어 있으면 그대로 돌아가기
             }
           }}
           style={{paddingRight: 20}}>
-          <Text style={savedSeed && {color: 'green'}}>확인</Text>
+          <Text
+            style={{
+              color: savedSeed ? '#0DBC65' : '#999999',
+              fontSize: 18,
+              fontWeight: '600',
+            }}>
+            확인
+          </Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, savedSeed]); // selectedSeed가 변경될 때마다 헤더 버튼 로직이 업데이트되도록
+  }, [navigation, savedSeed]);
 
-  // 씨앗 항목 클릭 핸들러: 모달을 띄웁니다.
+  // 씨앗 카드 탭 → 상세 모달 오픈
   const handleSeedItemPress = useCallback((seed: SelectSeed) => {
-    setModalSeed(seed); // 모달에 표시할 씨앗 설정
-    setIsModalVisible(true); // 모달 열기
+    setModalSeed(seed);
+    setIsModalVisible(true);
   }, []);
 
-  // 모달 내 "이 씨앗 선택" 버튼 핸들러
+  // 모달 내 “이 씨앗 선택”
   const handleSelectSeedFromModal = useCallback(() => {
     if (modalSeed) {
-      dispatch(setSavedSeed(modalSeed)); // Redux 스토어에 씨앗 정보 디스패치
-      setIsModalVisible(false); // 모달 닫기
-      //navigation.goBack(); // 이전 화면(PlantScreen)으로 돌아가기
+      dispatch(setSavedSeed(modalSeed));
+      setIsModalVisible(false);
+      // 필요시 자동 복귀하려면 아래 주석을 해제
+      // navigation.goBack();
     }
-  }, [dispatch, modalSeed, navigation]);
+  }, [dispatch, modalSeed]);
 
-  // 모달 닫기 핸들러
   const handleCloseModal = useCallback(() => {
     setIsModalVisible(false);
-    setModalSeed(null); // 모달 닫을 때 모달 씨앗 정보 초기화
+    setModalSeed(null);
   }, []);
 
-  // 씨앗 항목 렌더링 함수
   const renderSeedItem = (seed: SelectSeed) => (
     <TouchableOpacity
       key={seed.seedId}
-      style={[
-        styles.seedItem,
-        savedSeed?.seedId === seed.seedId && styles.selectedSeedItem, // Redux 상태에 따라 선택 스타일 적용
-      ]}
-      onPress={() => handleSeedItemPress(seed)} // 클릭 시 모달 띄우기
-    >
+      style={[styles.seedItem, savedSeed?.seedId === seed.seedId && styles.selectedSeedItem]}
+      onPress={() => handleSeedItemPress(seed)}>
       <View style={styles.imageWrapper}>
-        <Image
-          source={seed.image}
-          style={styles.seedImage}
-          resizeMode="contain"
-        />
+        <Image source={seed.image} style={styles.seedImage} resizeMode="contain" />
       </View>
       <View style={styles.horizontalLine} />
       <View style={styles.seedNameContainer}>
@@ -100,73 +108,36 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
   );
 
   return (
-    <View
-      style={{
-        flex: 1,
-        padding: 20,
-        backgroundColor: 'white',
-      }}>
+    <View style={{flex: 1, padding: 20, backgroundColor: 'white'}}>
       <Text style={styles.headerTitle}>내 씨앗 모음</Text>
+
       <ScrollView contentContainerStyle={styles.gridContainer}>
-        {seedData.map(seed =>
-          renderSeedItem(
-            seed,
-            // <TouchableOpacity
-            //   key={seed.id}
-            //   style={[
-            //     styles.seedItem,
-            //     selectedSeed?.id === seed.id && styles.selectedSeedItem, // Apply selected style
-            //   ]}
-            //   onPress={() => handleSeedSelect(seed)}>
-            //   <View style={styles.imageWrapper}>
-            //     <Image
-            //       source={seed.image}
-            //       style={styles.seedImage}
-            //       resizeMode="contain"
-            //     />
-            //   </View>
-            //   <View style={styles.horizontalLine} />
-            //   <View style={styles.seedNameContainer}>
-            //     <Text style={styles.seedNameText}>{seed.name}</Text>
-            //   </View>
-            // </TouchableOpacity>
-          ),
-        )}
+        {seedData.map(renderSeedItem)}
       </ScrollView>
+
       {/* 씨앗 상세 모달 */}
       <Modal
-        animationType="fade" // 모달 애니메이션 타입
-        transparent={true} // 배경 투명하게
-        visible={isModalVisible} // 모달 가시성 상태
-        onRequestClose={handleCloseModal} // Android 뒤로가기 버튼 처리
-      >
+        animationType="fade"
+        transparent
+        visible={isModalVisible}
+        onRequestClose={handleCloseModal}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            {/* 모달 닫기 버튼 */}
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleCloseModal}>
+            <TouchableOpacity style={styles.closeButton} onPress={handleCloseModal}>
               <Text style={styles.closeButtonText}>X</Text>
             </TouchableOpacity>
 
-            {modalSeed && ( // modalSeed가 있을 때만 내용 표시
+            {modalSeed && (
               <>
                 <Text style={styles.modalTitle}>{modalSeed.name}</Text>
-                {/* 스크린샷의 이미지와 성장 단계 이미지는 seedData에 포함되어야 합니다. */}
-                {/* 예시: <Image source={modalSeed.detailImage} style={styles.modalDetailImage} /> */}
                 <Text style={styles.modalDescription}>
-                  {/* 여기에 씨앗 상세 설명 추가 (예: modalSeed.description) */}
-                  <Text>
-                    {
-                      seedData.find(seed => seed.seedId === modalSeed.seedId)
-                        ?.description
-                    }
-                  </Text>
+                  {
+                    seedData.find(s => s.seedId === modalSeed.seedId)
+                      ?.description
+                  }
                 </Text>
-                {/* 성장 단계 이미지 (스크린샷 참고) */}
-                <Image
-                  source={require('../../assets/seed_growing.png')} // 실제 이미지 경로로 변경
-                />
+
+                <Image source={require('../../assets/seed_growing.png')} />
 
                 <TouchableOpacity
                   style={styles.selectSeedButton}
@@ -183,54 +154,44 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 20, // Padding for the entire screen
-  },
-  headerTitle: {
-    fontSize: 14,
-    marginBottom: 10,
-  },
+  headerTitle: {fontSize: 16, marginBottom: 10},
+
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between', // Distribute items evenly
-    paddingBottom: 20, // Add some padding at the bottom for scrollability
+    justifyContent: 'space-between',
+    paddingBottom: 20,
   },
   seedItem: {
-    width: '48%', // Roughly half width to get two columns, adjust for spacing
+    width: '48%',
     backgroundColor: '#f9f9f9',
     borderRadius: 15,
-    marginBottom: 15, // Space between rows
-    overflow: 'hidden', // Ensures border radius is applied to children
+    marginBottom: 15,
+    overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#eee',
     shadowColor: '#000',
   },
   selectedSeedItem: {
-    backgroundColor: '#EEFFE0', // Light green background for selected item
-    borderColor: '#6CDF44', // Green border for selected item
-    borderWidth: 2, // Thicker border for selection emphasis
+    backgroundColor: '#EEFFE0',
+    borderColor: '#6CDF44',
+    borderWidth: 2,
   },
   imageWrapper: {
     width: '100%',
-    height: 150, // Fixed height for the image area
+    height: 150,
     justifyContent: 'center',
     alignItems: 'center',
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
   },
-  seedImage: {
-    width: '80%', // Adjust image size within its container
-    height: '80%',
-  },
+  seedImage: {width: '80%', height: '80%'},
   horizontalLine: {
-    height: 1, // 선의 두께
-    backgroundColor: '#E0E0E0', // 선의 색상
-    width: '85%', // 선의 너비 (seedItem 너비의 85%)
-    alignSelf: 'center', // 중앙 정렬
-    marginBottom: 10, // 선과 이름 사이의 간격
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    width: '85%',
+    alignSelf: 'center',
+    marginBottom: 10,
   },
   seedNameContainer: {
     padding: 15,
@@ -239,15 +200,14 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 15,
     borderBottomRightRadius: 15,
   },
-  seedNameText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  seedNameText: {fontSize: 14, fontWeight: '600'},
+
+  // 모달
   centeredView: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)', // 반투명 배경
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalView: {
     margin: 20,
@@ -256,57 +216,18 @@ const styles = StyleSheet.create({
     padding: 35,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    width: '85%', // 모달 너비 조정
+    width: '85%',
   },
-  closeButton: {
-    position: 'absolute',
-    top: 15,
-    right: 15,
-    padding: 5,
-  },
-  closeButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#888',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
-  modalDescription: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#555',
-    lineHeight: 24,
-  },
-  growthStageImage: {
-    width: '100%', // 너비를 모달에 맞게 조정
-    height: 80, // 높이 고정
-    marginBottom: 20,
-  },
-  selectSeedButton: {
-    backgroundColor: '#6CDF44', // 스크린샷의 초록색 버튼
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    elevation: 2,
-  },
-  selectSeedButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 18,
-    textAlign: 'center',
-  },
+  closeButton: {position: 'absolute', top: 15, right: 15, padding: 5},
+  closeButtonText: {fontSize: 20, fontWeight: 'bold', color: '#888'},
+  modalTitle: {fontSize: 24, fontWeight: 'bold', marginBottom: 15, color: '#333'},
+  modalDescription: {fontSize: 16, textAlign: 'center', marginBottom: 20, color: '#555', lineHeight: 24},
+  selectSeedButton: {backgroundColor: '#6CDF44', borderRadius: 25, paddingVertical: 12, paddingHorizontal: 30, elevation: 2},
+  selectSeedButtonText: {color: 'white', fontWeight: 'bold', fontSize: 18, textAlign: 'center'},
 });
 
 export default PlantSelectionScreen;

@@ -1,3 +1,4 @@
+// src/screens/Planting/TagSelectionScreen.tsx
 import React, {useEffect, useLayoutEffect, useState} from 'react';
 import {
   View,
@@ -6,10 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Image,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSavedTags} from '../../redux/seedPlantingSlice';
 import {RootState} from '../../types/types';
+
+const backIcon = require('../../assets/arrow.png');
 
 const recommendedTags = [
   'DRINKER',
@@ -46,11 +50,28 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
     setSelectedTags(savedTags || []);
   }, [savedTags]);
 
+  const handleSave = () => {
+    dispatch(setSavedTags(selectedTags));
+    navigation.goBack();
+  };
+
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerBackVisible: false,
+      headerTitle: '태그 선택',
+      headerTitleAlign: 'center',
+      headerTitleStyle: { fontSize: 18, fontWeight: '600', color: '#111' },
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ marginLeft: 12, padding: 6 }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Image source={backIcon} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
+        </TouchableOpacity>
+      ),
       headerRight: () => (
-        <TouchableOpacity onPress={handleSave} style={{paddingRight: 20}}>
-          <Text style={{color: 'green'}}>확인</Text>
+        <TouchableOpacity onPress={handleSave} style={{ paddingRight: 20 }}>
+          <Text style={{ color: '#0DBC65', fontSize: 18, fontWeight: '600' }}>확인</Text>
         </TouchableOpacity>
       ),
     });
@@ -70,18 +91,10 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
     setInputTag('');
   };
 
-  const handleSave = () => {
-    dispatch(setSavedTags(selectedTags));
-    console.log('Saved Tags:', selectedTags); // 🔍 확인용 로그
-    navigation.goBack();
-  };
-
   return (
     <View style={styles.container}>
-      {/* <Text style={styles.description}>
-        이 맛집을 설명하는 태그를 입력하세요.
-      </Text>
-
+      {/* 필요 시 직접 입력 UI
+      <Text style={styles.description}>이 맛집을 설명하는 태그를 입력하세요.</Text>
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
@@ -93,23 +106,21 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
         <TouchableOpacity style={styles.inputAddBtn} onPress={addInputTag}>
           <Text style={styles.inputAddText}>＋</Text>
         </TouchableOpacity>
-      </View> */}
+      </View>
+      */}
 
       <View style={styles.listcontainer}>
         <Text style={styles.recommendTitle}>추천 태그</Text>
-        <ScrollView contentContainerStyle={styles.recommendContainer}>
+
+        <ScrollView contentContainerStyle={styles.chipContainer}>
           {recommendedTags.map(tag => {
             const isSelected = selectedTags.includes(tag);
             return (
               <TouchableOpacity
                 key={tag}
                 onPress={() => toggleTag(tag)}
-                style={[styles.tag, isSelected && styles.selectedTag]}>
-                <Text
-                  style={[
-                    styles.tagText,
-                    isSelected && styles.selectedTagText,
-                  ]}>
+                style={[styles.chip, isSelected && styles.chipSelected]}>
+                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
                   {tag}
                 </Text>
               </TouchableOpacity>
@@ -124,72 +135,40 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
 export default TagSelectionScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    padding: 20,
-  },
-  description: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 8,
-  },
+  container: { flex: 1, backgroundColor: '#FFF', padding: 20 },
+
+  // (옵션) 입력줄
+  description: { fontSize: 14, color: '#444', marginBottom: 8 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 8,
+    borderWidth: 1, borderColor: '#DDD', borderRadius: 8,
     marginBottom: 16,
   },
-  input: {
-    flex: 1,
-    height: 44,
-    paddingHorizontal: 12,
-    color: '#111',
-  },
+  input: { flex: 1, height: 44, paddingHorizontal: 12, color: '#111' },
   inputAddBtn: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderLeftWidth: 1,
-    borderLeftColor: '#DDD',
+    width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
+    borderLeftWidth: 1, borderLeftColor: '#DDD',
   },
-  inputAddText: {
-    fontSize: 20,
-    color: '#888',
+  inputAddText: { fontSize: 20, color: '#888' },
+
+  listcontainer: { flex: 1 },
+  recommendTitle: { fontSize: 16, fontWeight: '500', color: '#333', marginBottom: 8 },
+
+  // ✅ 요청하신 칩 스타일
+  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 4 },
+  chip: {
+    paddingHorizontal: 17, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: '#B9B9B9', margin: 4, backgroundColor: '#FFF'
   },
-  listcontainer: {
-    flex: 1,
+  chipText: { fontSize: 15, color: '#333' },
+
+  // 선택 상태(강조)
+  chipSelected: {
+    backgroundColor: '#6CDF44',
+    borderColor: '#6CDF44',
   },
-  recommendTitle: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  recommendContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingBottom: 40,
-  },
-  tag: {
-    backgroundColor: '#F0F0F0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    margin: 4,
-  },
-  selectedTag: {
-    backgroundColor: '#6FCF97',
-  },
-  tagText: {
-    color: '#444',
-    fontSize: 14,
-  },
-  selectedTagText: {
-    fontWeight: 'bold',
-    color: '#fff',
+  chipTextSelected: {
+    color: '#111',
+    fontWeight: '400',
   },
 });
