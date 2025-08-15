@@ -8,7 +8,7 @@ import PlantIcon from '../assets/plant.svg';
 import MyPageIcon from '../assets/mypage.svg';
 import {StyleSheet, View} from 'react-native';
 import PlantingNavigator from './plantingNavigator';
-import MyPageScreen from '../screens/MypageScreen'; // ✅ 추가 (경로/대소문자 정확히!)
+import MyPageScreen from '../screens/MypageScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -22,13 +22,18 @@ const BottomNavigationBar = () => {
           paddingBottom: 10,
           paddingTop: 10,
         },
+        // ✅ 라벨(텍스트) 색만 포커스 시 연두색으로
+        tabBarActiveTintColor: '#6CDF44',
+        tabBarInactiveTintColor: '#9AA0A6',
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}>
       <Tab.Screen
         name="Map"
         component={MapScreen}
         options={{
           title: '홈',
-          tabBarIcon: ({color}) => <HomeIcon color={color} />,
+          // ✅ 아이콘은 tint(color) 무시하고 고정색 사용 → 라벨만 색 변함
+          tabBarIcon: ({size}) => <HomeIcon color="#111" width={size} height={size} />,
           headerShown: false,
         }}
       />
@@ -37,7 +42,7 @@ const BottomNavigationBar = () => {
         component={PlantingNavigator}
         options={() => ({
           headerShown: false,
-          tabBarIcon: ({color, size}) => (
+          tabBarIcon: ({size}) => (
             <View
               style={[
                 styles.iconContainer,
@@ -48,7 +53,8 @@ const BottomNavigationBar = () => {
                 start={{x: 0, y: 0}}
                 end={{x: 1, y: 1}}
                 style={styles.gradientBackground}>
-                <PlantIcon color={color} width={size * 1.5} height={size * 1.5} />
+                {/* ✅ 아이콘은 항상 흰색 고정 */}
+                <PlantIcon color="#FFFFFF" width={size * 1.5} height={size * 1.5} />
               </LinearGradient>
             </View>
           ),
@@ -56,10 +62,11 @@ const BottomNavigationBar = () => {
       />
       <Tab.Screen
         name="MyPage"
-        component={MyPageScreen} // ✅ 여기만 바꾸면 탭 누를 때 MyPageScreen으로 이동
+        component={MyPageScreen}
         options={{
           title: 'MY',
-          tabBarIcon: ({color}) => <MyPageIcon color={color} />,
+          // ✅ 아이콘 고정색
+          tabBarIcon: ({size}) => <MyPageIcon color="#111" width={size} height={size} />,
           headerShown: false,
         }}
       />
@@ -84,7 +91,7 @@ const styles = StyleSheet.create({
   },
   headerTitleText: {
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#333',
   },
 });
