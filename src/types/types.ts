@@ -11,6 +11,7 @@ export type SavedSeedType = {
   name: string;
 };
 
+
 export type PlantingStackParamList = {
   PlantHome:
   | { savedRestaurant?: SavedRestaurantType; savedSeed?: SavedSeedType;  }

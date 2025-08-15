@@ -20,7 +20,7 @@ import SearchIcon from '../assets/search.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { typography }  from '../styles/typography'
 
-const MapScreen = ({navigation}: {navigation: any}) => {
+const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   // 식당 목록 불럭오기
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
 
@@ -35,7 +35,9 @@ const MapScreen = ({navigation}: {navigation: any}) => {
 
   const [lon, setLon] = useState(127.03184890085161); // Initial longitude
   const [lat, setLat] = useState(37.58653559343726); // Initial latitude
-const [zoom, setZoom] = useState(15);
+  const [zoom, setZoom] = useState(15);
+  
+
 
   useEffect(() => {
     const auth = getAuth(); // Get the auth instance once
@@ -62,6 +64,18 @@ const [zoom, setZoom] = useState(15);
     // Clean up the listener when the component unmounts
     return () => unsubscribe();
   }, [lon, lat]);
+
+   useEffect(() => {
+     // navigation으로 넘어온 selectedRestaurant가 있으면
+     if (route.params?.selectedRestaurant) {
+       const restaurant = route.params.selectedRestaurant as Restaurant;
+
+       setSelectedRestaurant(restaurant);
+       setLat(restaurant.latitude);
+       setLon(restaurant.longitude);
+       setModalVisible(true);
+     }
+   }, [route.params?.selectedRestaurant]);
 
   const handleSearchClick = () => {
     navigation.navigate('Search');
