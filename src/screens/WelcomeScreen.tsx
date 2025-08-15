@@ -14,7 +14,7 @@ export default function WelcomeScreen({ route, navigation }: { route: any; navig
         {/* 상단 콘텐츠 */}
         <View style={styles.content}>
           <Image
-            source={require('../assets/welcome.png')}  // assets/seed.png를 프로젝트에 추가!
+            source={require('../assets/complete.svg')} 
             style={styles.seedImage}
             resizeMode="contain"
           />
