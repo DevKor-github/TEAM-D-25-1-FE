@@ -14,6 +14,7 @@ import {
 
 import auth from '@react-native-firebase/auth';
 import { exchangeFirebaseTokenWithBackend } from '../apis/api/login';
+import { patchNickname } from '../apis/api/user';
 
 type EmailErrorKind = null | 'empty' | 'invalid' | 'duplicate';
 
@@ -111,6 +112,13 @@ export default function NicknameScreen({ navigation }: { navigation: any }) {
       const customApplicationToken = await exchangeFirebaseTokenWithBackend(
         firebaseIdToken,
       );
+      await patchNickname(nickname);
+      
+      console.log(
+        '로그인 성공! 커스텀 애플리케이션 토큰:',
+        customApplicationToken,
+      );
+
       // 회원가입 성공 시 다음 화면으로 이동
       navigation.navigate('Welcome', {nickname});
     } catch (error: any) {

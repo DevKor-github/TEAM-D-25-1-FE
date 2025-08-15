@@ -83,7 +83,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
       setLoading(true);
       try {
         if (activeTab === '검색') {
-          const data = await getSearchRestaurants(value, 1,10);
+          const data = await getSearchRestaurants(value);
           setSearchRestaruants(data as SearchRestaurant[]);
         } else {
           const data = await getSearchUsers(value, 1, 10);

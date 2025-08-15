@@ -88,7 +88,7 @@ const PlantScreen = ({navigation, route}: {navigation: any; route: any}) => {
 
       // 성공 시 필요한 후속 작업 (예: 상태 초기화, 다른 화면으로 이동)
       dispatch(resetSeedPlanting()); // Redux 상태 초기화
-      navigation.navigate('Home'); // 홈 화면으로 이동
+      navigation.navigate('Map'); // 홈 화면으로 이동
     } catch (error) {
       Alert.alert('실패', '씨앗 심기에 실패했습니다. 다시 시도해주세요.');
       console.error('API 호출 중 에러 발생:', error);

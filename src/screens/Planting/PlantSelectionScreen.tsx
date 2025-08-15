@@ -42,7 +42,7 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
               navigation.goBack();
             } else {
               // 씨앗을 선택하지 않고 확인을 누른 경우 처리 (예: 알림)
-              console.log('씨앗을 선택해주세요.');
+              console.log('씨앗을 선택해주세요?.');
               // 선택하지 않고 '확인' 버튼을 누른 경우 PlantHome으로 아무 파라미터 없이 돌아갈 수도 있습니다.
               // navigation.navigate('PlantHome', {});
             }
