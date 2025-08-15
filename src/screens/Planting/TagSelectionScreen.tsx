@@ -39,6 +39,31 @@ const recommendedTags = [
   'HEARTY_EATER',
 ];
 
+const FOOD_TAG_KOREAN_MAP: {[key: string]: string} = {
+  DRINKER: '애주가',
+  VEGAN_OR_VEGETARIAN: '비건/채식',
+  SPICY_FOOD_LOVER: '맵부심',
+  PICKY_EATER: '편식쟁이',
+  DESSERT_LOVER: '디저트 러버',
+  DIETER: '다이어터',
+  LATE_NIGHT_EATER: '야식',
+  SWEET_TOOTH: '혈당 스파이크',
+  HEALTH_CONSCIOUS: '건강식',
+  VALUE_SEEKER: '가성비',
+  MEAT_LOVER: '육식파',
+  DIET_PLANNER: '식단',
+  CAFFEINE_ADDICT: '카페인 중독',
+  CLASSIC_TASTE: '클래식',
+  STREET_FOOD_FAN: '길거리 음식',
+  TTEOKBOKKI_LOVER: '떡볶이',
+  SMALL_EATER: '소식좌',
+  BIG_EATER: '대식가',
+  SOLO_DINER: '혼밥러',
+  SEAFOOD_LOVER: '해산물파',
+  HEARTY_EATER: '든든파',
+};
+
+
 const TagSelectionScreen = ({navigation}: {navigation: any}) => {
   const dispatch = useDispatch();
   const {savedTags} = useSelector((state: RootState) => state.seedPlanting);
@@ -120,8 +145,12 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
                 key={tag}
                 onPress={() => toggleTag(tag)}
                 style={[styles.chip, isSelected && styles.chipSelected]}>
-                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                  {tag}
+                <Text
+                  style={[
+                    styles.chipText,
+                    isSelected && styles.chipTextSelected,
+                  ]}>
+                  {FOOD_TAG_KOREAN_MAP[tag]}
                 </Text>
               </TouchableOpacity>
             );

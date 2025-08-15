@@ -23,6 +23,7 @@ import KeywordSelectionScreen from './src/screens/KeywordSelectionScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import CafeDetailScreen from './src/screens/CafeDetailScreen';
+import FollowerScreen from './src/screens/FollowerScreen'
 
 // ✅ RNFirebase 코어: 앱 초기화 보장
 import { getApps, initializeApp } from '@react-native-firebase/app';
@@ -60,6 +61,7 @@ const App = () => {
           />
           <Stack.Screen name="Map" component={BottomNavigationBar} />
           <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="Follower" component={FollowerScreen}/>
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>

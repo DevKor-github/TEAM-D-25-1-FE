@@ -1,5 +1,5 @@
 // src/screens/Planting/PlantScreen.tsx
-import React, { useCallback, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -25,6 +25,8 @@ import CameraIcon from '../../assets/camera.svg';
 import * as ImagePicker from 'react-native-image-picker';
 import { RootState } from '../../types/types';
 import { postTree } from '../../apis/api/tree';
+import { postImageReview } from '../../apis/api/images';
+
 
 // 커스텀 백 버튼 & 플러스 아이콘
 const backIcon = require('../../assets/arrow.png');
@@ -33,17 +35,13 @@ const plusPng = require('../../assets/plus_icon.png');
 const PlantScreen = ({ navigation }: { navigation: any }) => {
   const dispatch = useDispatch();
 
-  const {
-    savedRestaurant,
-    savedSeed,
-    savedTags,
-    savedPhotos,
-    reviewText,
-  } = useSelector((state: RootState) => state.seedPlanting);
+  const {savedRestaurant, savedSeed, savedTags, savedPhotos, reviewText} =
+    useSelector((state: RootState) => state.seedPlanting);
 
   const [isModalVisible, setModalVisible] = useState(false);
-
+  const [isUploading, setIsUploading] = useState(false);
   const isConfirmEnabled = savedRestaurant !== null && savedSeed !== null;
+  const [finalPhotoURLs, setFinalPhotoURLs] = useState<string[]>([]);
 
   const goToMapTab = () => {
     const parent = navigation.getParent?.();
@@ -53,13 +51,21 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
 
   const handlePlantSeed = async () => {
     if (!savedSeed || !savedRestaurant) return;
+    console.log('씨앗 심기');
+    console.log(savedPhotos);
+    let uploadedUrls: string[] = [];
+    if (savedPhotos.length > 0) {
+      console.log('사진 올리기');
+      console.log(savedPhotos)
+      uploadedUrls = await handleUpload(savedPhotos);
+}
     try {
       await postTree(
         savedSeed.seedId,
         savedRestaurant.id,
         reviewText,
-        reviewText,
         savedTags,
+        uploadedUrls,
       );
       Alert.alert('성공', '씨앗이 성공적으로 심어졌습니다!');
       dispatch(resetSeedPlanting());
@@ -75,26 +81,46 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       headerBackVisible: false,
       headerTitle: '씨앗 심기',
       headerTitleAlign: 'center',
-      headerTitleStyle: { fontSize: 18, fontWeight: '600', color: '#111' },
+      headerTitleStyle: {fontSize: 18, fontWeight: '600', color: '#111'},
       headerLeft: () => (
         <TouchableOpacity
           onPress={goToMapTab}
-          style={{ marginLeft: 12, padding: 6 }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Image source={backIcon} style={{ width: 24, height: 24, resizeMode: 'contain' }} />
+          style={{marginLeft: 12, padding: 6}}
+          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+          <Image
+            source={backIcon}
+            style={{width: 24, height: 24, resizeMode: 'contain'}}
+          />
         </TouchableOpacity>
       ),
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => (isConfirmEnabled ? handlePlantSeed() : Alert.alert('안내', '장소와 씨앗을 모두 선택해주세요.'))}
-          style={{ marginRight: 15 }}>
-          <Text style={{ color: isConfirmEnabled ? '#0DBC65' : '#999999', fontSize: 18, fontWeight: '600' }}>
+          onPress={() =>
+            isConfirmEnabled
+              ? handlePlantSeed()
+              : Alert.alert('안내', '장소와 씨앗을 모두 선택해주세요.')
+          }
+          style={{marginRight: 15}}>
+          <Text
+            style={{
+              color: isConfirmEnabled ? '#0DBC65' : '#999999',
+              fontSize: 18,
+              fontWeight: '600',
+            }}>
             확인
           </Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, isConfirmEnabled, savedRestaurant, savedSeed, reviewText, savedTags]);
+  }, [
+    navigation,
+    isConfirmEnabled,
+    savedRestaurant,
+    savedSeed,
+    reviewText,
+    savedTags,
+  ]);
+
 
   const handleAddPhoto = useCallback(() => {
     const options: ImagePicker.ImageLibraryOptions = {
@@ -105,20 +131,54 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       quality: 1,
       selectionLimit: 0,
     };
-    ImagePicker.launchImageLibrary(options, (res) => {
+    ImagePicker.launchImageLibrary(options, res => {
       if (res.didCancel || res.errorCode) return;
-      res.assets?.map(a => a.uri).filter(Boolean)?.forEach(uri => dispatch(addPhoto(uri as string)));
+      res.assets
+        ?.map(a => a.uri)
+        .filter(Boolean)
+        ?.forEach(uri => dispatch(addPhoto(uri as string)));
     });
   }, [dispatch]);
 
+  const handleUpload = async (photosToUpload: string[]): Promise<string[]> => {
+    if (isUploading) return [];
+    setIsUploading(true);
+
+    try {
+      const result = await postImageReview(photosToUpload);
+      // console.log('업로드 성공:', result);
+      // return result ?? []; // undefined 방지
+      const urls = result?.map((item: {url: string}) => item.url) ?? [];
+
+      console.log('업로드 성공:', urls);
+      return urls;
+    } catch (error) {
+      console.error('업로드 실패:', error);
+      return [];
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
-    <ScrollView style={{ flex: 1, padding: 20, backgroundColor: 'white' }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={{flex: 1, padding: 20, backgroundColor: 'white'}}
+      showsVerticalScrollIndicator={false}>
       {/* 장소 검색 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>장소 검색</Text>
-        <TouchableOpacity style={styles.selectField} onPress={() => navigation.navigate('PlantSearch')}>
-          <Text style={savedRestaurant ? styles.selectFieldText : styles.selectFieldPlaceholder}>
-            {savedRestaurant ? savedRestaurant.name : '씨앗을 심을 장소를 검색해보세요.'}
+        <TouchableOpacity
+          style={styles.selectField}
+          onPress={() => navigation.navigate('PlantSearch')}>
+          <Text
+            style={
+              savedRestaurant
+                ? styles.selectFieldText
+                : styles.selectFieldPlaceholder
+            }>
+            {savedRestaurant
+              ? savedRestaurant.name
+              : '씨앗을 심을 장소를 검색해보세요.'}
           </Text>
           <SearchIcon width={24} height={24} color="#505050" />
         </TouchableOpacity>
@@ -127,8 +187,13 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       {/* 씨앗 고르기 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>씨앗 고르기</Text>
-        <TouchableOpacity style={styles.selectField} onPress={() => navigation.navigate('PlantSelection')}>
-          <Text style={savedSeed ? styles.selectFieldText : styles.selectFieldPlaceholder}>
+        <TouchableOpacity
+          style={styles.selectField}
+          onPress={() => navigation.navigate('PlantSelection')}>
+          <Text
+            style={
+              savedSeed ? styles.selectFieldText : styles.selectFieldPlaceholder
+            }>
             {savedSeed ? savedSeed.name : '심을 씨앗의 종류를 골라봐요.'}
           </Text>
           <ArrowRightIcon width={24} height={24} color="#505050" />
@@ -141,7 +206,9 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         <View style={styles.tagContainer}>
           {savedTags.map((tag, idx) => (
             <View key={`${tag}-${idx}`} style={styles.tagBadge}>
-              <Text style={styles.tagText}>{tag}</Text>
+              <Text style={styles.tagText}>
+                {FOOD_TAG_KOREAN_MAP[tag] || tag}
+              </Text>
             </View>
           ))}
           {/* PNG 그대로 사용: 배경/원형 래퍼 없음 */}
@@ -150,26 +217,35 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
             accessibilityLabel="태그 추가"
             activeOpacity={0.8}
             style={styles.addTagSpacer}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Image source={plusPng} style={{ width: 35, height: 35, resizeMode: 'contain' }}/>
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <Image
+              source={plusPng}
+              style={{width: 35, height: 35, resizeMode: 'contain'}}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* 구분선 */}
-      <View style={{ height: 1, backgroundColor: '#ECECEC', marginVertical: 12 }} />
+      <View
+        style={{height: 1, backgroundColor: '#ECECEC', marginVertical: 12}}
+      />
 
       {/* 사진 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>사진</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageScrollContainer}>
-          <TouchableOpacity style={styles.addPhotoButton} onPress={handleAddPhoto}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.imageScrollContainer}>
+          <TouchableOpacity
+            style={styles.addPhotoButton}
+            onPress={handleAddPhoto}>
             <CameraIcon width={40} height={40} color="#B0B0B0" />
             <Text style={styles.addPhotoText}>사진 추가</Text>
           </TouchableOpacity>
           {savedPhotos.map((uri, i) => (
-            <Image key={i} source={{ uri }} style={styles.addedImage} />
+            <Image key={i} source={{uri}} style={styles.addedImage} />
           ))}
         </ScrollView>
       </View>

@@ -7,8 +7,9 @@ import {
 } from 'react-native';
 import SearchIcon from '../assets/search.svg';
 import ArrowLeftIcon from '../assets/arrow-left.svg'
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {getSearchRestaurants, getSearchUsers} from '../apis/api/search';
+import PinIcon from '../assets/pinicon.svg';
 
 // SearchHistoryItem 타입 정의 (TypeScript 오류 해결)
 interface SearchRestaurant {
@@ -51,6 +52,12 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
   const [searchUsers, setSearchUsers] = useState<SearchUser[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<SearchRestaurant | null>(null);
+  const [selectedUser, setSelectedUser] =
+    useState<SearchUser | null>(null);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  
   // const fetchResults = async () => {
   //   if (!value.trim()) {
   //     setSearchRestaruants([]);
@@ -86,7 +93,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
           const data = await getSearchRestaurants(value);
           setSearchRestaruants(data as SearchRestaurant[]);
         } else {
-          const data = await getSearchUsers(value, 1, 10);
+          const data = await getSearchUsers(value);
           setSearchUsers(data as SearchUser[]);
         }
       } catch (e) {
@@ -104,30 +111,52 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
   const tabPress = (tabName: string) => {
     setActiveTab(tabName);
   };
+  const handleRestaurantPress = (item: SearchRestaurant) => {
+    // Map 화면으로 데이터 전달
+    navigation.navigate('Map', {selectedRestaurant: item});
+    // 만약 그냥 돌아가기만 할 거면:
+    // navigation.goBack();
+  };
+
+    const handleUserPress = (item: SearchUser) => {
+      // Map 화면으로 데이터 전달
+      navigation.navigate('Follower', {selectedUser: item});
+      // 만약 그냥 돌아가기만 할 거면:
+      // navigation.goBack();
+    };
+  
 
   const renderRestaurant = (item: SearchRestaurant) => (
-    <TouchableOpacity key={item.id} style={styles.itemContainer}>
-      {/* 검색어 텍스트 */}
-      <Text style={styles.keywordText}>{item.name}</Text>
-
-      {/* 날짜와 삭제 아이콘 영역 */}
-      <View style={styles.rightContentContainer}>
-        <Text style={styles.dateText}>{item.name}</Text>
+    <TouchableOpacity
+      key={item.id}
+      style={styles.itemContainer}
+      onPress={() => handleRestaurantPress(item)}>
+      <PinIcon />
+      <View>
+        <Text style={styles.keywordText}>{item.name}</Text>
+        <Text style={styles.addressText}>{item.address}</Text>
       </View>
     </TouchableOpacity>
   );
 
   const renderUser = (item: SearchUser) => (
-    <TouchableOpacity key={item.id} style={styles.itemContainer}>
+    <TouchableOpacity
+      key={item.id}
+      style={styles.itemContainer}
+      onPress={()=>handleUserPress(item)}>
       {/* 검색어 텍스트 */}
       <Text style={styles.keywordText}>{item.nickname}</Text>
-
-      {/* 날짜와 삭제 아이콘 영역 */}
-      <View style={styles.rightContentContainer}>
-        <Text style={styles.dateText}>{item.nickname}</Text>
-      </View>
     </TouchableOpacity>
   );
+
+  const placeholderText =
+    activeTab === '검색'
+      ? isInputFocused
+        ? ''
+        : '장소, 음식, 가게 검색'
+      : isInputFocused
+      ? ''
+      : '친구 검색';
 
   return (
     <View
@@ -177,7 +206,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
             onChangeText={text => onChangeText(text)}
             value={value}
             style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
-            placeholder="장소, 음식, 가게 검색"
+            placeholder={placeholderText}
           />
         </View>
         <SearchIcon />
@@ -269,9 +298,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0', // 연한 구분선
   },
   keywordText: {
-    flex: 1, // 남은 공간을 채우도록 flex: 1
+    marginLeft: 10,
+    marginBottom: 5,
     fontSize: 16,
     color: '#333', // 어두운 글씨색
+  },
+  addressText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#2A2A2A99', // 어두운 글씨색
   },
   rightContentContainer: {
     flexDirection: 'row',
