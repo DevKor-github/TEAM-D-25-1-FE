@@ -1,3 +1,4 @@
+// src/screens/LoginScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -16,14 +17,27 @@ import {
 } from '@invertase/react-native-apple-authentication';
 
 import auth from '@react-native-firebase/auth';
+// // ✅ RNFirebase 모듈러 API
+// import { getApp } from '@react-native-firebase/app';
+// import {
+//   getAuth,
+//   signInWithEmailAndPassword,
+// } from '@react-native-firebase/auth';
+
 import { exchangeFirebaseTokenWithBackend } from '../apis/api/login';
 
 const LoginScreen = ({ navigation }: { navigation: any }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const onPressLogin = async() => {
+  const onPressLogin = async () => {
     try {
+      if (!email.trim() || !password) {
+        Alert.alert('입력 확인', '이메일과 비밀번호를 입력해주세요.');
+        return;
+      }
+
+      // ✅ 모듈러 로그인
       const userCredential = await auth().signInWithEmailAndPassword(
         email,
         password,
@@ -33,29 +47,28 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         throw new Error('Firebase user not found after login.');
       }
 
+      // Firebase ID 토큰 → 백엔드 교환
       const firebaseIdToken = await user.getIdToken();
       console.log('Firebase ID Token:', firebaseIdToken);
 
-      // 3. Exchange the Firebase ID Token with your backend
       const customApplicationToken = await exchangeFirebaseTokenWithBackend(
-        firebaseIdToken,
+        firebaseIdToken
       );
 
-      console.log(
-        '로그인 성공! 커스텀 애플리케이션 토큰:',
-        customApplicationToken,
-      );
+      console.log('로그인 성공! 커스텀 애플리케이션 토큰:', customApplicationToken);
+
+      // 필요하면 reset으로 스택 정리
+      // navigation.reset({ index: 0, routes: [{ name: 'Map' }] });
       navigation.navigate('Map');
     } catch (error: any) {
-      Alert.alert('로그인 실패', error.message);
+      console.error(error);
+      Alert.alert('로그인 실패', error?.message ?? '알 수 없는 오류가 발생했어요.');
     }
-    
   };
 
   const handleAppleSignIn = async () => {
     try {
       if (__DEV__) {
-        // 개발 환경에서는 목업 로그인 -> 다중에 이거 false처리하기
         console.log('🔧 DEV MOCK APPLE LOGIN');
         Alert.alert('Apple 로그인 (MOCK)', '개발 모드 목업 로그인 성공!');
         navigation.navigate('Map');
@@ -69,7 +82,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       });
 
       if (response.identityToken) {
-        // 백엔드에 token 전송 등 처리 후
+        // TODO: 필요 시 Firebase 연동(Apple credential) 또는 백엔드 검증 추가
         Alert.alert('Apple 로그인 성공', '환영합니다!');
         navigation.navigate('Map');
       } else {
@@ -106,6 +119,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
           placeholderTextColor="#999"
           autoCapitalize="none"
           keyboardType="email-address"
+          returnKeyType="next"
         />
       </View>
 
@@ -119,6 +133,8 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
           onChangeText={setPassword}
           secureTextEntry
           placeholderTextColor="#999"
+          returnKeyType="done"
+          onSubmitEditing={onPressLogin}
         />
       </View>
 
@@ -143,7 +159,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
           <Text style={styles.socialLabel}>Apple</Text>
         </TouchableOpacity>
 
-        {/* Google 로그인 (기존처럼) */}
+        {/* Google 로그인 (추후 구현) */}
         <TouchableOpacity
           style={styles.socialItem}
           onPress={() => Alert.alert('Google 로그인', '구현 예정')}
@@ -188,18 +204,18 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F2',
+    backgroundColor: '#F6F6F8',
     borderRadius: 10,
     marginBottom: 12,
     paddingHorizontal: 14,
-    height: 48,
+    height: 55,
   },
   icon: { width: 20, height: 20, marginRight: 8, resizeMode: 'contain' },
   input: { flex: 1, fontSize: 14, color: '#333' },
   loginButton: {
     width: 181,
-    height: 46,
-    backgroundColor: '#6BDE45',
+    height: 48,
+    backgroundColor: '#6CDF44',
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
@@ -207,13 +223,13 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     marginTop: 10,
   },
-  loginText: { color: '#000', fontWeight: 'normal', fontSize: 14 },
+  loginText: { color: '#111', fontWeight: '500', fontSize: 14 },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(0, 0, 0, 0.20)', // 세미콜론 제거
+    backgroundColor: 'rgba(0, 0, 0, 0.20)',
     marginVertical: 50,
     marginHorizontal: 5,
-    marginTop: 150,
+    marginTop: 125,
   },
   socialRow: {
     flexDirection: 'row',
@@ -230,9 +246,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   socialIcon: { width: 32, height: 32, resizeMode: 'contain' },
-  socialLabel: { marginTop: 6, fontSize: 14, color: '#767676' },
+  socialLabel: { marginTop: 6, fontSize: 14, color: '#767676', fontWeight: '400', },
   signupButton: { marginTop: 16, alignSelf: 'center' },
-  signupText: { fontSize: 14, color: '#43C217' },
+  signupText: { fontSize: 14, color: '#43C217' , marginBottom: 30,},
 });
 
 export default LoginScreen;

@@ -9,8 +9,10 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet as RNStyleSheet,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient'; //  그라데이션 이걸로쓰기
 import Chip from '../components/Chip';
 
 // SVG 아이콘
@@ -24,6 +26,11 @@ const treeImg = require('../assets/image/mytree.png');
 const treeicon = require('../assets/extree.png');
 const grooNameIcon = require('../assets/groo_name_icon.png');
 const grooPictureIcon = require('../assets/groo_picture_icon.png');
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const H_MARGIN = 14;                  // 좌우 마진
+const CARD_RADIUS = 16;
+const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2; // 정사각형 카드 너비/높이
 
 type TreeItemT = { id: string; name: string; meta: string };
 
@@ -75,7 +82,6 @@ export default function MyPageScreen({ navigation }: any) {
 
   // 더보기: 동일 플롯을 더 붙여 보여주기
   const appendMore = (list: TreeItemT[]): TreeItemT[] => {
-    // 기존 항목을 복제하여 새로운 id로 뒤에 이어 붙임
     const suffix = '_' + Math.random().toString(36).slice(2, 6);
     const clones = list.map((it, idx) => ({
       ...it,
@@ -83,6 +89,12 @@ export default function MyPageScreen({ navigation }: any) {
     }));
     return [...list, ...clones];
   };
+
+  // ✅ 하이라이트 카드 데이터 (배경만 다름)
+  const highlightSlides = [
+    { id: 'main', colors: ['#F4F4F4', '#BDEABC'] }, // 기존
+    { id: 'alt',  colors: ['#F4F4F4', '#EABCD2'] }, // 추가
+  ];
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -122,7 +134,7 @@ export default function MyPageScreen({ navigation }: any) {
                 <Text style={styles.handle}>@jiyoooon_</Text>
               </View>
               <Text style={styles.bio}>
-                {profile.intro && profile.intro.trim().length > 0 ? profile.intro : '힌줄소개로 나를 설명해보세요!'}
+                {profile.intro && profile.intro.trim().length > 0 ? profile.intro : '한줄소개로 나를 설명해보세요!'}
               </Text>
               <View style={styles.divider} />
               <View style={styles.statsRowSimple}>
@@ -153,24 +165,42 @@ export default function MyPageScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* 하이라이트 카드 */}
-        <View style={styles.highlightCard}>
-          <View style={styles.highlightTextBox}>
-            <View style={styles.titleWrap}>
-              <Text style={styles.highlightTitleLine}>
-                가장 큰 나무는 <Text style={styles.highlightEm}>카페 브레송</Text>의
-              </Text>
-              <Text style={styles.highlightTitleLine}>
-                <Text style={styles.highlightEm}>182M</Text> 아름드리 나무예요!
-              </Text>
+        {/* ✅ 하이라이트 카드 - 가로 스크롤(여러 장), 각 카드 정사각형 */}
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.highlightTray}
+        >
+          {highlightSlides.map(slide => (
+            <View key={slide.id} style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
+              <LinearGradient
+                colors={slide.colors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              <View style={styles.highlightTextBox}>
+                <View style={styles.titleWrap}>
+                  <Text style={styles.highlightTitleLine}>
+                    가장 큰 나무는 <Text style={styles.highlightEm}>카페 브레송</Text>의
+                  </Text>
+                  <Text style={styles.highlightTitleLine}>
+                    <Text style={styles.highlightEm}>182M</Text> 아름드리 나무예요!
+                  </Text>
+                </View>
+
+                <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
+                  <Text style={styles.highlightCtaText}>보러가기</Text>
+                  <Text style={styles.highlightCtaArrow}>›</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Image source={treeImg} style={styles.highlightTree} />
             </View>
-            <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
-              <Text style={styles.highlightCtaText}>보러가기</Text>
-              <Text style={styles.highlightCtaArrow}>›</Text>
-            </TouchableOpacity>
-          </View>
-          <Image source={treeImg} style={styles.highlightTree} />
-        </View>
+          ))}
+        </ScrollView>
 
         {/* 리스트들 */}
         <Section
@@ -180,7 +210,6 @@ export default function MyPageScreen({ navigation }: any) {
             if (plantedVisible < plantedList.length) {
               setPlantedVisible((v) => Math.min(v + 2, plantedList.length));
             } else {
-              // 다 보여줬다면 동일 플롯을 더 만들어 붙이고 계속 보여줌
               const extended = appendMore(plantedList);
               setPlantedList(extended);
               setPlantedVisible((v) => Math.min(v + 2, extended.length));
@@ -253,8 +282,6 @@ function Section({
   );
 }
 
-const CARD_RADIUS = 16;
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF' },
 
@@ -274,12 +301,13 @@ const styles = StyleSheet.create({
 
   /* 프로필 카드 */
   card: {
-    marginHorizontal: 14,
+    marginHorizontal: H_MARGIN,
     backgroundColor: '#F6F6F8',
     borderRadius: CARD_RADIUS,
     padding: 16,
     elevation: 3,
     position: 'relative',
+    marginBottom : 15,
   },
   editFab: { position: 'absolute', top: 10, right: 10, padding: 6, borderRadius: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -298,23 +326,27 @@ const styles = StyleSheet.create({
   statKeyText: { fontSize: 13, color: '#111', marginTop: 3 },
 
   /* 칩 영역 */
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14, },
 
-  /* 하이라이트 카드 */
-  highlightCard: {
-    marginTop: 14,
-    marginHorizontal: 14,
-    height: 330,
-    backgroundColor: '#E9F7EC',
+  /* ✅ 하이라이트 트레이(가로 스크롤) */
+  highlightTray: {
+    paddingHorizontal: H_MARGIN,
+    gap: 14,                 // RN 최신 버전에서 지원. 미지원이면 각 item에 marginRight 부여해도 됨
+  },
+
+  /* ✅ 하이라이트 아이템(정사각형 카드) */
+  highlightItem: {
+    aspectRatio: 1.1,          // 정사각형 유지
     borderRadius: CARD_RADIUS,
     overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    position: 'relative',
     paddingLeft: 16,
     paddingRight: 16,
     paddingVertical: 18,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    position: 'relative',
   },
+
   highlightTextBox: {
     flex: 1,
     height: '100%',
@@ -339,7 +371,7 @@ const styles = StyleSheet.create({
 
   /* 섹션 */
   sectionHeader: { marginTop: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
-  sectionTitle: { fontSize: 19, fontWeight: '600', color: '#0E0F11', marginLeft: 7, },
+  sectionTitle: { fontSize: 19, fontWeight: '600', color: '#0E0F11', marginLeft: 7 },
   sortBtn: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', padding: 4 },
   sortText: { color: '#737373', fontSize: 15, marginRight: 3 },
   sortChevron: { color: '#737373', fontSize: 15 },
@@ -377,9 +409,7 @@ const styles = StyleSheet.create({
   moreBtnText: { fontSize: 14, color: '#555' },
 
   /* (기존 리스트 스타일은 미사용) */
-  listCard: {
-    display: 'none',
-  },
+  listCard: { display: 'none' },
   treeRow: { display: 'none' },
   treeRowDivider: { display: 'none' },
   treeThumb: { width: 40, height: 40, borderRadius: 8, resizeMode: 'contain' },

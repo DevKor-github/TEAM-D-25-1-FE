@@ -1,14 +1,14 @@
+// src/navigations/bottomNavigationBar.tsx
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {NavigationContainer} from '@react-navigation/native';
 import React from 'react';
 import MapScreen from '../screens/MapScreen';
-import PlantScreen from '../screens/Planting/PlantScreen';
 import LinearGradient from 'react-native-linear-gradient';
 import HomeIcon from '../assets/home.svg';
 import PlantIcon from '../assets/plant.svg';
 import MyPageIcon from '../assets/mypage.svg';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import PlantingNavigator from './plantingNavigator';
+import MyPageScreen from '../screens/MypageScreen'; // ✅ 추가 (경로/대소문자 정확히!)
 
 const Tab = createBottomTabNavigator();
 
@@ -35,7 +35,7 @@ const BottomNavigationBar = () => {
       <Tab.Screen
         name="Plant"
         component={PlantingNavigator}
-        options={({}) => ({
+        options={() => ({
           headerShown: false,
           tabBarIcon: ({color, size}) => (
             <View
@@ -44,16 +44,11 @@ const BottomNavigationBar = () => {
                 {width: size * 2.0, height: size * 2.0},
               ]}>
               <LinearGradient
-                colors={['#AACFED', '#6CDF44']} // Apply your gradient colors
+                colors={['#AACFED', '#6CDF44']}
                 start={{x: 0, y: 0}}
                 end={{x: 1, y: 1}}
-                style={styles.gradientBackground} // Apply the gradient background
-              >
-                <PlantIcon
-                  color={color}
-                  width={size * 1.5}
-                  height={size * 1.5}
-                />
+                style={styles.gradientBackground}>
+                <PlantIcon color={color} width={size * 1.5} height={size * 1.5} />
               </LinearGradient>
             </View>
           ),
@@ -61,15 +56,17 @@ const BottomNavigationBar = () => {
       />
       <Tab.Screen
         name="MyPage"
-        component={MapScreen}
+        component={MyPageScreen} // ✅ 여기만 바꾸면 탭 누를 때 MyPageScreen으로 이동
         options={{
           title: 'MY',
-          tabBarIcon: ({color, size}) => <MyPageIcon color={color} />,
+          tabBarIcon: ({color}) => <MyPageIcon color={color} />,
+          headerShown: false,
         }}
       />
     </Tab.Navigator>
   );
 };
+
 const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: 40,
@@ -79,9 +76,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gradientBackground: {
-    width: 54, // Set width for the icon container (adjust size as needed)
-    height: 54, // Set height for the icon container (adjust size as needed)
-    borderRadius: 30, // Create a circle (half of width/height)
+    width: 54,
+    height: 54,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,278 +1,222 @@
-// src/screens/CafeDetailScreen.tsx
-import React, { useState } from 'react';
+// 파일: src/screens/OnboardingScreen.tsx
+import React, { useRef, useState } from 'react';
+import PrimaryButton from '../components/PrimaryButton';
 import {
   View,
   Text,
+  FlatList,
   StyleSheet,
-  SafeAreaView,
-  Image,
   Dimensions,
-  ScrollView,
+  Image,
+  SafeAreaView,
+  ViewToken,
 } from 'react-native';
-import TopBar from '../components/TopBar';
-import PrimaryButton from '../components/PrimaryButton';
 
-const { width, height } = Dimensions.get('window');
-const CARD_MARGIN = 16;
-const HERO_HEIGHT = 360;
+const { width } = Dimensions.get('window');
 
-export default function CafeDetailScreen() {
-  const [bookmarked, setBookmarked] = useState(false);
+const DOT_SIZE = 6;
+// 중앙 이미지 최대 너비(원본비 유지). 필요시 0.7 → 0.6/0.8로 조절하세요.
+const IMAGE_MAX_WIDTH = Math.min(width * 0.7, 320);
+
+type Slide = {
+  key: string;
+  image: any;
+  title: string;
+};
+
+const slides: Slide[] = [
+  {
+    key: '1',
+    image: require('../assets/onboard1.png'),
+    title: '친구에게 추천해주고      싶은 맛집을 지도에 심어요',
+  },
+  {
+    key: '2',
+    image: require('../assets/onboard2.png'),
+    title: '내 친구가 심은 나무를   구경하고 방문해요',
+  },
+  {
+    key: '3',
+    image: require('../assets/onboard2.png'), // 2,3 동일 이미지
+    title: "내가 방문한 친구의 '맛집나무'에 물을 줘요",
+  },
+];
+
+type Props = { navigation: any };
+
+function OnboardingSlide({
+  slide,
+  currentIndex,
+  navigation,
+}: {
+  slide: Slide;
+  currentIndex: number;
+  navigation: any;
+}) {
+  // 원본 비율 계산(가로/세로)
+  const src = Image.resolveAssetSource(slide.image);
+  const aspectRatio =
+    src && src.width && src.height ? src.width / src.height : 1;
+
+  // 이미지 실제 렌더 크기 계산
+  const imageW = IMAGE_MAX_WIDTH;
+  const imageH = Math.round(imageW / (aspectRatio || 1));
+  const cardH = Math.round(imageH * (1 / 3)); // 아랫부분 1/3 덮기
 
   return (
-    <SafeAreaView style={styles.root}>
-      <TopBar
-        onPressBack={() => {
-          // navigation.goBack();
-        }}
-        onPressBookmark={() => setBookmarked(b => !b)}
-        bookmarked={bookmarked}
-        iconSize={26}
-      />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 상단 히어로 영역 */}
-        <View style={styles.hero}>
+    <View style={styles.page}>
+      {/* 상단: 중앙에 이미지(작게) */}
+      <View style={styles.topArea}>
+        <View style={[styles.imageBox, { width: imageW, height: imageH }]}>
           <Image
-            source={require('../assets/dummypic.png')}
-            style={styles.heroBackground}
-            resizeMode="cover"
+            source={slide.image}
+            style={styles.image}
+            resizeMode="contain"
           />
 
-          {/* 트리 + 우드 패널(표지판) */}
-          <View style={styles.treeWrapper}>
-            {/* 트리 */}
-            <Image
-              source={require('../assets/extree.png')}
-              style={styles.treeImg}
-              resizeMode="contain"
-            />
-            {/* 우드 패널 이미지 */}
-            <Image
-              source={require('../assets/wood_panel.png')}
-              style={styles.woodPanelImg}
-              resizeMode="contain"
-            />
-            {/* 표지판 텍스트 */}
-            <View style={styles.signTextBox}>
-              <Text style={styles.signLine1}>나무 3단계</Text>
-              <Text style={styles.signLine2}>참나무 · 13m</Text>
-            </View>
-          </View>
-
-          {/* 페이지 도트 */}
-          <View style={styles.pager}>
-            <View style={[styles.dot, styles.activeDot]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
-        </View>
-
-        {/* 하얀 시트: 화면 아래까지 꽉 차게 */}
-        <View style={styles.sheet}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>카페 브레숑</Text>
-            <Text style={styles.subTag}>카페</Text>
-          </View>
-          <Text style={styles.address}>서울 성북구 고려대로24가길 11 2층</Text>
-
-          {/* 사진 그리드 */}
-          <View style={styles.imageGrid}>
-            <Image
-              source={require('../assets/dummypic.png')}
-              style={styles.largeImage}
-              resizeMode="cover"
-            />
-            <View style={styles.rightColumn}>
-              <Image
-                source={require('../assets/dummypic.png')}
-                style={styles.smallImage}
-                resizeMode="cover"
-              />
-              <View style={styles.overlayContainer}>
-                <Image
-                  source={require('../assets/dummypic.png')}
-                  style={styles.smallImage}
-                  resizeMode="cover"
+          {/* 글 박스(이미지 아랫부분 1/3 덮기) - 도트는 박스 안 맨 위 */}
+          <View style={[styles.overlayCard, { height: cardH }]}>
+            <View style={styles.dotsInCardRow}>
+              {slides.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i === currentIndex ? styles.dotActive : styles.dotInactive,
+                  ]}
                 />
-                <View style={styles.plusBadge}>
-                  <Text style={styles.plusText}>+11</Text>
-                </View>
-              </View>
+              ))}
             </View>
+
+            <Text style={styles.cardText} numberOfLines={3}>
+              {slide.title}
+            </Text>
           </View>
-
-          {/* 시트 내부 여백 (하단 버튼과 겹치지 않게) */}
-          <View style={{ height: 80 }} />
         </View>
-      </ScrollView>
+      </View>
 
-      {/*  PrimaryButton 사용 - 물주기*/}
-      <View style={styles.actionWrapper}>
+      {/* 하단 버튼 영역 */}
+      <View style={styles.bottomArea}>
         <PrimaryButton
-          label="물주기"
-          onPress={() => {
-            // 물주기 로직
-          }}
+          label="로그인"
+          onPress={() => navigation.replace('Login')}
         />
       </View>
+    </View>
+  );
+}
+
+export default function OnboardingScreen({ navigation }: Props) {
+  const flatRef = useRef<FlatList<Slide>>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setCurrentIndex(viewableItems[0].index);
+      }
+    },
+  ).current;
+
+  const viewConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <FlatList
+        ref={flatRef}
+        data={slides}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={item => item.key}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewConfig}
+        renderItem={({ item }) => (
+          <OnboardingSlide
+            slide={item}
+            currentIndex={currentIndex}
+            navigation={navigation}
+          />
+        )}
+        contentContainerStyle={{ flexGrow: 1 }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  safe: { flex: 1, backgroundColor: '#fff' },
+
+  page: {
+    width,
     flex: 1,
     backgroundColor: '#fff',
   },
-  scrollContent: {
-    paddingBottom: 150, // 하단 버튼 여유
-  },
-  hero: {
-    height: HERO_HEIGHT,
-    justifyContent: 'flex-end',
-  },
-  heroBackground: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-    opacity: 0.80,
+
+  /* 이미지가 화면 정중앙에 오도록 */
+  topArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center', // 세로/가로 중앙
+    paddingHorizontal: 24,
   },
 
-  /** 트리 & 표지판 */
-  treeWrapper: {
+  imageBox: {
+    position: 'relative',
+    borderRadius: 1,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+  },
+  image: { width: '100%', height: '100%' },
+
+  /* 이미지 아랫부분 1/3을 덮는 글 박스 (내부 상단에 도트) */
+  overlayCard: {
     position: 'absolute',
-    top: 96,
     left: 0,
     right: 0,
-    alignItems: 'center',
-  },
-  treeImg: {
-    width: 200,
-    height: 200,
-    marginBottom: 8,
-  },
-  woodPanelImg: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    right: width * 0.2, // 기기 폭 기준으로 살짝 오른쪽에
-    bottom: -156,
-  },
-  signTextBox: {
-    position: 'absolute',
-    right: width * 0.285,
-    bottom: 8,
-    width: 76,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  signLine1: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4a3a24',
-  },
-  signLine2: {
-    fontSize: 11,
-    color: '#4a3a24',
-    marginTop: 2,
-  },
-
-  /** 도트 */
-  pager: {
-    position: 'absolute',
-    bottom: 10,
-    alignSelf: 'center',
-    flexDirection: 'row',
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#D5D5D5',
-    marginHorizontal: 3,
-  },
-  activeDot: {
-    backgroundColor: '#3C3C3C',
-  },
-
-  /** 하얀 시트(카드 역할) */
-  sheet: {
-    marginTop: -34, // 히어로와 겹치게
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    bottom: 0,
     backgroundColor: '#fff',
-    padding: 16,
-    // 화면 아래까지 꽉 차도록 최소 높이 보장
-    minHeight: height - HERO_HEIGHT + 34,
+    borderTopLeftRadius: 1,
+    borderTopRightRadius: 1,
+    paddingHorizontal: 2,
+    paddingTop: 20,
+    paddingBottom: 14,
+    justifyContent: 'flex-start',
+    elevation: 2,
   },
-  titleRow: {
+
+  /* 카드 안 도트 */
+  dotsInCardRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    justifyContent: 'center',
+    marginBottom: 20, // 도트 아래 텍스트 여백
+    gap: 8,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '800',
+
+  dot: {
+    width: DOT_SIZE,
+    height: DOT_SIZE,
+    borderRadius: DOT_SIZE / 2,
+    marginHorizontal: 1,
   },
-  subTag: {
-    fontSize: 13,
-    marginLeft: 6,
-    color: '#7A7A7A',
+  dotActive: { backgroundColor: '#111' },
+  dotInactive: { backgroundColor: '#D9D9D9' },
+
+  cardText: {
+    fontSize: 28,
     fontWeight: '600',
-  },
-  address: {
-    fontSize: 13,
-    color: '#8B8B8B',
-    marginTop: 6,
-  },
-
-  /** 사진 그리드 */
-  imageGrid: {
-    flexDirection: 'row',
-    marginTop: 14,
-  },
-  largeImage: {
-    width: (width - CARD_MARGIN * 2) * 0.62,
-    height: 118,
-    borderRadius: 10,
-  },
-  rightColumn: {
-    flex: 1,
-    marginLeft: 8,
-    justifyContent: 'space-between',
-  },
-  smallImage: {
-    width: '100%',
-    height: 56,
-    borderRadius: 10,
-  },
-  overlayContainer: {
-    position: 'relative',
-  },
-  plusBadge: {
-    position: 'absolute',
-    right: 8,
-    bottom: 8,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 14,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  plusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#111',
+    textAlign: 'left',
+    lineHeight: 33,     
+    paddingTop: 10,
+    marginTop: 4,
   },
 
-  /** 하단 버튼 */
-  actionWrapper: {
-    position: 'absolute',
-    left: CARD_MARGIN,
-    right: CARD_MARGIN,
-    bottom: 26,
+  /* 하단 버튼 */
+  bottomArea: {
+    paddingHorizontal: 24,
+    paddingBottom: 10,
+    paddingTop: 12,
+    backgroundColor: '#fff',
   },
 });

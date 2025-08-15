@@ -2,6 +2,7 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import FirebaseCore
 
 // ① 여기 추가
 import NMapsMap
@@ -31,6 +32,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
+    FirebaseApp.configure()
 
     factory.startReactNative(
       withModuleName: "Groo",

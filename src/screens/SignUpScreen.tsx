@@ -4,101 +4,91 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Image,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import SignupNavigation from '../navigations/signupNavigation';
+
+type EmailErrorKind = null | 'empty' | 'invalid' | 'duplicate';
 
 export default function SignUpScreen({ navigation }: { navigation: any }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [emailErrorKind, setEmailErrorKind] = useState<EmailErrorKind>(null);
 
-  // ✱ 빈 칸 에러: true면 "이메일이 비어있습니다." 메시지 출력
-  const [isEmptyError, setIsEmptyError] = useState(false);
-  // ✱ 중복 에러: true면 "해당 이메일은 이미 존재합니다." 메시지 출력
-  const [emailError, setEmailError] = useState(false);
+  // 예시: 이 이메일만 중복 처리
+  const isEmailDuplicate = (input: string) =>
+    input.trim().toLowerCase() === 'eina05@korea.ac.kr';
 
-  /**
-   * 이메일 중복 검사 함수
-   * 예시로 'eina05@korea.ac.kr'만 중복이라고 가정
-   * 실제 앱에서는 서버 API를 호출해서 확인
-   */
-  const isEmailDuplicate = (input: string) => {
-    return input.trim().toLowerCase() === 'eina05@korea.ac.kr';
-  };
-
-  /**
-   * “다음” 버튼을 눌렀을 때:
-   * 1) 이메일이 빈 칸이면 isEmptyError=true → "이메일이 비어있습니다." 표시
-   * 2) 이메일이 하드코딩된 중복값이면 emailError=true → "해당 이메일은 이미 존재합니다." 표시
-   * 3) 나머지(빈 칸도 아님, 중복도 아님)에는 둘 다 false로 초기화하고 Password 화면으로 이동
-   */
   const onPressNext = () => {
     const trimmed = email.trim().toLowerCase();
 
-    // 1) 빈 칸 에러 처리
     if (trimmed === '') {
-      setIsEmptyError(true);
-      setEmailError(false);
+      setEmailErrorKind('empty');
       return;
     }
-    setIsEmptyError(false);
-
-    // 2) 중복 검사
+    if (!trimmed.includes('@')) {
+      setEmailErrorKind('invalid');
+      return;
+    }
     if (isEmailDuplicate(trimmed)) {
-      setEmailError(true);
+      setEmailErrorKind('duplicate');
       return;
     }
-    setEmailError(false);
 
-    // 3) 빈 칸도 아니고 중복도 아니면 다음 화면(Password)으로 이동
-    navigation.navigate('Password');
+    setEmailErrorKind(null);
+    navigation.navigate('Password'); // ← 유효성 통과 시 PasswordScreen으로 이동
   };
 
+  const onPressBack = () => {
+    navigation.navigate('Login'); // ← 이전 버튼은 Login으로
+  };
+
+  const emailErrorMessage =
+    emailErrorKind === 'empty'
+      ? '이메일이 비어있습니다.'
+      : emailErrorKind === 'invalid'
+      ? '올바른 형식이 아닙니다.'
+      : emailErrorKind === 'duplicate'
+      ? '해당 이메일은 이미 존재합니다.'
+      : '';
+
   return (
-    // 키보드가 올라오면 콘텐츠를 밀어 올리도록 감싸기
     <KeyboardAvoidingView
       style={styles.avoidContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      keyboardVerticalOffset={0}
     >
       <SafeAreaView style={styles.container}>
         {/* 상단 타이틀 */}
         <Text style={styles.title}>회원가입</Text>
 
-        {/* 이름 입력 필드 */}
+        {/* 이름 입력 */}
         <Text style={styles.label}>이름</Text>
         <View style={styles.inputWrapper}>
-          <Image
-            source={require('../assets/user-fill.png')} // 아이콘 경로
-            style={styles.icon}
-          />
+          <Image source={require('../assets/user-fill.png')} style={styles.icon} />
           <TextInput
             style={styles.input}
             placeholder="이름을 입력해주세요"
             placeholderTextColor="#999"
             value={name}
-            onChangeText={text => setName(text)}
+            onChangeText={setName}
           />
         </View>
 
-        {/* 이메일 입력 필드 */}
+        {/* 이메일 입력 */}
         <Text style={[styles.label, { marginTop: 24 }]}>이메일 주소</Text>
         <View
           style={[
             styles.inputWrapper,
-            // 빈 칸 또는 중복 에러 시 테두리와 배경색 적용
-            (isEmptyError || emailError) && styles.inputWrapperError,
-            (isEmptyError || emailError) && styles.inputWrapperErrorBg,
+            !!emailErrorKind && styles.inputWrapperError,
+            !!emailErrorKind && styles.inputWrapperErrorBg,
           ]}
         >
-          <Image
-            source={require('../assets/email.png')}
-            style={styles.icon}
-          />
+          <Image source={require('../assets/email.png')} style={styles.icon} />
           <TextInput
             style={styles.input}
             placeholder="이메일 주소를 입력해주세요"
@@ -108,41 +98,31 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
             value={email}
             onChangeText={text => {
               setEmail(text);
-              // 사용자가 입력을 수정하면 에러 상태 초기화
-              if (isEmptyError) setIsEmptyError(false);
-              if (emailError) setEmailError(false);
+              if (emailErrorKind) setEmailErrorKind(null);
             }}
+            onSubmitEditing={onPressNext}
+            returnKeyType="next"
           />
         </View>
 
-        {/* ✱ 빈 칸 에러 메시지 */}
-        {isEmptyError && (
-          <Text style={styles.errorText}>
-            이메일이 비어있습니다.
-          </Text>
-        )}
-        {/* ✱ 중복 에러 메시지 (빈 칸 에러가 아닐 때만) */}
-        {!isEmptyError && emailError && (
-          <Text style={styles.errorText}>
-            해당 이메일은 이미 존재합니다.
-          </Text>
-        )}
+        {!!emailErrorKind && <Text style={styles.errorText}>{emailErrorMessage}</Text>}
 
-        {/* 하단 “다음” 버튼 */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.nextButton} onPress={onPressNext}>
-            <Text style={styles.nextButtonText}>다음</Text>
-          </TouchableOpacity>
-        </View>
+        {/* 하단 고정 내비게이션 (이전/다음) */}
+        <SignupNavigation
+          onBack={onPressBack}
+          onNext={onPressNext}
+          disabledNext={!email.trim()} // 이메일이 비어있으면 다음 비활성화(원치 않으면 제거)
+        />
+
+        {/* 푸터가 absolute라 입력영역 가리지 않도록 여유 공간 */}
+        <View style={{ height: 120 }} />
       </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  avoidContainer: {
-    flex: 1,
-  },
+  avoidContainer: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -177,19 +157,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  // 빈 칸이나 중복일 때 적용할 빨간 테두리 - 오류 시 사용
-  inputWrapperError: {
-    borderColor: 'red',
-  },
-  // 빈 칸이나 중복일 때 적용할 연한 빨간 배경 - 얘도
-  inputWrapperErrorBg: {
-    backgroundColor: '#FFF4F4',
-  },
-  icon: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
-  },
+  inputWrapperError: { borderColor: 'red' },
+  inputWrapperErrorBg: { backgroundColor: '#FFF4F4' },
+  icon: { width: 20, height: 20, marginRight: 12 },
   input: {
     flex: 1,
     fontSize: 14,
@@ -197,28 +167,9 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   errorText: {
-    color: '#DC1D1D', 
+    color: '#DC1D1D',
     fontSize: 13,
     marginLeft: 20,
     marginBottom: 8,
-  },
-  buttonContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    marginBottom: 32,
-  },
-  nextButton: {
-    backgroundColor: '#6CDF44',
-    borderRadius: 999,
-    height: 54,
-    marginLeft: 25,
-    marginRight: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    color: '#111',
-    fontSize: 17,
-    fontWeight: '500',
   },
 });
