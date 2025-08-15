@@ -25,8 +25,8 @@ export const postTree = async (
   treeType : number,
   restaurantId: string,
   review: string,
-  description: string,
   tags: string[],
+  images: string[],
 ) => {
   
   try {
@@ -35,8 +35,8 @@ export const postTree = async (
       treeType: treeType,
       restaurantId: restaurantId,
       review: review,
-      description: description,
       tags: tags,
+      images: images,
     };
     console.log(payload);
     console.log('보낼 payload:', payload);

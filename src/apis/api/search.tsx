@@ -4,15 +4,11 @@ import { defaultInstance } from '../utils/axios';
 
 export const getSearchUsers = async (
   query: string,
-  page: number,
-  per_page: number,
 ) => {
   try {
     const {data} = await defaultInstance.get('/search/users', {
       params: {
         query: query,
-        page: page,
-        per_page: per_page,
       },
     });
     console.log('유저 검색 가져오기');

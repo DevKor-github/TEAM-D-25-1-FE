@@ -6,7 +6,7 @@ const initialState: SeedPlantingState = {
   savedRestaurant: null,
   savedSeed: null,
   savedTags: [],
-  savedPhotos: [], // 이미지 URI 배열
+  savedPhotos: [], 
   reviewText: '',
 };
 

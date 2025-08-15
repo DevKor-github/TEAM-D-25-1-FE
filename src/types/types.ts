@@ -26,7 +26,7 @@ export type SeedPlantingState = {
   savedRestaurant: SavedRestaurantType | null;
   savedSeed: SavedSeedType | null;
   savedTags: string[]; // 태그는 문자열 배열이라고 가정
-  savedPhotos: string[]; // 사진 URI는 문자열 배열이라고 가정
+  savedPhotos: string[]; 
   reviewText: string;
 };
 
