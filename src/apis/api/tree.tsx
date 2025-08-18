@@ -21,6 +21,21 @@ export const getTree = async (lon: string, lat: string) => {
   }
 };
 
+export const getTreeDetail = async (treeId: string) => {
+  try {
+    const {data} = await defaultInstance.get(`/tree/${treeId}`);
+    console.log('트리 디테일 가져오기');
+    console.log(data);
+
+    return data;
+  } catch (error) {
+    console.log('트리 디테일 가져오기 실패');
+    console.log(error);
+    return error;
+  }
+};
+
+
 export const postTree = async (
   treeType : number,
   restaurantId: string,

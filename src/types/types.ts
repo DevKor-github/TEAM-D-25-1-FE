@@ -1,4 +1,4 @@
-import { Restaurant } from './restaruant';
+import { Restaurant } from './tree';
 import {RootState, AppDispatch} from '../redux/store';
 
 export type SavedRestaurantType = {

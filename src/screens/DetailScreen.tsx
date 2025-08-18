@@ -1,10 +1,10 @@
 import {Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {Restaurant} from '../types/restaruant';
+import {Tree} from '../types/tree';
 import {ParamListBase, RouteProp} from '@react-navigation/native';
 
 // ParamListBase를 확장하여 Detail 스크린의 파라미터 타입을 정의합니다.
 interface RootStackParamList extends ParamListBase {
-  Detail: {restaurant: Restaurant};
+  Detail: {tree: Tree};
   // 다른 스크린들의 파라미터 타입도 여기에 정의할 수 있습니다.
 }
 
@@ -15,21 +15,20 @@ interface DetailScreenProps {
   route: DetailScreenRouteProp;
 }
 const DetailScreen: React.FC<DetailScreenProps> = ({route}) => {
-  const {restaurant} = route.params;
+  const {tree} = route.params;
   return (
     <View style={styles.container}>
       <View
         style={[styles.imagePlaceholder, {backgroundColor: '#a0d468'}]}></View>
       <View style={styles.headerContainer}>
         <Image
-          source={require('../assets/tree.png')}
+          source={require('../assets/extree.png')}
           style={styles.treeImage}
         />
         <View style={{flexDirection: 'row', alignItems: 'flex-end'}}>
-          <Text style={styles.name}>{restaurant.name} </Text>
-          <Text style={styles.category}>카페</Text>
+          <Text style={styles.name}>{tree.name} </Text>
         </View>
-        <Text style={styles.address}>{restaurant.address}</Text>
+        <Text style={styles.address}>{tree.address}</Text>
         <View>
           <TouchableOpacity style={styles.waterButton}>
             <Text style={styles.waterButtonText}>물 주기</Text>

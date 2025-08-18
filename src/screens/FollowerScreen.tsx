@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Chip from '../components/Chip';
-import { followUser, getFollower, unfollowUser } from '../apis/api/user';
+import { followUser, getFollower, getUserFollowStatus, unfollowUser } from '../apis/api/user';
 
 // PNG 리소스
 const avatar = require('../assets/image/profile.png');
@@ -74,6 +74,34 @@ export default function FollowerScreen({ navigation, route }: any) {
   });
 
  const [isFollowing, setIsFollowing] = useState<boolean>(false);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getFollower(selectedUser.id);
+        setUserData(data);
+
+        // ✅ 팔로우 상태도 같이 가져오기
+        const followStatus = await getUserFollowStatus(selectedUser.id);
+        setIsFollowing(followStatus?.hasRequestedFollow ?? false);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [selectedUser]);
+
+
+const refreshUserData = async () => {
+  try {
+    const data = await getFollower(selectedUser.id);
+    setUserData(data);
+  } catch (e) {
+    console.error('유저 데이터 새로고침 실패:', e);
+  }
+};
 
  const toggleFollow = async () => {
    try {
@@ -81,17 +109,13 @@ export default function FollowerScreen({ navigation, route }: any) {
        // 이미 팔로우 중이면 언팔
        await unfollowUser(selectedUser.id); // API 호출
        setIsFollowing(false);
-       setUserData((prev: { followerCount: number; }) =>
-         prev ? {...prev, followerCount: prev.followerCount - 1} : prev,
-       );
      } else {
        // 팔로우하지 않은 상태면 팔로우
        await followUser(selectedUser.id); // API 호출
        setIsFollowing(true);
-       setUserData((prev: {followerCount: number}) =>
-         prev ? {...prev, followerCount: prev.followerCount - 1} : prev,
-       );
      }
+
+     await refreshUserData();
    } catch (error) {
      console.error('팔로우/언팔 요청 실패:', error);
      // 실패 시 토스트, 알림 등으로 사용자에게 알림 가능

@@ -2,7 +2,7 @@ import {
   NaverMapView,
   NaverMapMarkerOverlay,
 } from '@mj-studio/react-native-naver-map';
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
   Modal,
   StyleSheet,
@@ -12,23 +12,23 @@ import {
   TouchableWithoutFeedback,
   View,
   Alert,
+  Image,
 } from 'react-native';
-import {getTree} from '../apis/api/tree';
-import {Restaurant} from '../types/restaruant';
+import {getTree, getTreeDetail} from '../apis/api/tree';
+import {Tree} from '../types/tree';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { typography }  from '../styles/typography'
+import { getFollower } from '../apis/api/user';
 
 const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   // 식당 목록 불럭오기
-  const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
+  const [treeList, setTreeList] = useState<Tree[]>([]);
 
   // 선택한 식당 상태 저장
-  const [selectedRestaurant, setSelectedRestaurant] =
-    useState<Restaurant | null>(null);
+  const [selectedTree, setSelectedTree] = useState<Tree | null>(null);
   const [isNotificationVisible, setNotificationVisible] = useState(false);
-
 
   // 모달 상태 저장장
   const [modalVisible, setModalVisible] = useState(false);
@@ -36,8 +36,9 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   const [lon, setLon] = useState(127.03184890085161); // Initial longitude
   const [lat, setLat] = useState(37.58653559343726); // Initial latitude
   const [zoom, setZoom] = useState(15);
-  
 
+  const [user, setUser] = useState(); 
+  const [profileImgURL, setProfileImgURL] = useState(); 
 
   useEffect(() => {
     const auth = getAuth(); // Get the auth instance once
@@ -47,10 +48,9 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
       if (user) {
         // User is signed in
         try {
-        
           const res = await getTree(lon.toString(), lat.toString()); // Your function call
-          setRestaurantList(res as Restaurant[]);
-          console.log(restaurantList);
+          setTreeList(res as Tree[]);
+          console.log(treeList);
         } catch (error) {
           console.error('식당 목록을 불러오지 못했습니다:', error);
         }
@@ -65,17 +65,38 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
     return () => unsubscribe();
   }, [lon, lat]);
 
-   useEffect(() => {
-     // navigation으로 넘어온 selectedRestaurant가 있으면
-     if (route.params?.selectedRestaurant) {
-       const restaurant = route.params.selectedRestaurant as Restaurant;
+  useEffect(() => {
+    // navigation으로 넘어온 selectedRestaurant가 있으면
+    if (route.params?.selectedRestaurant) {
+      const restaurant = route.params.selectedRestaurant as Tree;
 
-       setSelectedRestaurant(restaurant);
-       setLat(restaurant.latitude);
-       setLon(restaurant.longitude);
-       setModalVisible(true);
-     }
-   }, [route.params?.selectedRestaurant]);
+      setSelectedTree(restaurant);
+      setLat(restaurant.latitude);
+      setLon(restaurant.longitude);
+      setModalVisible(true);
+    }
+  }, [route.params?.selectedRestaurant]);
+
+  const handleTreePress = useCallback(async (item: Tree) => {
+    setSelectedTree(item);
+    setModalVisible(true);
+    console.log('트리를 뽑아보겟서요');
+    console.log(selectedTree);
+    console.log(selectedTree?.images?.[0]);
+
+    try {
+      const treeId = item.treeId;
+      const userId = treeId.split('_')[0];
+
+      const userDetails = await getFollower(userId);
+
+      setUser(userDetails.nickname);
+      setProfileImgURL(userDetails.profileImage);
+      
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    }
+  }, []);
 
   const handleSearchClick = () => {
     navigation.navigate('Search');
@@ -83,7 +104,7 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
 
   const handleCloseCustomModal = () => {
     setModalVisible(false);
-    setSelectedRestaurant(null);
+    setSelectedTree(null);
   };
 
   const onCameraChange = (e: any) => {
@@ -103,7 +124,7 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
           onPress: () => console.log('확인 버튼 클릭'), // Optional callback when '확인' is pressed
         },
       ],
-      { cancelable: true } // Allows dismissing the alert by tapping outside
+      {cancelable: true}, // Allows dismissing the alert by tapping outside
     );
   };
   const handleCloseNotification = () => {
@@ -116,7 +137,7 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
         style={{
           position: 'absolute',
           //폰에 따라 달라야 할 것 같은데
-          top: 50,
+          top: 70,
           left: 20,
           right: 20,
           backgroundColor: 'white',
@@ -168,106 +189,84 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
         isShowScaleBar={false}
         isShowLocationButton={false}
         onCameraIdle={onCameraChange}>
-        {restaurantList &&
-          Array.isArray(restaurantList) &&
-          restaurantList.map(restaurant => (
+        {treeList &&
+          Array.isArray(treeList) &&
+          treeList.map(tree => (
             <NaverMapMarkerOverlay
-              key={restaurant.id}
-              latitude={restaurant.latitude}
-              longitude={restaurant.longitude}
+              key={tree.treeId}
+              latitude={tree.latitude}
+              longitude={tree.longitude}
               anchor={{x: 0.5, y: 1}}
               width={34}
               height={54}
               image={require('../assets/tree_example.png')}
               onTap={() => {
-                setSelectedRestaurant(restaurant);
-                setModalVisible(true);
+                handleTreePress(tree);
               }}
             />
           ))}
       </NaverMapView>
-      {
-        selectedRestaurant && modalVisible && (
-          <TouchableWithoutFeedback onPress={handleCloseCustomModal}>
-            <View>
-              <View
-                // 스타일 정리리
-                style={{
-                  position: 'absolute',
-                  bottom: 20,
-                  left: 0,
-                  right: 0,
-                  padding: 20,
-                  margin: 20,
-                  backgroundColor: 'white',
-                  borderRadius: 20,
-                  shadowColor: '#000',
-                  shadowOffset: {width: 0, height: 6},
-                  shadowOpacity: 0.1,
-                  shadowRadius: 20,
-                  elevation: 3,
+      {selectedTree && modalVisible && (
+        <TouchableWithoutFeedback onPress={handleCloseCustomModal}>
+          <View>
+            <View
+              // 스타일 정리리
+              style={{
+                position: 'absolute',
+                bottom: 20,
+                left: 0,
+                right: 0,
+                margin: 20,
+                backgroundColor: 'white',
+                borderRadius: 20,
+                shadowColor: '#000',
+                shadowOffset: {width: 0, height: 6},
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 3,
+              }}>
+              <TouchableOpacity
+                style={[styles.touchableCard, {alignItems: 'flex-start'}]}
+                onPress={() => {
+                  handleCloseCustomModal();
+                  navigation.navigate('Detail', {
+                    restaurant: selectedTree,
+                  });
                 }}>
-                <TouchableOpacity
-                  onPress={() => {
-                    handleCloseCustomModal();
-                    navigation.navigate('Detail', {
-                      restaurant: selectedRestaurant,
-                    });
-                  }}>
-                  <Text>{selectedRestaurant.name}</Text>
-                  <Text>{selectedRestaurant.address}</Text>
-                </TouchableOpacity>
-              </View>
+                <View style={[styles.leftSection, {marginRight: 0}]}>
+                  <Image
+                    source={{uri: selectedTree?.images?.[0]}}
+                    style={styles.placeImage}
+                  />
+                  {/* 여기에 3D 나무 이미지 또는 컴포넌트 추가 */}
+                  <View style={styles.treePlaceholder} />
+                </View>
+                <View style={styles.rightSection}>
+                  <View style={styles.titleContainer}>
+                    <Text style={styles.nameText}>{selectedTree.name}</Text>
+                  </View>
+                  <Text style={styles.addressText}>{selectedTree.address}</Text>
+                  <View style={styles.userInfo}>
+                    <Image
+                        source={{uri: profileImgURL}}
+                        style={styles.userProfileImage}
+                      />
+                      <Text style={styles.userNickname}>
+                        {user}님이 심은 나무
+                      </Text>
+                    <View style={styles.distanceBadge}>
+                      <Text style={styles.distanceText}>
+                        {selectedTree.recommendationCount} M
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.reviewText}>{selectedTree.review}</Text>
+                </View>
+              </TouchableOpacity>
             </View>
-          </TouchableWithoutFeedback>
-        )
-
-        //   <Modal
-        //     transparent
-        //     visible={modalVisible}
-        //     animationType="slide"
-        //     onRequestClose={() => setModalVisible(false)}>
-        //     <TouchableOpacity
-        //       style={{
-        //         flex: 1,
-        //         justifyContent: 'center',
-        //         alignItems: 'center',
-        //       }}
-        //       activeOpacity={1}
-        //       onPressOut={() => setModalVisible(false)}>
-        //       <View
-        //         style={{
-        //           position: 'absolute',
-        //           bottom: 92,
-        //           left: 0,
-        //           right: 0,
-        //           padding: 20,
-        //           margin: 20,
-        //           backgroundColor: 'white',
-        //           borderRadius: 20,
-        //           shadowColor: '#000',
-        //           shadowOffset: {width: 0, height: 6},
-        //           shadowOpacity: 0.1,
-        //           shadowRadius: 20,
-        //           elevation: 3,
-        //         }}>
-        //         <TouchableOpacity
-        //           onPress={() => {
-        //             setModalVisible(false);
-        //             navigation.navigate('Detail', {
-        //               restaurant: selectedRestaurant,
-        //             });
-        //           }}>
-        //           <Text style={{fontSize: 18, fontWeight: 'bold'}}>
-        //             {selectedRestaurant.name}
-        //           </Text>
-        //           <Text>{selectedRestaurant.address}</Text>
-        //         </TouchableOpacity>
-        //       </View>
-        //     </TouchableOpacity>
-        //   </Modal>,
-        // )
-      }
+          </View>
+        </TouchableWithoutFeedback>
+      )}
       <Modal
         visible={isNotificationVisible}
         animationType="slide"
@@ -317,5 +316,98 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+  },
+  cardContainer: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 3,
+  },
+  touchableCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  leftSection: {
+    width: 100,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  placeImage: {
+    width: '100%',
+    height: '100%',
+    borderTopLeftRadius: 15,
+    borderBottomLeftRadius: 15,
+    resizeMode: 'cover',
+    //backgroundColor: 'green',
+  },
+  treePlaceholder: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  rightSection: {
+    flex: 1,
+    marginLeft: 35,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  nameText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginRight: 8,
+    marginTop: 15,
+  },
+  genreText: {
+    fontSize: 14,
+    color: '#888',
+  },
+  addressText: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 8,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+    
+  },
+  userProfileImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 6,
+    backgroundColor: "red"
+  },
+  userNickname: {
+    fontSize: 14,
+    color: '#555',
+  },
+  distanceBadge: {
+    backgroundColor: '#e6f3e6',
+    borderRadius: 10,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginLeft: 10,
+  },
+  distanceText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  reviewText: {
+    fontSize: 14,
+    color: '#555',
+    marginTop: 5,
+    marginBottom: 15,
   },
 });

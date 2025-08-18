@@ -1,26 +1,49 @@
 export const getTreeList = (
   rawTree: {
-    id: number;
-    placeId: string;
+    treeId: string;
     name: string;
     address: string;
-    latitude: string | number;
-    longitude: string | number;
+    latitude: number;
+    longitude: number;
+    treeType: number;
+    review: string;
+    tags: string[];
     createdAt: string;
+    updatedAt: string;
+    recommendationCount: number;
+    images: string[];
   }[],
 ) => {
   return rawTree.map(
-    ({id, placeId, name, address, latitude, longitude, createdAt}) => {
+    ({
+      treeId,
+      name,
+      address,
+      latitude,
+      longitude,
+      treeType,
+      review,
+      tags,
+      createdAt,
+      updatedAt,
+      recommendationCount,
+      images,
+    }) => {
       return {
-        id: id,
-        placeId: placeId,
+        treeId: treeId,
         name: name,
         address: address,
         latitude:
           typeof latitude === 'string' ? parseFloat(latitude) : latitude,
         longitude:
           typeof longitude === 'string' ? parseFloat(longitude) : longitude,
+        treeType: treeType,
+        review: review,
+        tags: tags,
         createdAt: createdAt,
+        updatedAt: updatedAt,
+        recommendationCount: recommendationCount,
+        images:images,
       };
     },
   );
