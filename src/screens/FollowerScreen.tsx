@@ -1,5 +1,5 @@
 // src/screens/MyPageScreen.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Chip from '../components/Chip';
+import { followUser, getFollower, unfollowUser } from '../apis/api/user';
 
 // PNG 리소스
 const avatar = require('../assets/image/profile.png');
@@ -28,8 +29,42 @@ const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
 
 type TreeItemT = { id: string; name: string; meta: string };
 
-export default function MyPageScreen({ navigation }: any) {
+type UserDataT = {
+  userId: string;
+  username: string;
+  nickname: string;
+  followerCount: number;
+  followingCount: number;
+  treeCount: number;
+  profileImage: string;
+  tags: Record<string, string>;
+  mbti: string;
+  biggestTree: TreeItemT | null;
+  myTrees: TreeItemT[];
+  wateredTrees: TreeItemT[];
+};
+
+export default function FollowerScreen({ navigation, route }: any) {
+
+  const {selectedUser} = route.params;
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getFollower(selectedUser.id);
+        setUserData(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [selectedUser]);
 
   const [profile, setProfile] = useState({
     intro: '',
@@ -38,8 +73,30 @@ export default function MyPageScreen({ navigation }: any) {
     foods: [] as string[],
   });
 
-  const [isFollowing, setIsFollowing] = useState<boolean>(false);
-  const toggleFollow = async () => setIsFollowing(prev => !prev);
+ const [isFollowing, setIsFollowing] = useState<boolean>(false);
+
+ const toggleFollow = async () => {
+   try {
+     if (isFollowing) {
+       // 이미 팔로우 중이면 언팔
+       await unfollowUser(selectedUser.id); // API 호출
+       setIsFollowing(false);
+       setUserData((prev: { followerCount: number; }) =>
+         prev ? {...prev, followerCount: prev.followerCount - 1} : prev,
+       );
+     } else {
+       // 팔로우하지 않은 상태면 팔로우
+       await followUser(selectedUser.id); // API 호출
+       setIsFollowing(true);
+       setUserData((prev: {followerCount: number}) =>
+         prev ? {...prev, followerCount: prev.followerCount - 1} : prev,
+       );
+     }
+   } catch (error) {
+     console.error('팔로우/언팔 요청 실패:', error);
+     // 실패 시 토스트, 알림 등으로 사용자에게 알림 가능
+   }
+ };
 
   const plantedBase: TreeItemT[] = useMemo(
     () => [
@@ -85,62 +142,67 @@ export default function MyPageScreen({ navigation }: any) {
   ];
 
   return (
-    <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
+    <SafeAreaView style={[styles.root, {paddingTop: insets.top}]}>
       {/* 헤더: 뒤로가기 버튼 + 타이틀 */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.headerBackBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
           accessibilityRole="button"
-          accessibilityLabel="뒤로가기"
-        >
+          accessibilityLabel="뒤로가기">
           <Image source={backbutton} style={styles.headerBackIcon} />
         </TouchableOpacity>
 
         <Text style={styles.headerTitle}>친구의 프로필</Text>
 
         {/* 타이틀 중앙정렬용 오른쪽 공간(백버튼과 동일 폭) */}
-        <View style={{ width: 40 }} />
+        <View style={{width: 40}} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{paddingBottom: 90}}>
         {/* 프로필 카드 */}
         <View style={styles.card}>
-          <TouchableOpacity onPress={openProfileEdit} style={styles.editFab} accessibilityLabel="프로필 수정" activeOpacity={0.8} />
+          <TouchableOpacity
+            onPress={openProfileEdit}
+            style={styles.editFab}
+            accessibilityLabel="프로필 수정"
+            activeOpacity={0.8}
+          />
           <View style={styles.profileRow}>
             <Image source={avatar} style={styles.avatar} />
             <View style={styles.profileRight}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>이지윤</Text>
-                <Text style={styles.handle}>@jiyoooon_</Text>
+                <Text style={styles.name}>{userData?.nickname}</Text>
               </View>
               <Text style={styles.bio}>
-                {profile.intro && profile.intro.trim().length > 0 ? profile.intro : '한줄소개로 나를 설명해보세요!'}
+                {profile.intro && profile.intro.trim().length > 0
+                  ? profile.intro
+                  : '한줄소개로 나를 설명해보세요!'}
               </Text>
               <View style={styles.divider} />
               <View style={styles.statsRowSimple}>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValText}>201</Text>
+                  <Text style={styles.statValText}>{userData?.treeCount}</Text>
                   <Text style={styles.statKeyText}>심은 나무</Text>
                 </View>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValText}>51</Text>
+                  <Text style={styles.statValText}>
+                    {userData?.followerCount}
+                  </Text>
                   <Text style={styles.statKeyText}>팔로워</Text>
                 </View>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValText}>74</Text>
+                  <Text style={styles.statValText}>{userData?.followingCount}</Text>
                   <Text style={styles.statKeyText}>팔로잉</Text>
                 </View>
               </View>
             </View>
           </View>
 
-          <View style={styles.chipsRow}>
-            {profile.styles.map(s => <Chip key={`style-${s}`} label={s} variant="style" selected />)}
-            {profile.foods.map(f => <Chip key={`food-${f}`} label={f} variant="food" selected />)}
-            {profile.mbti ? <Chip label={profile.mbti} variant="mbti" selected /> : null}
-          </View>
+          
         </View>
 
         {/* 팔로우 버튼 바 */}
@@ -149,30 +211,52 @@ export default function MyPageScreen({ navigation }: any) {
             activeOpacity={0.9}
             onPress={toggleFollow}
             accessibilityRole="button"
-            accessibilityState={{ selected: isFollowing }}
-            style={[styles.followBtn, isFollowing ? styles.following : styles.follow]}
-          >
-            <Text style={[styles.followTxt, !isFollowing && styles.followTxtActive]}>
+            accessibilityState={{selected: isFollowing}}
+            style={[
+              styles.followBtn,
+              isFollowing ? styles.following : styles.follow,
+            ]}>
+            <Text
+              style={[
+                styles.followTxt,
+                !isFollowing && styles.followTxtActive,
+              ]}>
               {isFollowing ? '팔로잉' : '팔로우'}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* 하이라이트 카드 - 가로 스크롤 */}
-        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.highlightTray}>
           {highlightSlides.map(slide => (
-            <View key={slide.id} style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
-              <LinearGradient colors={slide.colors} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            <View
+              key={slide.id}
+              style={[styles.highlightItem, {width: HIGHLIGHT_CARD_SIZE}]}>
+              <LinearGradient
+                colors={slide.colors}
+                start={{x: 0, y: 0}}
+                end={{x: 0, y: 1}}
+                style={StyleSheet.absoluteFillObject}
+              />
               <View style={styles.highlightTextBox}>
                 <View style={styles.titleWrap}>
                   <Text style={styles.highlightTitleLine}>
-                    가장 큰 나무는 <Text style={styles.highlightEm}>카페 브레송</Text>의
+                    가장 큰 나무는{' '}
+                    <Text style={styles.highlightEm}>카페 브레송</Text>의
                   </Text>
                   <Text style={styles.highlightTitleLine}>
-                    <Text style={styles.highlightEm}>182M</Text> 아름드리 나무예요!
+                    <Text style={styles.highlightEm}>182M</Text> 아름드리
+                    나무예요!
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
+                <TouchableOpacity
+                  style={styles.highlightCta}
+                  activeOpacity={0.9}
+                  onPress={() => {}}>
                   <Text style={styles.highlightCtaText}>보러가기</Text>
                   <Text style={styles.highlightCtaArrow}>›</Text>
                 </TouchableOpacity>
