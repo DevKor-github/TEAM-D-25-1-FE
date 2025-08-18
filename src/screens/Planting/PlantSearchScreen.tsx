@@ -21,6 +21,8 @@ import {
 } from '../../redux/seedPlantingSlice';
 import {SavedRestaurantType} from '../../types/types';
 import { getSearchRestaurants } from '../../apis/api/search'; // 경로는 맞게 수정
+import { NaverMapView } from '@mj-studio/react-native-naver-map';
+import { getTreeDetail } from '../../apis/api/tree';
 
 
 // SearchHistoryItem 타입 정의 (TypeScript 오류 해결)
@@ -33,6 +35,8 @@ interface SelectRestaurant {
   placeId: string;
   name: string;
   address: string;
+  lat: number;
+  lon: number;
 }
 
 // const searchHistory: SearchHistoryItem[] = [
@@ -113,8 +117,13 @@ const PlantSearchScreen = ({
     },
     [dispatch],
   );
-  const handleItemPress = useCallback((item: SelectRestaurant) => {
+  const handleItemPress = useCallback(async(item: SelectRestaurant) => {
+    
+
+    //const detailedData = await getRestaurantDetail(item.id);
     setSelectedRestaurant(item);
+
+
     if (bottomSheetRef.current) {
       bottomSheetRef.current.snapToIndex(0); // BottomSheet를 첫 번째 스냅 포인트(25%)로 엽니다.
     }
@@ -249,6 +258,13 @@ const PlantSearchScreen = ({
         <BottomSheetView style={styles.bottomSheetContent}>
           {selectedRestaurant ? (
             <>
+              <NaverMapView
+                      style={{flex: 1}}
+                      
+                      isShowScaleBar={false}
+                      isShowLocationButton={false}>
+                      
+                    </NaverMapView>
               <Text style={styles.bottomSheetTitle}>
                 {selectedRestaurant.name}
               </Text>

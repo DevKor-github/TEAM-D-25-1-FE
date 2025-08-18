@@ -170,7 +170,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
         style={{
           position: 'absolute',
           //폰에 따라 달라야 할 것 같은데
-          top: 50,
+          top: 70,
           left: 20,
           right: 20,
           backgroundColor: 'white',
@@ -214,7 +214,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
       <View
         style={{
           height: 50,
-          top: 110,
+          top: 120,
           width: '100%',
           flexDirection: 'row',
           justifyContent: 'space-between',
@@ -261,7 +261,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
       {activeTab === '검색' && (
         <View
           style={{
-            top: 120,
+            top: 140,
             width: '100%',
             height: '80%',
           }}>
@@ -271,7 +271,7 @@ const SearchScreen = ({navigation}: {navigation: any}) => {
       {activeTab === '친구' && (
         <View
           style={{
-            top: 120,
+            top: 140,
             width: '100%',
             height: '80%',
           }}>

@@ -1,4 +1,4 @@
-import {getTreeList} from '../services/tree';
+import {getRestaruantList, getTreeList} from '../services/tree';
 import { defaultInstance } from '../utils/axios';
 
 
@@ -20,6 +20,21 @@ export const getTree = async (lon: string, lat: string) => {
     return error;
   }
 };
+
+export const getTreeDetail = async (treeId: string) => {
+  try {
+    const {data} = await defaultInstance.get(`/tree/${treeId}`);
+    console.log('트리 디테일 가져오기');
+    console.log(data);
+
+    return data;
+  } catch (error) {
+    console.log('트리 디테일 가져오기 실패');
+    console.log(error);
+    return error;
+  }
+};
+
 
 export const postTree = async (
   treeType : number,
@@ -52,6 +67,42 @@ export const postTree = async (
       '씨앗 심기 실패:',
       error,
     );
+    throw error; // 에러를 다시 throw하여 호출하는 쪽에서 처리할 수 있도록 합니다.
+  }
+};
+
+export const getRestaurant = async (restaurantId: string) => {
+  try {
+    const {data} = await defaultInstance.get(`/tree/restaurants/${restaurantId}`);
+    console.log('식당 가져오기');
+    console.log(data.items);
+
+    return getRestaruantList(data.items);
+  } catch (error) {
+    console.log('식당 가져오기 실패');
+    console.log(error);
+    return error;
+  }
+};
+
+
+
+export const postTreeWater = async (
+  treeId: string,
+) => {
+  try {
+    console.log('물을 줘보자!');
+    const payload = {
+      treeId: treeId,
+    };
+    console.log(payload);
+    console.log('보낼 payload:', payload);
+
+    const response = await defaultInstance.post(`/tree/${treeId}/water`, payload);
+    console.log('물주기 성공:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('물주기 실패:', error);
     throw error; // 에러를 다시 throw하여 호출하는 쪽에서 처리할 수 있도록 합니다.
   }
 };

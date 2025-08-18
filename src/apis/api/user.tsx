@@ -112,3 +112,17 @@ export const patchNickname = async (nickname: string) => {
       return error;
     }
 }
+
+export const getUserFollowStatus = async (userId: string) => {
+  try {
+    const {data} = await defaultInstance.get(`/users/${userId}/follow-status`);
+    console.log('유저 팔로우 상태 가져오기');
+    console.log(data);
+
+    return data;
+  } catch (error) {
+    console.log('유저 팔로우 상태 가져오기 실패');
+    console.log(error);
+    return error;
+  }
+};
