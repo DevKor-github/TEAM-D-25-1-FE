@@ -40,7 +40,7 @@ export default function PhotoDetailScreen() {
     <SafeAreaView style={styles.root}>
       {/* 상단 TopBar (중앙 타이틀) */}
       <TopBar
-        onPressBack={() => navigation.navigate('Detail', { title })}
+        onPressBack={() => navigation.goBack()}
         bookmarkDisabled
         style={{ backgroundColor: '#232323' }}
         iconSize={30}

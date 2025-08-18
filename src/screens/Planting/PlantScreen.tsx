@@ -40,7 +40,8 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const isConfirmEnabled = savedRestaurant !== null && savedSeed !== null;
+  const isConfirmEnabled =
+    savedRestaurant !== null && savedSeed !== null && savedPhotos !== null;
   const [finalPhotoURLs, setFinalPhotoURLs] = useState<string[]>([]);
 
   const goToMapTab = () => {
