@@ -148,6 +148,8 @@ export default function MyPageScreen({ navigation }: any) {
     });
     return unsubscribe;
   }, [loadProfileAndCounts]);
+  
+
 
   // 화면 재진입 시 최신값으로 리프레시
   useFocusEffect(

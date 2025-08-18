@@ -73,9 +73,9 @@ export const getFollowingList = async (userId: string): Promise<UserSummary[]> =
 export const getFollwerList = async () => {
     try {
     
-        const { data } = await defaultInstance.get('/users/me/followers');
-        console.log("팔로워 가져오기");
-        console.log(data);
+    const {data} = await defaultInstance.get('/users/me/followers');
+    console.log("팔로워하는 사람 가져오기");
+    console.log(data);
     
         return data;
     } catch (error) {
