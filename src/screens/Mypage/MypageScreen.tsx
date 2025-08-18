@@ -329,12 +329,12 @@ export default function MyPageScreen({ navigation }: any) {
               </View>
             </View>
             {/* 하단 CTA */}
-            <View style={styles.highlightTextBox}>
+            {/* <View style={styles.highlightTextBox}>
               <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
                 <Text style={styles.highlightCtaText}>보러가기</Text>
                 <Text style={styles.highlightCtaArrow}>›</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
             <Image source={treeImg} style={styles.highlightTree} />
           </View>
 
