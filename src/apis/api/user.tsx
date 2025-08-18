@@ -18,10 +18,22 @@ type UserListResponse = { items: UserSummary[] };
 export const getUser = async () => {
   try {
     
-    const {data} = await defaultInstance.get('/users/me');
+    const {data} = await defaultInstance.get('/users/me/mypage');
     console.log("유저 가져오기");
     console.log(data);
     
+    return data;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
+};
+
+export const getMyTree = async () => {
+  try {
+    const { data } = await defaultInstance.get('/users/me/restaurants');
+    console.log('내가 심은 나무 가져오기');
+    console.log(data);
     return data;
   } catch (error) {
     console.log(error);
@@ -73,9 +85,9 @@ export const getFollowingList = async (userId: string): Promise<UserSummary[]> =
 export const getFollwerList = async () => {
     try {
     
-        const { data } = await defaultInstance.get('/users/me/followers');
-        console.log("팔로워 가져오기");
-        console.log(data);
+    const {data} = await defaultInstance.get('/users/me/followers');
+    console.log("팔로워 가져오기");
+    console.log(data);
     
         return data;
     } catch (error) {

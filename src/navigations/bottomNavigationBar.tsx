@@ -25,7 +25,7 @@ const BottomNavigationBar = () => {
         // ✅ 라벨(텍스트) 색만 포커스 시 연두색으로
         tabBarActiveTintColor: '#6CDF44',
         tabBarInactiveTintColor: '#9AA0A6',
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 13, fontWeight: '600' },
       }}>
       <Tab.Screen
         name="Map"
@@ -33,7 +33,7 @@ const BottomNavigationBar = () => {
         options={{
           title: '홈',
           // ✅ 아이콘은 tint(color) 무시하고 고정색 사용 → 라벨만 색 변함
-          tabBarIcon: ({size}) => <HomeIcon color="#111" width={size} height={size} />,
+          tabBarIcon: ({size}) => <HomeIcon color="#111" width={size * 1.2} height={size * 1.2} />,
           headerShown: false,
         }}
       />
@@ -66,7 +66,7 @@ const BottomNavigationBar = () => {
         options={{
           title: 'MY',
           // ✅ 아이콘 고정색
-          tabBarIcon: ({size}) => <MyPageIcon color="#111" width={size} height={size} />,
+          tabBarIcon: ({size}) => <MyPageIcon color="#111" width={size * 1.2} height={size * 1.2} />,
           headerShown: false,
         }}
       />

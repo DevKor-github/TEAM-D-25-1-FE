@@ -1,16 +1,18 @@
-// src/screens/FollowListScreen.tsx
-import React, { useEffect, useState } from 'react';
+// file: src/screens/FollowListScreen.tsx
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   SafeAreaView, View, Text, StyleSheet, Image,
   TouchableOpacity, FlatList, ActivityIndicator,
 } from 'react-native';
 import { getUser, getFollowingList, getFollwerList, type UserSummary } from '../../apis/api/user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 const backIcon = require('../../assets/arrow.png');
 const profilePng = require('../../assets/image/profile.png');
 
 type Person = { id: string; name: string };
+type TabKey = 'followers' | 'following';
 const GREEN = '#6CDF44';
 
 const mapToPersons = (arr?: UserSummary[] | any[]): Person[] =>
@@ -20,49 +22,72 @@ const mapToPersons = (arr?: UserSummary[] | any[]): Person[] =>
   }));
 
 export default function FollowListScreen({ navigation, route }: any) {
-  const [tab, setTab] = useState<'followers' | 'following'>('followers');
+  const initialTabParam = (route?.params?.initialTab as TabKey | undefined) ?? 'followers';
+  const [tab, setTab] = useState<TabKey>(initialTabParam);
+
   const [followers, setFollowers] = useState<Person[]>([]);
   const [following, setFollowing] = useState<Person[]>([]);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
-  // ✅ 뒤로가기: 있으면 goBack, 없으면 탭의 MyPage로 이동(보텀탭 유지용)
+  useEffect(() => {
+    const next = route?.params?.initialTab as TabKey | undefined;
+    if (next && next !== tab) setTab(next);
+  }, [route?.params?.initialTab]);
+
   const onBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      const parent = navigation.getParent?.();
-      if (parent) parent.navigate('Mypage');
-      else navigation.navigate('Mypage');
-    }
+    if (navigation.canGoBack()) navigation.goBack();
+    else (navigation.getParent?.() ?? navigation).navigate('Mypage');
   };
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        const me = await getUser();
-        const userId: string | undefined = route?.params?.userId ?? me?.id;
-        if (!userId) {
-          console.warn('userId를 찾을 수 없습니다.');
-          return;
+  // ✅ 포커스될 때마다 userId 재해석 후 로드
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const coerceId = (v: any) =>
+        v == null ? undefined : typeof v === 'string' ? v : String(v);
+
+      (async () => {
+        try {
+          setLoading(true);
+
+          // 1) 우선 라우트 파라미터에서
+          const paramId = coerceId(route?.params?.userId ?? route?.params?.user?.id);
+
+          // 2) 없으면 내 계정에서 (✅ me.userId 를 사용)
+          let userId = paramId;
+          if (!userId) {
+            const me = await getUser();
+            userId = coerceId(me?.userId);
+          }
+
+          if (!userId) {
+            console.warn('userId를 찾을 수 없습니다.');
+            return;
+          }
+
+          const [followersRes, followingRes] = await Promise.all([
+            getFollwerList(),         // /users/me/followers (본인 기준)
+            getFollowingList(userId), // 대상 유저 기준
+          ]);
+
+          if (!mounted) return;
+
+          setFollowers(mapToPersons(followersRes?.items ?? followersRes));
+          setFollowing(mapToPersons(followingRes ?? []));
+        } catch (e) {
+          console.error('팔로우 목록 로드 에러:', e);
+        } finally {
+          if (mounted) setLoading(false);
         }
-        const [followersRes, followingRes] = await Promise.all([
-          getFollwerList(),
-          getFollowingList(userId),
-        ]);
-        if (!mounted) return;
-        setFollowers(mapToPersons(followersRes?.items ?? followersRes));
-        setFollowing(mapToPersons(followingRes ?? []));
-      } catch (e) {
-        console.error('팔로우 목록 로드 에러:', e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, [route?.params?.userId]);
+      })();
+
+      return () => {
+        mounted = false;
+      };
+    }, [route?.params?.userId])
+  );
 
   const data = tab === 'followers' ? followers : following;
 
@@ -74,13 +99,10 @@ export default function FollowListScreen({ navigation, route }: any) {
   );
 
   return (
-    <SafeAreaView style={[styles.root, {paddingTop: insets.top}]}>
+    <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={styles.backBtn}
-          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Image source={backIcon} style={styles.backIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>팔로워 및 팔로잉</Text>
@@ -89,37 +111,21 @@ export default function FollowListScreen({ navigation, route }: any) {
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, tab === 'followers' && styles.tabActive]}
-          onPress={() => setTab('followers')}>
-          <Text
-            style={[
-              styles.tabText,
-              tab === 'followers'
-                ? styles.tabTextActive
-                : styles.tabTextInactive,
-            ]}>
+        <TouchableOpacity style={[styles.tab, tab === 'followers' && styles.tabActive]} onPress={() => setTab('followers')}>
+          <Text style={[styles.tabText, tab === 'followers' ? styles.tabTextActive : styles.tabTextInactive]}>
             팔로워 {followers.length}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tab, tab === 'following' && styles.tabActive]}
-          onPress={() => setTab('following')}>
-          <Text
-            style={[
-              styles.tabText,
-              tab === 'following'
-                ? styles.tabTextActive
-                : styles.tabTextInactive,
-            ]}>
+        <TouchableOpacity style={[styles.tab, tab === 'following' && styles.tabActive]} onPress={() => setTab('following')}>
+          <Text style={[styles.tabText, tab === 'following' ? styles.tabTextActive : styles.tabTextInactive]}>
             팔로잉 {following.length}
           </Text>
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={{paddingTop: 20}}>
+        <View style={{ paddingTop: 20 }}>
           <ActivityIndicator />
         </View>
       ) : (
@@ -128,12 +134,10 @@ export default function FollowListScreen({ navigation, route }: any) {
           keyExtractor={item => item.id}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          contentContainerStyle={{paddingBottom: 12}}
+          contentContainerStyle={{ paddingBottom: 12 }}
           ListEmptyComponent={
-            <View style={{padding: 20}}>
-              <Text style={{textAlign: 'center', color: '#777'}}>
-                목록이 비어 있어요.
-              </Text>
+            <View style={{ padding: 20 }}>
+              <Text style={{ textAlign: 'center', color: '#777' }}>목록이 비어 있어요.</Text>
             </View>
           }
         />
