@@ -1,15 +1,8 @@
-// src/screens/MyPageScreen.tsx
+// file: src/screens/MyPageScreen.tsx
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet as RNStyleSheet,
-  Dimensions,
+  View, Text, StyleSheet, SafeAreaView, Image, ScrollView,
+  TouchableOpacity, StyleSheet as RNStyleSheet, Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -26,7 +19,7 @@ import { getMyTree, getUser, getFollwerList, getFollowingList } from '../../apis
 
 // PNG 리소스
 const avatar = require('../../assets/image/profile.png');
-const treeImg = require('../../assets/image/mytree.png');
+const treeImg = require('../../assets/image/mytree.png'); // 폴백 이미지
 const treeicon = require('../../assets/extree.png');
 const grooNameIcon = require('../../assets/groo_name_icon.png');
 const grooPictureIcon = require('../../assets/groo_picture_icon.png');
@@ -38,17 +31,33 @@ const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
 
 type TreeItemT = { id: string; name: string; meta: string };
 
+// myTrees / wateredTrees 원소 타입(대략)
+type MyTree = {
+  restaurantId?: string;
+  restaurantName?: string;
+  recommendationCount?: number; // 정식 키
+  recommandationCount?: number; // 혹시 있을지 모르는 오타 키도 대응
+  location?: string;
+};
+
 export default function MyPageScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
 
-  // 서버 닉네임
+  // 서버 표기값
   const [nickname, setNickname] = useState<string>('');
-
-  // 서버 카운트
   const [followerCount, setFollowerCount] = useState<number>(0);
   const [followingCount, setFollowingCount] = useState<number>(0);
+  const [treeCount, setTreeCount] = useState<number>(0);
 
-  // 프로필(로컬 편집용)
+  // 1번 하이라이트(초록 글씨만 동적)
+  const [topTree, setTopTree] = useState<{ name: string; count: number } | null>(null);
+
+  // 2번 하이라이트(리캡)
+  const [recap, setRecap] = useState<{ messageEm: string; messageRest: string; imageUrl?: string; }>(
+    { messageEm: '앞마당 텃밭', messageRest: '만큼\n자랐어요!' }
+  );
+
+  // 프로필(로컬 편집)
   const [profile, setProfile] = useState({
     intro: '',
     mbti: null as string | null,
@@ -56,112 +65,187 @@ export default function MyPageScreen({ navigation }: any) {
     foods: [] as string[],
   });
 
-  // 샘플 리스트
-  const plantedBase: TreeItemT[] = useMemo(
-    () => [
-      { id: 'p1', name: '특별식당', meta: '39m  서울특별시 동대문구' },
-      { id: 'p2', name: '돈까스 발전소', meta: '10m  서울특별시 동대문구' },
-    ],
-    []
-  );
-  const wateredBase: TreeItemT[] = useMemo(
-    () => [
-      { id: 'w1', name: '효이당', meta: '98m  서울특별시 성북구' },
-      { id: 'w2', name: '해마루', meta: '76m  서울특별시 동대문구' },
-    ],
-    []
-  );
-
-  const [plantedList, setPlantedList] = useState<TreeItemT[]>(plantedBase);
+  // ✅ 내가 심은 나무 / 물 준 나무  (백엔드 데이터)
+  const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
   const [plantedVisible, setPlantedVisible] = useState(2);
-  const [wateredList, setWateredList] = useState<TreeItemT[]>(wateredBase);
+
+  const [wateredList, setWateredList] = useState<TreeItemT[]>([]);
   const [wateredVisible, setWateredVisible] = useState(2);
 
   const openProfileEdit = () => {
     navigation.navigate('ProfileEdit', {
-      mbti: profile.mbti,
-      styles: profile.styles,
-      foods: profile.foods,
-      intro: profile.intro,
-      onSave: (data: { intro: string; mbti: string | null; styles: string[]; foods: string[] }) => {
-        setProfile(data);
-      },
+      mbti: profile.mbti, styles: profile.styles, foods: profile.foods, intro: profile.intro,
+      onSave: (data: { intro: string; mbti: string | null; styles: string[]; foods: string[] }) => setProfile(data),
     });
   };
 
-  const appendMore = (list: TreeItemT[]): TreeItemT[] => {
-    const suffix = '_' + Math.random().toString(36).slice(2, 6);
-    const clones = list.map((it, idx) => ({ ...it, id: it.id + suffix + '_' + idx }));
-    return [...list, ...clones];
+  // 공통: trees → TreeItemT로 매핑 + 정렬(추천수 desc, 동률이면 원래 순서)
+  const mapTreesToItems = (trees: MyTree[] = []): TreeItemT[] => {
+    const withIdx = trees.map((t, i) => ({ ...t, __i: i }));
+    withIdx.sort((a: any, b: any) => {
+      const ca = Number(a.recommendationCount ?? a.recommandationCount ?? 0);
+      const cb = Number(b.recommendationCount ?? b.recommandationCount ?? 0);
+      if (cb !== ca) return cb - ca; // desc
+      return a.__i - b.__i;          // 안정적 동률 처리
+    });
+    return withIdx.map((t: any) => {
+      const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
+      const metaParts = [
+        isNaN(count) ? '' : `${count}M`,
+        t.location || '',
+      ].filter(Boolean);
+      return {
+        id: t.restaurantId ?? `tree-${t.__i}`,
+        name: t.restaurantName ?? '이름없음',
+        meta: metaParts.join('  '),
+      };
+    });
   };
 
-  // 하이라이트 카드(배경만 다름)
-  const highlightSlides = [
-    { id: 'main', colors: ['#F4F4F4', '#BDEABC'] },
-    { id: 'alt', colors: ['#F4F4F4', '#EABCD2'] },
-  ];
+  // myTrees에서 추천수 최댓값(동률이면 앞) 선택
+  const pickTopTree = (trees: MyTree[]): { name: string; count: number } | null => {
+    if (!Array.isArray(trees) || trees.length === 0) return null;
+    let bestIdx = 0;
+    let bestCount = Number(trees[0]?.recommendationCount ?? trees[0]?.recommandationCount ?? 0);
+    for (let i = 1; i < trees.length; i++) {
+      const c = Number(trees[i]?.recommendationCount ?? trees[i]?.recommandationCount ?? 0);
+      if (c > bestCount) { bestCount = c; bestIdx = i; }
+    }
+    const name = trees[bestIdx]?.restaurantName ?? '이름없음';
+    return { name, count: bestCount };
+  };
 
-  // 공용 로더(닉네임 + 팔로워/팔로잉 수)
+  // recapMessage → {em, rest}
+  const splitRecapMessage = (msg?: string): { em: string; rest: string } => {
+    const raw = (msg ?? '').trim();
+    if (!raw) return { em: recap.messageEm, rest: recap.messageRest };
+    const idx = raw.indexOf('만큼');
+    if (idx >= 0) return { em: raw.slice(0, idx).trim() || recap.messageEm, rest: raw.slice(idx).trim() || recap.messageRest };
+    const tokens = raw.split(/\s+/);
+    const em = tokens.slice(0, 2).join(' ');
+    const rest = raw.slice(em.length).trim();
+    return { em: em || recap.messageEm, rest: rest || recap.messageRest };
+  };
+
+  // 데이터 로드
   const loadProfileAndCounts = useCallback(async () => {
     try {
-      const me = await getUser(); // { id, nickname, ... }
+      const me: any = await getUser();
+
       if (me?.nickname) setNickname(me.nickname);
 
-      const userId = me?.id;
-      if (userId) {
+      const userId = (me?.userId ?? me?.id) as string | undefined;
+      const uFollower = typeof me?.followerCount === 'number' ? me.followerCount : undefined;
+      const uFollowing = typeof me?.followingCount === 'number' ? me.followingCount : undefined;
+      const uTreeCount =
+        typeof me?.treeCount === 'number'
+          ? me.treeCount
+          : Array.isArray(me?.myTrees) ? me.myTrees.length : undefined;
+
+      if (uFollower != null) setFollowerCount(uFollower);
+      if (uFollowing != null) setFollowingCount(uFollowing);
+      if (uTreeCount != null) setTreeCount(uTreeCount);
+
+      // ✅ 내가 심은 나무: 정렬/매핑 후 세팅 (2개씩 보기)
+      if (Array.isArray(me?.myTrees)) {
+        const items = mapTreesToItems(me.myTrees as MyTree[]);
+        setPlantedList(items);
+        setPlantedVisible(Math.min(2, items.length));
+      } else {
+        setPlantedList([]);
+        setPlantedVisible(0);
+      }
+
+      // ✅ 내가 물 준 나무: wateredTrees 사용 (같은 정렬/매핑 규칙)
+      if (Array.isArray(me?.wateredTrees)) {
+        const wItems = mapTreesToItems(me.wateredTrees as MyTree[]);
+        setWateredList(wItems);
+        setWateredVisible(Math.min(2, wItems.length));
+      } else {
+        setWateredList([]);
+        setWateredVisible(0);
+      }
+
+      // 1번 카드용 최상위 나무
+      if (Array.isArray(me?.myTrees) && me.myTrees.length > 0) {
+        setTopTree(pickTopTree(me.myTrees as MyTree[]));
+      } else {
+        setTopTree(null);
+      }
+
+      // 2번 카드(리캡) 데이터
+      if (typeof me?.recapMessage === 'string' && me.recapMessage.trim()) {
+        const { em, rest } = splitRecapMessage(me.recapMessage);
+        setRecap(prev => ({ ...prev, messageEm: em, messageRest: rest }));
+      }
+      if (typeof me?.recapImageUrl === 'string' && me.recapImageUrl.trim()) {
+        setRecap(prev => ({ ...prev, imageUrl: me.recapImageUrl }));
+      }
+
+      // 폴백 호출들
+      const needFollower = uFollower == null;
+      const needFollowing = uFollowing == null;
+      const needTreeCount = uTreeCount == null;
+
+      if (userId && (needFollower || needFollowing)) {
         const [followersRes, followingRes] = await Promise.all([
-          getFollwerList(),        // /users/me/followers
-          getFollowingList(userId) // /users/{id}/following
+          needFollower ? getFollwerList() : Promise.resolve(null),
+          needFollowing ? getFollowingList(userId) : Promise.resolve(null),
         ]);
+        if (needFollower) {
+          const followersLen = Array.isArray(followersRes) ? followersRes.length : followersRes?.items?.length ?? 0;
+          setFollowerCount(followersLen);
+        }
+        if (needFollowing) {
+          const followingLen = Array.isArray(followingRes) ? followingRes.length : followingRes?.items?.length ?? 0;
+          setFollowingCount(followingLen);
+        }
+      }
 
-        const followersLen = Array.isArray(followersRes)
-          ? followersRes.length
-          : (followersRes?.items?.length ?? 0);
-        const followingLen = Array.isArray(followingRes)
-          ? followingRes.length
-          : (followingRes?.items?.length ?? 0);
+      if (needTreeCount) {
+        try {
+          const trees = await getMyTree();
+          const len = Array.isArray(trees) ? trees.length : trees?.items?.length ?? 0;
+          setTreeCount(len);
 
-        setFollowerCount(followersLen);
-        setFollowingCount(followingLen);
+          if (Array.isArray(trees)) {
+            const items = mapTreesToItems(trees as MyTree[]);
+            setPlantedList(items);
+            setPlantedVisible(Math.min(2, items.length));
+
+            if (trees.length > 0) setTopTree(pickTopTree(trees as MyTree[]));
+          }
+        } catch (e) {
+          console.error('내 나무 폴백 호출 실패:', e);
+        }
       }
     } catch (e) {
-      console.error('프로필/팔로우 카운트 로드 실패:', e);
+      console.error('프로필/팔로우/나무 카운트 로드 실패:', e);
     }
   }, []);
 
-  // 최초 로그인 상태 감지 시 로드
   useEffect(() => {
     const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async user => {
-      if (!user) {
-        console.warn('로그인된 사용자가 없습니다.');
-        return;
-      }
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      if (!user) { console.warn('로그인된 사용자가 없습니다.'); return; }
       loadProfileAndCounts();
-      // 원한다면 여기서 심은 나무 개수도 별도로 세팅 가능
-      try {
-        const trees = await getMyTree();
-        console.log('getMyTree:', trees);
-      } catch (e) {
-        console.error('내 나무를 불러오지 못했습니다:', e);
-      }
     });
     return unsubscribe;
   }, [loadProfileAndCounts]);
-  
 
-
-  // 화면 재진입 시 최신값으로 리프레시
   useFocusEffect(
     useCallback(() => {
       loadProfileAndCounts();
     }, [loadProfileAndCounts])
   );
 
-  // 팔로워/팔로잉 리스트로 이동
   const openFollowList = (initialTab: 'followers' | 'following') => {
     navigation.navigate('FollowList', { initialTab });
   };
+
+  // 더보기 노출 여부
+  const plantedHasMore = plantedVisible < plantedList.length;
+  const wateredHasMore = wateredVisible < wateredList.length;
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -184,12 +268,7 @@ export default function MyPageScreen({ navigation }: any) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
         {/* 프로필 카드 */}
         <View style={styles.card}>
-          <TouchableOpacity
-            onPress={openProfileEdit}
-            style={styles.editFab}
-            accessibilityLabel="프로필 수정"
-            activeOpacity={0.8}
-          >
+          <TouchableOpacity onPress={openProfileEdit} style={styles.editFab} accessibilityLabel="프로필 수정" activeOpacity={0.8}>
             <PencilIcon width={23} height={23} />
           </TouchableOpacity>
 
@@ -201,34 +280,24 @@ export default function MyPageScreen({ navigation }: any) {
               </View>
 
               <Text style={styles.bio}>
-                {profile.intro && profile.intro.trim().length > 0
-                  ? profile.intro
-                  : '한줄소개로 나를 설명해보세요!'}
+                {profile.intro?.trim()?.length ? profile.intro : '한줄소개로 나를 설명해보세요!'}
               </Text>
 
               <View style={styles.divider} />
 
-              {/* 통계줄: 심은 나무 / 팔로워 / 팔로잉 */}
+              {/* 통계줄 */}
               <View style={styles.statsRowSimple}>
                 <View style={styles.statCol}>
-                  <Text style={styles.statValText}>201</Text>
+                  <Text style={styles.statValText}>{treeCount}</Text>
                   <Text style={styles.statKeyText}>심은 나무</Text>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.statCol}
-                  activeOpacity={0.7}
-                  onPress={() => openFollowList('followers')}
-                >
+                <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={() => openFollowList('followers')}>
                   <Text style={styles.statValText}>{followerCount}</Text>
                   <Text style={styles.statKeyText}>팔로워</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.statCol}
-                  activeOpacity={0.7}
-                  onPress={() => openFollowList('following')}
-                >
+                <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={() => openFollowList('following')}>
                   <Text style={styles.statValText}>{followingCount}</Text>
                   <Text style={styles.statKeyText}>팔로잉</Text>
                 </TouchableOpacity>
@@ -237,80 +306,73 @@ export default function MyPageScreen({ navigation }: any) {
           </View>
 
           <View style={styles.chipsRow}>
-            {profile.styles.map(s => (
-              <Chip key={`style-${s}`} label={s} variant="style" selected />
-            ))}
-            {profile.foods.map(f => (
-              <Chip key={`food-${f}`} label={f} variant="food" selected />
-            ))}
+            {profile.styles.map(s => <Chip key={`style-${s}`} label={s} variant="style" selected />)}
+            {profile.foods.map(f => <Chip key={`food-${f}`} label={f} variant="food" selected />)}
             {profile.mbti ? <Chip label={profile.mbti} variant="mbti" selected /> : null}
           </View>
         </View>
 
-        {/* 하이라이트 카드 - 가로 스크롤 */}
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.highlightTray}
-        >
-          {highlightSlides.map(slide => (
-            <View key={slide.id} style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
-              <LinearGradient
-                colors={slide.colors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
-
-              <View style={styles.highlightTextBox}>
-                <View style={styles.titleWrap}>
-                  <Text style={styles.highlightTitleLine}>
-                    가장 큰 나무는 <Text style={styles.highlightEm}>카페 브레송</Text>의
-                  </Text>
-                  <Text style={styles.highlightTitleLine}>
-                    <Text style={styles.highlightEm}>182M</Text> 아름드리 나무예요!
-                  </Text>
-                </View>
-
-                <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
-                  <Text style={styles.highlightCtaText}>보러가기</Text>
-                  <Text style={styles.highlightCtaArrow}>›</Text>
-                </TouchableOpacity>
+        {/* 하이라이트 카드들 */}
+        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
+          {/* 1) 추천수 Top 나무 카드 */}
+          <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
+            <LinearGradient colors={['#F4F4F4', '#BDEABC']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            {/* 상단 고정 */}
+            <View style={styles.topOverlay}>
+              <View style={styles.titleWrap}>
+                <Text style={styles.highlightTitleLine}>
+                  가장 큰 나무는 <Text style={styles.highlightEm}>{topTree?.name ?? '카페 브레송'}</Text>의
+                </Text>
+                <Text style={styles.highlightTitleLine}>
+                  <Text style={styles.highlightEm}>{String(topTree?.count ?? 182)}</Text>M 아름드리 나무예요!
+                </Text>
               </View>
-
-              <Image source={treeImg} style={styles.highlightTree} />
             </View>
-          ))}
+            {/* 하단 CTA */}
+            <View style={styles.highlightTextBox}>
+              <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
+                <Text style={styles.highlightCtaText}>보러가기</Text>
+                <Text style={styles.highlightCtaArrow}>›</Text>
+              </TouchableOpacity>
+            </View>
+            <Image source={treeImg} style={styles.highlightTree} />
+          </View>
+
+          {/* 2) 리캡 카드 */}
+          <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
+            <LinearGradient colors={['#F4F4F4', '#F6D4E3']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            <View style={styles.recapTopOverlay}>
+              <Text style={styles.recapTitle}>
+                <Text style={styles.highlightEm}>{recap.messageEm}</Text>
+                {recap.messageRest ? ' ' : ''}
+                {recap.messageRest?.split('\n').map((seg, idx) => (
+                  <Text key={idx}>{idx === 0 ? seg : `\n${seg}`}</Text>
+                ))}
+              </Text>
+              <Text style={styles.recapSubtitle}>심은 나무: {treeCount}그루</Text>
+            </View>
+            {recap.imageUrl ? (
+              <Image source={{ uri: recap.imageUrl }} style={styles.recapImage} />
+            ) : (
+              <Image source={treeImg} style={styles.recapImage} />
+            )}
+          </View>
         </ScrollView>
 
         {/* 리스트들 */}
         <Section
           title="내가 심은 나무"
           data={plantedList.slice(0, plantedVisible)}
-          onMore={() => {
-            if (plantedVisible < plantedList.length) {
-              setPlantedVisible(v => Math.min(v + 2, plantedList.length));
-            } else {
-              const extended = appendMore(plantedList);
-              setPlantedList(extended);
-              setPlantedVisible(v => Math.min(v + 2, extended.length));
-            }
-          }}
+          onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
+          hasMore={plantedHasMore}
         />
 
         <Section
           title="내가 물 준 나무"
           data={wateredList.slice(0, wateredVisible)}
-          onMore={() => {
-            if (wateredVisible < wateredList.length) {
-              setWateredVisible(v => Math.min(v + 2, wateredList.length));
-            } else {
-              const extended = appendMore(wateredList);
-              setWateredList(extended);
-              setWateredVisible(v => Math.min(v + 2, extended.length));
-            }
-          }}
+          onMore={() => setWateredVisible(v => Math.min(v + 2, wateredList.length))}
+          hasMore={wateredHasMore}
+          emptyText="아직 내역이 없어요."
         />
       </ScrollView>
     </SafeAreaView>
@@ -331,16 +393,18 @@ function TreeCard({ item }: { item: TreeItemT }) {
   );
 }
 
-/** 섹션 */
+/** 섹션 (빈 목록 메시지 지원) */
 function Section({
-  title,
-  data,
-  onMore,
+  title, data, onMore, hasMore = false, emptyText,
 }: {
   title: string;
   data: TreeItemT[];
   onMore: () => void;
+  hasMore?: boolean;
+  emptyText?: string;
 }) {
+  const isEmpty = data.length === 0;
+
   return (
     <>
       <View style={styles.sectionHeader}>
@@ -352,13 +416,20 @@ function Section({
       </View>
 
       <View style={styles.sectionBody}>
-        {data.map(it => (
-          <TreeCard key={it.id} item={it} />
-        ))}
-
-        <TouchableOpacity style={styles.moreBtn} onPress={onMore} activeOpacity={0.85}>
-          <Text style={styles.moreBtnText}>내역 더보기</Text>
-        </TouchableOpacity>
+        {isEmpty ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyText}>{emptyText ?? '목록이 비어 있어요.'}</Text>
+          </View>
+        ) : (
+          <>
+            {data.map(it => <TreeCard key={it.id} item={it} />)}
+            {hasMore && (
+              <TouchableOpacity style={styles.moreBtn} onPress={onMore} activeOpacity={0.85}>
+                <Text style={styles.moreBtnText}>내역 더보기</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
       </View>
     </>
   );
@@ -368,13 +439,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF' },
 
   /* 헤더 */
-  header: {
-    height: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    marginBottom: 8,
-  },
+  header: { height: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, marginBottom: 8 },
   brandWrap: { flexDirection: 'row', alignItems: 'center', gap: 0 },
   brandName: { width: 60, height: 23, resizeMode: 'contain' },
   brandPic: { width: 60, height: 23, resizeMode: 'contain' },
@@ -383,13 +448,8 @@ const styles = StyleSheet.create({
 
   /* 프로필 카드 */
   card: {
-    marginHorizontal: H_MARGIN,
-    backgroundColor: '#F6F6F8',
-    borderRadius: CARD_RADIUS,
-    padding: 16,
-    elevation: 3,
-    position: 'relative',
-    marginBottom: 15,
+    marginHorizontal: H_MARGIN, backgroundColor: '#F6F6F8', borderRadius: CARD_RADIUS,
+    padding: 16, elevation: 3, position: 'relative', marginBottom: 15,
   },
   editFab: { position: 'absolute', top: 10, right: 10, padding: 6, borderRadius: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -400,7 +460,7 @@ const styles = StyleSheet.create({
   bio: { marginTop: 8, color: '#4B4B4B', fontSize: 16 },
   divider: { height: RNStyleSheet.hairlineWidth, backgroundColor: '#D4D4D4', marginTop: 10, marginBottom: 8 },
 
-  /* 간결한 3열 통계 */
+  /* 통계 */
   statsRowSimple: { flexDirection: 'row', justifyContent: 'space-between' },
   statCol: { flex: 1, alignItems: 'center' },
   statValText: { fontSize: 13, fontWeight: '600', color: '#111' },
@@ -409,13 +469,10 @@ const styles = StyleSheet.create({
   /* 칩 영역 */
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
 
-  /* 하이라이트 트레이 */
-  highlightTray: {
-    paddingHorizontal: H_MARGIN,
-    gap: 14,
-  },
+  /* 하이라이트 컨테이너 */
+  highlightTray: { paddingHorizontal: H_MARGIN, gap: 14 },
 
-  /* 하이라이트 카드 */
+  /* 공통 하이라이트 카드 */
   highlightItem: {
     aspectRatio: 1.1,
     borderRadius: CARD_RADIUS,
@@ -427,29 +484,37 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     position: 'relative',
   },
+
+  /* 1번 카드: 하단 CTA용 컨테이너 */
   highlightTextBox: {
     flex: 1,
     height: '100%',
     marginLeft: 10,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
+
+  /* 상단 고정 오버레이 */
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '66%' },
+
+  /* 1번 카드 타이포 */
   titleWrap: { gap: 6 },
-  highlightTitleLine: { fontSize: 22, fontWeight: '700', color: '#111', lineHeight: 26 },
+  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 26 },
   highlightEm: { color: '#0DBC65' },
   highlightCta: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
+    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#FFFFFF', borderRadius: 999,
   },
   highlightCtaText: { fontSize: 13, fontWeight: '600', color: '#333333' },
   highlightCtaArrow: { marginLeft: 6, fontSize: 18, lineHeight: 18, color: '#7C7C7C' },
   highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain' },
 
-  /* 섹션 */
+  /* 2번 카드(리캡) */
+  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%' },
+  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 30 },
+  recapSubtitle: { marginTop: 8, fontSize: 18, color: '#6B6B6B', fontWeight: '600' },
+  recapImage: { position: 'absolute', right: -200, bottom: -30, width: '180%', height: '100%', resizeMode: 'contain' },
+
+  /* 리스트 섹션 */
   sectionHeader: { marginTop: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { fontSize: 19, fontWeight: '600', color: '#0E0F11', marginLeft: 7 },
   sortBtn: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', padding: 4 },
@@ -458,15 +523,14 @@ const styles = StyleSheet.create({
 
   sectionBody: { marginTop: 15, marginHorizontal: 14 },
 
+  /* 빈 목록 표시 */
+  emptyWrap: { paddingVertical: 20, alignItems: 'center' },
+  emptyText: { color: '#777' },
+
   /* 개별 나무 카드 */
   treeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#F6F6F8',
-    borderRadius: 15,
-    marginBottom: 5,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14,
+    backgroundColor: '#F6F6F8', borderRadius: 15, marginBottom: 5,
   },
   treeIcon: { width: 45, height: 45, marginRight: 12, resizeMode: 'contain' },
   treeName: { fontSize: 15, fontWeight: '600', color: '#0E0F11' },
@@ -475,16 +539,9 @@ const styles = StyleSheet.create({
 
   /* 더보기 버튼 */
   moreBtn: {
-    marginTop: 4,
-    marginBottom: 6,
-    alignSelf: 'stretch',
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F1F1F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 4, marginBottom: 6, alignSelf: 'stretch', height: 42, borderRadius: 12,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F6',
+    alignItems: 'center', justifyContent: 'center',
   },
   moreBtnText: { fontSize: 14, color: '#555' },
 
