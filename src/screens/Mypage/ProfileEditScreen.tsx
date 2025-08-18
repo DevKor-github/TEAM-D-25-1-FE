@@ -1,46 +1,86 @@
 // src/screens/ProfileEditScreen.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SafeAreaView, View, Text, TextInput, TouchableOpacity, Image,
   StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import CameraIcon from '../assets/camera.svg';
-import Chip from '../components/Chip';
+import CameraIcon from '../../assets/camera.svg';
+import Chip from '../../components/Chip';
+import * as ImagePicker from 'react-native-image-picker';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { getUser } from '../../apis/api/user';
+
+const backIcon = require('../../assets/arrow.png');
+const plusIcon = require('../../assets/plus_icon.png');
 
 export default function ProfileEditScreen({ navigation, route }: any) {
+  // ✅ 서버 닉네임
+  const [nickname, setNickname] = useState<string>('');
+
   // ✅ MyPage에서 전달한 초기값
   const [intro, setIntro] = useState<string>(route.params?.intro ?? '');
   const [mbti, setMbti] = useState<string | null>(route.params?.mbti ?? null);
   const [stylesArr, setStylesArr] = useState<string[]>(route.params?.styles ?? []);
   const [foodsArr, setFoodsArr] = useState<string[]>(route.params?.foods ?? []);
+  const [avatarUri, setAvatarUri] = useState<string | null>(route.params?.avatarUri ?? null);
 
-  // ✅ onSave 콜백을 ref에 보관 (KeywordSelection 왕복 후에도 유실 방지)
+  // ✅ onSave 콜백 보관
   const onSaveRef = useRef(route.params?.onSave);
   useEffect(() => {
     if (route.params?.onSave) onSaveRef.current = route.params.onSave;
   }, [route.params?.onSave]);
 
-  // ✅ KeywordSelection에서 돌아왔을 때 표시용 동기화(보조용)
+  // ✅ 서버에서 닉네임 불러오기 (MyPage와 동일 흐름)
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      if (!user) return;
+      try {
+        const res = await getUser();
+        console.log('getUser from ProfileEdit:', res);
+        if (res?.nickname) setNickname(res.nickname);
+      } catch (e) {
+        console.error('닉네임을 불러오지 못했습니다:', e);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // ✅ KeywordSelection 복귀 시 동기화
   useEffect(() => {
     if (route.params?.mbti !== undefined) setMbti(route.params.mbti);
     if (route.params?.styles) setStylesArr(route.params.styles);
     if (route.params?.foods) setFoodsArr(route.params.foods);
-  }, [route.params?.mbti, route.params?.styles, route.params?.foods]);
+    if (route.params?.avatarUri !== undefined) setAvatarUri(route.params.avatarUri);
+  }, [route.params?.mbti, route.params?.styles, route.params?.foods, route.params?.avatarUri]);
 
-  // ✅ 확인: 저장 콜백 호출 후, 기존 MyPage로 '뒤로가기'
+  // ▶ 갤러리에서 아바타 선택
+  const pickAvatar = useCallback(() => {
+    const options: ImagePicker.ImageLibraryOptions = {
+      mediaType: 'photo',
+      selectionLimit: 1,
+      quality: 1,
+    };
+    ImagePicker.launchImageLibrary(options, (res) => {
+      if (res.didCancel || res.errorCode) return;
+      const uri = res.assets?.[0]?.uri;
+      if (uri) setAvatarUri(uri);
+    });
+  }, []);
+
+  // ✅ 확인: 저장 콜백 호출 후 뒤로가기
   const onConfirm = () => {
-    const payload = { intro, mbti, styles: stylesArr, foods: foodsArr };
+    const payload = { intro, mbti, styles: stylesArr, foods: foodsArr, avatarUri };
     try { onSaveRef.current?.(payload); } catch {}
-    navigation.goBack(); // ✨ navigate('MyPage') 쓰지 말고 goBack!
+    navigation.goBack();
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
       <View style={styles.header}>
-        {/* '이전'도 무조건 MyPage로 돌아가게: goBack이면 바로 기존 MyPage로 */}
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <Image source={require('../assets/arrow.png')} style={styles.headerIcon} />
+          <Image source={backIcon} style={styles.headerIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>프로필 수정</Text>
         <TouchableOpacity onPress={onConfirm} style={styles.headerButton}>
@@ -55,13 +95,26 @@ export default function ProfileEditScreen({ navigation, route }: any) {
         {/* Profile Card */}
         <View style={styles.card}>
           <View style={styles.avatarWrapper}>
-            <View style={styles.avatarBackground} />
-            <TouchableOpacity style={styles.cameraButton}>
-              <CameraIcon width={40} height={40} />
+            {/* 회색 원 배경 */}
+            <View style={styles.avatarBg} />
+            {/* 선택된 사진이 있을 때만 표시 */}
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : null}
+
+            {/* 원 전체가 터치 영역, 가운데 카메라 아이콘 */}
+            <TouchableOpacity
+              onPress={pickAvatar}
+              activeOpacity={0.85}
+              style={styles.avatarHit}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              {!avatarUri && <CameraIcon width={44} height={44} />}
             </TouchableOpacity>
           </View>
-          <Text style={styles.nickname}>이지윤</Text>
-          <Text style={styles.handle}>@jiyoooon_</Text>
+
+          {/* ✅ 서버에서 받은 닉네임 표시 */}
+          <Text style={styles.nickname}>{nickname || '닉네임'}</Text>
 
           <View style={styles.introWrapper}>
             <TextInput
@@ -94,12 +147,12 @@ export default function ProfileEditScreen({ navigation, route }: any) {
             <Chip key={`food-${label}`} label={label} variant="food" selected />
           ))}
 
-          {/* ➕ 키워드 선택으로 이동 — onApply 콜백으로 자기 상태 갱신 */}
+          {/* ➕ 키워드 선택 이동 */}
           <TouchableOpacity
             style={styles.plusIconWrapper}
             onPress={() =>
               navigation.navigate('KeywordSelection', {
-                mbti, styles: stylesArr, foods: foodsArr,
+                mbti, styles: stylesArr, foods: foodsArr, avatarUri,
                 onApply: (next: { mbti: string | null; styles: string[]; foods: string[] }) => {
                   setMbti(next.mbti);
                   setStylesArr(next.styles);
@@ -108,7 +161,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
               })
             }
           >
-            <Image source={require('../assets/plus_icon.png')} style={styles.plusIconSmall} />
+            <Image source={plusIcon} style={styles.plusIconSmall} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -116,23 +169,49 @@ export default function ProfileEditScreen({ navigation, route }: any) {
   );
 }
 
+const AVATAR_SIZE = 150;
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
   headerButton: { width: 40, alignItems: 'center' },
   headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
-  headerTitle: { fontSize: 23, fontWeight: '600' },
-  headerConfirm: { fontSize: 23, color: '#0DBC65', fontWeight: '600' },
+  headerTitle: { fontSize: 20, fontWeight: '600' },
+  headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
 
   container: { flex: 1, paddingHorizontal: 20 },
 
   card: { backgroundColor: '#F7F7F7', borderRadius: 20, paddingVertical: 40, paddingHorizontal: 20, alignItems: 'center', marginTop: 16 },
-  avatarWrapper: { width: 150, height: 150, justifyContent: 'center', alignItems: 'center', marginBottom: 16, position: 'relative' },
-  avatarBackground: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: '#DDD' },
-  cameraButton: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
 
-  nickname: { fontSize: 21, fontWeight: '600', color: '#111', marginTop: 8 },
-  handle: { fontSize: 18, color: '#777', marginBottom: 16, marginTop: 5 },
+  /* 아바타 */
+  avatarWrapper: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  avatarBg: {
+    position: 'absolute',
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: '#DDD',
+  },
+  avatarImage: {
+    position: 'absolute',
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+  },
+  avatarHit: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  nickname: { fontSize: 21, fontWeight: '600', color: '#111', marginTop: 8 , marginBottom: 16,},
 
   introWrapper: { width: '100%', position: 'relative' },
   introInput: { backgroundColor: '#EFEFEF', borderRadius: 8, padding: 15, fontSize: 14, color: '#333', height: 80, textAlignVertical: 'top' },

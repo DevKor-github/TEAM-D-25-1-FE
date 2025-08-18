@@ -8,7 +8,7 @@ import PlantIcon from '../assets/plant.svg';
 import MyPageIcon from '../assets/mypage.svg';
 import {StyleSheet, View} from 'react-native';
 import PlantingNavigator from './plantingNavigator';
-import MyPageScreen from '../screens/MypageScreen';
+import MyPageScreen from '../screens/Mypage/MypageScreen';
 
 const Tab = createBottomTabNavigator();
 

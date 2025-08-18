@@ -1,5 +1,5 @@
 // src/screens/MyPageScreen.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,34 +12,43 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient'; //  그라데이션 이걸로쓰기
-import Chip from '../components/Chip';
+import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
+import Chip from '../../components/Chip';
 
 // SVG 아이콘
-import SettingsIcon from '../assets/icons/setting.svg';
-import PencilIcon from '../assets/icons/edit-pen.svg';
-import BookmarkIcon from '../assets/icons/bookmark.svg';
+import SettingsIcon from '../../assets/icons/setting.svg';
+import PencilIcon from '../../assets/icons/edit-pen.svg';
+import BookmarkIcon from '../../assets/icons/bookmark.svg';
+
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
-import {getUser} from '../apis/api/user';
+import { getMyTree, getUser, getFollwerList, getFollowingList } from '../../apis/api/user';
 
 // PNG 리소스
-const avatar = require('../assets/image/profile.png');
-const treeImg = require('../assets/image/mytree.png');
-const treeicon = require('../assets/extree.png');
-const grooNameIcon = require('../assets/groo_name_icon.png');
-const grooPictureIcon = require('../assets/groo_picture_icon.png');
+const avatar = require('../../assets/image/profile.png');
+const treeImg = require('../../assets/image/mytree.png');
+const treeicon = require('../../assets/extree.png');
+const grooNameIcon = require('../../assets/groo_name_icon.png');
+const grooPictureIcon = require('../../assets/groo_picture_icon.png');
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const H_MARGIN = 14;                  // 좌우 마진
+const H_MARGIN = 14;
 const CARD_RADIUS = 16;
-const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2; // 정사각형 카드 너비/높이
+const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
 
 type TreeItemT = { id: string; name: string; meta: string };
 
 export default function MyPageScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
 
-  // 프로필
+  // 서버 닉네임
+  const [nickname, setNickname] = useState<string>('');
+
+  // 서버 카운트
+  const [followerCount, setFollowerCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
+
+  // 프로필(로컬 편집용)
   const [profile, setProfile] = useState({
     intro: '',
     mbti: null as string | null,
@@ -47,7 +56,7 @@ export default function MyPageScreen({ navigation }: any) {
     foods: [] as string[],
   });
 
-  // 데이터 원본(샘플)
+  // 샘플 리스트
   const plantedBase: TreeItemT[] = useMemo(
     () => [
       { id: 'p1', name: '특별식당', meta: '39m  서울특별시 동대문구' },
@@ -63,10 +72,8 @@ export default function MyPageScreen({ navigation }: any) {
     []
   );
 
-  // 화면에 표시되는 리스트와 개수
   const [plantedList, setPlantedList] = useState<TreeItemT[]>(plantedBase);
   const [plantedVisible, setPlantedVisible] = useState(2);
-
   const [wateredList, setWateredList] = useState<TreeItemT[]>(wateredBase);
   const [wateredVisible, setWateredVisible] = useState(2);
 
@@ -82,45 +89,77 @@ export default function MyPageScreen({ navigation }: any) {
     });
   };
 
-  // 더보기: 동일 플롯을 더 붙여 보여주기
   const appendMore = (list: TreeItemT[]): TreeItemT[] => {
     const suffix = '_' + Math.random().toString(36).slice(2, 6);
-    const clones = list.map((it, idx) => ({
-      ...it,
-      id: it.id + suffix + '_' + idx,
-    }));
+    const clones = list.map((it, idx) => ({ ...it, id: it.id + suffix + '_' + idx }));
     return [...list, ...clones];
   };
 
-  // ✅ 하이라이트 카드 데이터 (배경만 다름)
+  // 하이라이트 카드(배경만 다름)
   const highlightSlides = [
-    { id: 'main', colors: ['#F4F4F4', '#BDEABC'] }, // 기존
-    { id: 'alt',  colors: ['#F4F4F4', '#EABCD2'] }, // 추가
+    { id: 'main', colors: ['#F4F4F4', '#BDEABC'] },
+    { id: 'alt', colors: ['#F4F4F4', '#EABCD2'] },
   ];
 
+  // 공용 로더(닉네임 + 팔로워/팔로잉 수)
+  const loadProfileAndCounts = useCallback(async () => {
+    try {
+      const me = await getUser(); // { id, nickname, ... }
+      if (me?.nickname) setNickname(me.nickname);
+
+      const userId = me?.id;
+      if (userId) {
+        const [followersRes, followingRes] = await Promise.all([
+          getFollwerList(),        // /users/me/followers
+          getFollowingList(userId) // /users/{id}/following
+        ]);
+
+        const followersLen = Array.isArray(followersRes)
+          ? followersRes.length
+          : (followersRes?.items?.length ?? 0);
+        const followingLen = Array.isArray(followingRes)
+          ? followingRes.length
+          : (followingRes?.items?.length ?? 0);
+
+        setFollowerCount(followersLen);
+        setFollowingCount(followingLen);
+      }
+    } catch (e) {
+      console.error('프로필/팔로우 카운트 로드 실패:', e);
+    }
+  }, []);
+
+  // 최초 로그인 상태 감지 시 로드
   useEffect(() => {
-    const auth = getAuth(); // Get the auth instance once
-  
+    const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async user => {
-      // This callback runs whenever the auth state changes
-      if (user) {
-        // User is signed in
-        try {
-          
-          const res = await getUser(); // Your function call
-          console.log(res);
-        } catch (error) {
-          console.error('유저를 불러오지 못했습니다:', error);
-        }
-      } else {
-        // No user is signed in
+      if (!user) {
         console.warn('로그인된 사용자가 없습니다.');
-        // You might want to navigate to a login screen or show a message here
+        return;
+      }
+      loadProfileAndCounts();
+      // 원한다면 여기서 심은 나무 개수도 별도로 세팅 가능
+      try {
+        const trees = await getMyTree();
+        console.log('getMyTree:', trees);
+      } catch (e) {
+        console.error('내 나무를 불러오지 못했습니다:', e);
       }
     });
-  })
+    return unsubscribe;
+  }, [loadProfileAndCounts]);
 
-  
+  // 화면 재진입 시 최신값으로 리프레시
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileAndCounts();
+    }, [loadProfileAndCounts])
+  );
+
+  // 팔로워/팔로잉 리스트로 이동
+  const openFollowList = (initialTab: 'followers' | 'following') => {
+    navigation.navigate('FollowList', { initialTab });
+  };
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -156,42 +195,57 @@ export default function MyPageScreen({ navigation }: any) {
             <Image source={avatar} style={styles.avatar} />
             <View style={styles.profileRight}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>이지윤</Text>
-                <Text style={styles.handle}>@jiyoooon_</Text>
+                <Text style={styles.name}>{nickname || '닉네임'}</Text>
               </View>
+
               <Text style={styles.bio}>
-                {profile.intro && profile.intro.trim().length > 0 ? profile.intro : '한줄소개로 나를 설명해보세요!'}
+                {profile.intro && profile.intro.trim().length > 0
+                  ? profile.intro
+                  : '한줄소개로 나를 설명해보세요!'}
               </Text>
+
               <View style={styles.divider} />
+
+              {/* 통계줄: 심은 나무 / 팔로워 / 팔로잉 */}
               <View style={styles.statsRowSimple}>
                 <View style={styles.statCol}>
                   <Text style={styles.statValText}>201</Text>
                   <Text style={styles.statKeyText}>심은 나무</Text>
                 </View>
-                <View style={styles.statCol}>
-                  <Text style={styles.statValText}>51</Text>
+
+                <TouchableOpacity
+                  style={styles.statCol}
+                  activeOpacity={0.7}
+                  onPress={() => openFollowList('followers')}
+                >
+                  <Text style={styles.statValText}>{followerCount}</Text>
                   <Text style={styles.statKeyText}>팔로워</Text>
-                </View>
-                <View style={styles.statCol}>
-                  <Text style={styles.statValText}>74</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.statCol}
+                  activeOpacity={0.7}
+                  onPress={() => openFollowList('following')}
+                >
+                  <Text style={styles.statValText}>{followingCount}</Text>
                   <Text style={styles.statKeyText}>팔로잉</Text>
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
 
           <View style={styles.chipsRow}>
-            {profile.styles.map((s) => (
+            {profile.styles.map(s => (
               <Chip key={`style-${s}`} label={s} variant="style" selected />
             ))}
-            {profile.foods.map((f) => (
+            {profile.foods.map(f => (
               <Chip key={`food-${f}`} label={f} variant="food" selected />
             ))}
             {profile.mbti ? <Chip label={profile.mbti} variant="mbti" selected /> : null}
           </View>
         </View>
 
-        {/* ✅ 하이라이트 카드 - 가로 스크롤(여러 장), 각 카드 정사각형 */}
+        {/* 하이라이트 카드 - 가로 스크롤 */}
         <ScrollView
           horizontal
           pagingEnabled
@@ -234,11 +288,11 @@ export default function MyPageScreen({ navigation }: any) {
           data={plantedList.slice(0, plantedVisible)}
           onMore={() => {
             if (plantedVisible < plantedList.length) {
-              setPlantedVisible((v) => Math.min(v + 2, plantedList.length));
+              setPlantedVisible(v => Math.min(v + 2, plantedList.length));
             } else {
               const extended = appendMore(plantedList);
               setPlantedList(extended);
-              setPlantedVisible((v) => Math.min(v + 2, extended.length));
+              setPlantedVisible(v => Math.min(v + 2, extended.length));
             }
           }}
         />
@@ -248,11 +302,11 @@ export default function MyPageScreen({ navigation }: any) {
           data={wateredList.slice(0, wateredVisible)}
           onMore={() => {
             if (wateredVisible < wateredList.length) {
-              setWateredVisible((v) => Math.min(v + 2, wateredList.length));
+              setWateredVisible(v => Math.min(v + 2, wateredList.length));
             } else {
               const extended = appendMore(wateredList);
               setWateredList(extended);
-              setWateredVisible((v) => Math.min(v + 2, extended.length));
+              setWateredVisible(v => Math.min(v + 2, extended.length));
             }
           }}
         />
@@ -296,7 +350,7 @@ function Section({
       </View>
 
       <View style={styles.sectionBody}>
-        {data.map((it) => (
+        {data.map(it => (
           <TreeCard key={it.id} item={it} />
         ))}
 
@@ -333,7 +387,7 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 3,
     position: 'relative',
-    marginBottom : 15,
+    marginBottom: 15,
   },
   editFab: { position: 'absolute', top: 10, right: 10, padding: 6, borderRadius: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
@@ -341,7 +395,6 @@ const styles = StyleSheet.create({
   profileRight: { flex: 1, marginLeft: 25 },
   nameRow: { flexDirection: 'row', alignItems: 'baseline' },
   name: { fontSize: 18, fontWeight: '600', color: '#111' },
-  handle: { fontSize: 15, color: '#949494', marginLeft: 8 },
   bio: { marginTop: 8, color: '#4B4B4B', fontSize: 16 },
   divider: { height: RNStyleSheet.hairlineWidth, backgroundColor: '#D4D4D4', marginTop: 10, marginBottom: 8 },
 
@@ -352,17 +405,17 @@ const styles = StyleSheet.create({
   statKeyText: { fontSize: 13, color: '#111', marginTop: 3 },
 
   /* 칩 영역 */
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14, },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
 
-  /* ✅ 하이라이트 트레이(가로 스크롤) */
+  /* 하이라이트 트레이 */
   highlightTray: {
     paddingHorizontal: H_MARGIN,
-    gap: 14,                 // RN 최신 버전에서 지원. 미지원이면 각 item에 marginRight 부여해도 됨
+    gap: 14,
   },
 
-  /* ✅ 하이라이트 아이템(정사각형 카드) */
+  /* 하이라이트 카드 */
   highlightItem: {
-    aspectRatio: 1.1,          // 정사각형 유지
+    aspectRatio: 1.1,
     borderRadius: CARD_RADIUS,
     overflow: 'hidden',
     paddingLeft: 16,
@@ -372,7 +425,6 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     position: 'relative',
   },
-
   highlightTextBox: {
     flex: 1,
     height: '100%',
