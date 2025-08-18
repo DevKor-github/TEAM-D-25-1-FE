@@ -131,9 +131,9 @@ export default function CafeDetailScreen() {
           const slides = data.map(item => ({
             id: item.treeId,
             levelText: `나무 ${item.treeType}단계`,
-            infoText: `${item.tags.join('·') || '태그 없음'}·${
+            infoText: `${item.tags.join(' · ') || '참나무'}·${
               item.recommendationCount
-            }개`,
+            } m`,
             img: {uri: item.images[0] || ''},
             review: item.review || '한줄평이 없습니다.',
             nickname:item.nickname,
@@ -305,7 +305,7 @@ export default function CafeDetailScreen() {
           <Text style={styles.address}>{restaurant.address}</Text>
 
           {/* 사진 그리드 */}
-          <View style={styles.imageGrid}>
+          {/* <View style={styles.imageGrid}>
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => goPhotoDetail(0)}>
@@ -341,7 +341,29 @@ export default function CafeDetailScreen() {
                 </View>
               </TouchableOpacity>
             </View>
-          </View>
+          </View> */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.photoScrollView}
+            contentContainerStyle={styles.photoScrollContainer}>
+            {allImages.map((imageUri, index) => (
+              <TouchableOpacity
+                key={index}
+                activeOpacity={0.85}
+                onPress={() => goPhotoDetail(index)}>
+                <Image
+                  source={
+                    imageUri
+                      ? {uri: imageUri}
+                      : require('../assets/dummypic.png')
+                  }
+                  style={styles.scrollImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       </ScrollView>
 
@@ -480,4 +502,9 @@ const styles = StyleSheet.create({
 
   /* 물주기 버튼 (하단 고정) */
   actionWrapper: {position: 'absolute', left: 16, right: 16},
+
+  /* 사진 (가로 스크롤) */
+  photoScrollView: {marginTop: 14},
+  photoScrollContainer: {flexDirection: 'row', gap: 8},
+  scrollImage: {width: 150, height: 150, borderRadius: 4},
 });

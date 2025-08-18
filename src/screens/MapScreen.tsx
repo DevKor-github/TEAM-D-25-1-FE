@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   rightSection: {
     flex: 1,
-    marginLeft: 35,
+    marginLeft: 25,
   },
   titleContainer: {
     flexDirection: 'row',
