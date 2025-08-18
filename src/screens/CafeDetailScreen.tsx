@@ -236,7 +236,6 @@ export default function CafeDetailScreen() {
             style={[
               StyleSheet.absoluteFill,
               {zIndex: 3},
-              {paddingTop: insets.top},
             ]} // ✅ 오버레이 위
             contentContainerStyle={{height: HERO_HEIGHT}}>
             {treeSlides.map(slide => (
@@ -453,7 +452,7 @@ const styles = StyleSheet.create({
 
   /* 시트 */
   sheet: {
-    marginTop: -24,
+    marginTop: -70,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     backgroundColor: '#fff',
