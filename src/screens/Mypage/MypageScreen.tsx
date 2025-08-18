@@ -1,5 +1,5 @@
 // src/screens/MyPageScreen.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Chip from '../../components/Chip';
 
@@ -19,8 +20,9 @@ import Chip from '../../components/Chip';
 import SettingsIcon from '../../assets/icons/setting.svg';
 import PencilIcon from '../../assets/icons/edit-pen.svg';
 import BookmarkIcon from '../../assets/icons/bookmark.svg';
+
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
-import { getMyTree, getUser } from '../../apis/api/user';
+import { getMyTree, getUser, getFollwerList, getFollowingList } from '../../apis/api/user';
 
 // PNG 리소스
 const avatar = require('../../assets/image/profile.png');
@@ -41,6 +43,10 @@ export default function MyPageScreen({ navigation }: any) {
 
   // 서버 닉네임
   const [nickname, setNickname] = useState<string>('');
+
+  // 서버 카운트
+  const [followerCount, setFollowerCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
 
   // 프로필(로컬 편집용)
   const [profile, setProfile] = useState({
@@ -95,7 +101,35 @@ export default function MyPageScreen({ navigation }: any) {
     { id: 'alt', colors: ['#F4F4F4', '#EABCD2'] },
   ];
 
-  // ▶ 서버 유저/나무 불러오기 + 닉네임 반영
+  // 공용 로더(닉네임 + 팔로워/팔로잉 수)
+  const loadProfileAndCounts = useCallback(async () => {
+    try {
+      const me = await getUser(); // { id, nickname, ... }
+      if (me?.nickname) setNickname(me.nickname);
+
+      const userId = me?.id;
+      if (userId) {
+        const [followersRes, followingRes] = await Promise.all([
+          getFollwerList(),        // /users/me/followers
+          getFollowingList(userId) // /users/{id}/following
+        ]);
+
+        const followersLen = Array.isArray(followersRes)
+          ? followersRes.length
+          : (followersRes?.items?.length ?? 0);
+        const followingLen = Array.isArray(followingRes)
+          ? followingRes.length
+          : (followingRes?.items?.length ?? 0);
+
+        setFollowerCount(followersLen);
+        setFollowingCount(followingLen);
+      }
+    } catch (e) {
+      console.error('프로필/팔로우 카운트 로드 실패:', e);
+    }
+  }, []);
+
+  // 최초 로그인 상태 감지 시 로드
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async user => {
@@ -103,13 +137,8 @@ export default function MyPageScreen({ navigation }: any) {
         console.warn('로그인된 사용자가 없습니다.');
         return;
       }
-      try {
-        const res = await getUser();
-        console.log('getUser:', res);
-        if (res?.nickname) setNickname(res.nickname);
-      } catch (e) {
-        console.error('유저를 불러오지 못했습니다:', e);
-      }
+      loadProfileAndCounts();
+      // 원한다면 여기서 심은 나무 개수도 별도로 세팅 가능
       try {
         const trees = await getMyTree();
         console.log('getMyTree:', trees);
@@ -118,9 +147,16 @@ export default function MyPageScreen({ navigation }: any) {
       }
     });
     return unsubscribe;
-  }, []);
+  }, [loadProfileAndCounts]);
 
-  // ▶ 팔로워/팔로잉 리스트로 이동
+  // 화면 재진입 시 최신값으로 리프레시
+  useFocusEffect(
+    useCallback(() => {
+      loadProfileAndCounts();
+    }, [loadProfileAndCounts])
+  );
+
+  // 팔로워/팔로잉 리스트로 이동
   const openFollowList = (initialTab: 'followers' | 'following') => {
     navigation.navigate('FollowList', { initialTab });
   };
@@ -161,14 +197,16 @@ export default function MyPageScreen({ navigation }: any) {
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{nickname || '닉네임'}</Text>
               </View>
+
               <Text style={styles.bio}>
                 {profile.intro && profile.intro.trim().length > 0
                   ? profile.intro
                   : '한줄소개로 나를 설명해보세요!'}
               </Text>
+
               <View style={styles.divider} />
 
-              {/* ▶ 통계줄: 팔로워/팔로잉은 눌러서 이동 */}
+              {/* 통계줄: 심은 나무 / 팔로워 / 팔로잉 */}
               <View style={styles.statsRowSimple}>
                 <View style={styles.statCol}>
                   <Text style={styles.statValText}>201</Text>
@@ -180,7 +218,7 @@ export default function MyPageScreen({ navigation }: any) {
                   activeOpacity={0.7}
                   onPress={() => openFollowList('followers')}
                 >
-                  <Text style={styles.statValText}>51</Text>
+                  <Text style={styles.statValText}>{followerCount}</Text>
                   <Text style={styles.statKeyText}>팔로워</Text>
                 </TouchableOpacity>
 
@@ -189,7 +227,7 @@ export default function MyPageScreen({ navigation }: any) {
                   activeOpacity={0.7}
                   onPress={() => openFollowList('following')}
                 >
-                  <Text style={styles.statValText}>74</Text>
+                  <Text style={styles.statValText}>{followingCount}</Text>
                   <Text style={styles.statKeyText}>팔로잉</Text>
                 </TouchableOpacity>
               </View>
@@ -207,7 +245,7 @@ export default function MyPageScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* 하이라이트 카드 */}
+        {/* 하이라이트 카드 - 가로 스크롤 */}
         <ScrollView
           horizontal
           pagingEnabled

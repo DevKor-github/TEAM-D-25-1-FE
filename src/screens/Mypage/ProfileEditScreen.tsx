@@ -7,11 +7,16 @@ import {
 import CameraIcon from '../../assets/camera.svg';
 import Chip from '../../components/Chip';
 import * as ImagePicker from 'react-native-image-picker';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
+import { getUser } from '../../apis/api/user';
 
 const backIcon = require('../../assets/arrow.png');
 const plusIcon = require('../../assets/plus_icon.png');
 
 export default function ProfileEditScreen({ navigation, route }: any) {
+  // ✅ 서버 닉네임
+  const [nickname, setNickname] = useState<string>('');
+
   // ✅ MyPage에서 전달한 초기값
   const [intro, setIntro] = useState<string>(route.params?.intro ?? '');
   const [mbti, setMbti] = useState<string | null>(route.params?.mbti ?? null);
@@ -24,6 +29,22 @@ export default function ProfileEditScreen({ navigation, route }: any) {
   useEffect(() => {
     if (route.params?.onSave) onSaveRef.current = route.params.onSave;
   }, [route.params?.onSave]);
+
+  // ✅ 서버에서 닉네임 불러오기 (MyPage와 동일 흐름)
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async user => {
+      if (!user) return;
+      try {
+        const res = await getUser();
+        console.log('getUser from ProfileEdit:', res);
+        if (res?.nickname) setNickname(res.nickname);
+      } catch (e) {
+        console.error('닉네임을 불러오지 못했습니다:', e);
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   // ✅ KeywordSelection 복귀 시 동기화
   useEffect(() => {
@@ -92,7 +113,8 @@ export default function ProfileEditScreen({ navigation, route }: any) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.nickname}>이지윤</Text>
+          {/* ✅ 서버에서 받은 닉네임 표시 */}
+          <Text style={styles.nickname}>{nickname || '닉네임'}</Text>
 
           <View style={styles.introWrapper}>
             <TextInput
