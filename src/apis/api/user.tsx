@@ -52,7 +52,7 @@ export const getFollower = async (userId: string) => {
     console.log(error);
     return error;
   }
-};
+}; 
 
 export const followUser = async (userId: string) => {
   try {
@@ -79,7 +79,49 @@ export const unfollowUser = async (userId: string) => {
 export const getFollowingList = async (userId: string): Promise<UserSummary[]> => {
   const { data } = await defaultInstance.get<UserListResponse>(`/users/${userId}/following`);
   // 필요하면 pagination: defaultInstance.get(..., { params: { page, size } })
+  
   return data.items;
+};
+
+export const getTag = async () => {
+  try {
+    const { data } = await defaultInstance.get('/settings');
+    return data;
+  } catch (error: any) {
+    console.log('[getTag] error', {
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    throw error;
+  }
+};
+
+export const patchMyPreference = async (payload: { mbti: string | null; tags: string[] }) => {
+  const url = '/users/me/preferences';
+  try {
+    const { data } = await defaultInstance.patch(url, payload);
+    return data;
+  } catch (error: any) {
+    console.log('[patchMyPreference] error', {
+      url,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    throw error;
+  }
+};
+
+export const getMyPage = async () => {
+  try {
+    const { data } = await defaultInstance.get('/users/me/mypage');
+    return data;
+  } catch (error: any) {
+    console.log('[getMyPage] error', {
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    throw error;
+  }
 };
 
 export const getFollwerList = async () => {
@@ -96,6 +138,7 @@ export const getFollwerList = async () => {
     }
 
 };
+
 
 
 export const patchNickname = async (nickname: string) => {
@@ -126,3 +169,5 @@ export const getUserFollowStatus = async (userId: string) => {
     return error;
   }
 };
+
+

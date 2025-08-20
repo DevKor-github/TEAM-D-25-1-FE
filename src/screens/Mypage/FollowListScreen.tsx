@@ -15,11 +15,18 @@ type Person = { id: string; name: string };
 type TabKey = 'followers' | 'following';
 const GREEN = '#6CDF44';
 
+// ❗️프로젝트에서 등록한 FollowerScreen 라우트명으로 맞춰주세요.
+const ROUTE_FRIEND = 'Friend';
+
+// id/userId 중 존재하는 값으로 매핑 + id 없는 항목 제거
 const mapToPersons = (arr?: UserSummary[] | any[]): Person[] =>
-  (arr ?? []).map((u: any) => ({
-    id: u.id ?? String(Math.random()),
-    name: u.nickname || u.username || '이름',
-  }));
+  (arr ?? [])
+    .map((u: any) => ({
+      id: u?.id ?? u?.userId,
+      name: u?.nickname || u?.username || '이름',
+    }))
+    .filter((p: any) => p.id != null)
+    .map((p: any) => ({ id: String(p.id), name: p.name }));
 
 export default function FollowListScreen({ navigation, route }: any) {
   const initialTabParam = (route?.params?.initialTab as TabKey | undefined) ?? 'followers';
@@ -40,7 +47,12 @@ export default function FollowListScreen({ navigation, route }: any) {
     else (navigation.getParent?.() ?? navigation).navigate('Mypage');
   };
 
-  // ✅ 포커스될 때마다 userId 재해석 후 로드
+  // ✅ 친구 프로필로 이동
+  const openFriend = (id: string) => {
+    navigation.navigate(ROUTE_FRIEND, { selectedUser: { id } });
+  };
+
+  // ✅ 포커스될 때마다 로드
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
@@ -52,10 +64,10 @@ export default function FollowListScreen({ navigation, route }: any) {
         try {
           setLoading(true);
 
-          // 1) 우선 라우트 파라미터에서
+          // 1) 라우트 파라미터에서 대상 userId 우선
           const paramId = coerceId(route?.params?.userId ?? route?.params?.user?.id);
 
-          // 2) 없으면 내 계정에서 (✅ me.userId 를 사용)
+          // 2) 없으면 내 계정에서 (me.userId 사용)
           let userId = paramId;
           if (!userId) {
             const me = await getUser();
@@ -68,8 +80,8 @@ export default function FollowListScreen({ navigation, route }: any) {
           }
 
           const [followersRes, followingRes] = await Promise.all([
-            getFollwerList(),         // /users/me/followers (본인 기준)
-            getFollowingList(userId), // 대상 유저 기준
+            getFollwerList(),         // 내 팔로워 목록
+            getFollowingList(userId), // 대상 유저의 팔로잉 목록
           ]);
 
           if (!mounted) return;
@@ -83,19 +95,21 @@ export default function FollowListScreen({ navigation, route }: any) {
         }
       })();
 
-      return () => {
-        mounted = false;
-      };
+      return () => { mounted = false; };
     }, [route?.params?.userId])
   );
 
   const data = tab === 'followers' ? followers : following;
 
   const renderItem = ({ item }: { item: Person }) => (
-    <View style={styles.row}>
+    <TouchableOpacity
+      onPress={() => openFriend(item.id)}
+      activeOpacity={0.85}
+      style={styles.row}
+    >
       <Image source={profilePng} style={styles.avatar} />
       <Text style={styles.name}>{item.name}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -131,7 +145,7 @@ export default function FollowListScreen({ navigation, route }: any) {
       ) : (
         <FlatList<Person>
           data={data}
-          keyExtractor={item => item.id}
+          keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           contentContainerStyle={{ paddingBottom: 12 }}
@@ -153,12 +167,14 @@ const styles = StyleSheet.create({
   backIcon: { width: 22, height: 22, resizeMode: 'contain' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: '#111' },
   headerSpacer: { width: 40 },
+
   tabs: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 8 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: GREEN },
   tabText: { fontSize: 17, fontWeight: '500' },
   tabTextActive: { color: '#111' },
   tabTextInactive: { color: '#999999' },
+
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 6 },
   avatar: { width: 50, height: 48, borderRadius: 24, marginRight: 12 },
   name: { fontSize: 16, color: '#111', paddingTop: 6 },

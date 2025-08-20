@@ -173,11 +173,17 @@ const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
                   <Text style={styles.bottomSheetDetail}>{selectedRestaurant.address}</Text>
                 </View>
 
-                {/* 샘플 썸네일 (원하면 실제 이미지로 대체) */}
+                {/* ▼▼▼ [수정] 썸네일 View 안에 Text 추가 ▼▼▼ */}
                 <View style={styles.thumbRow}>
-                  <View style={styles.thumb} />
-                  <View style={styles.thumb} />
-                  <View style={styles.thumb} />
+                  <View style={styles.thumb}>
+                    <Text style={styles.thumbText}>텅~</Text>
+                  </View>
+                  <View style={styles.thumb}>
+                    <Text style={styles.thumbText}>텅~</Text>
+                  </View>
+                  <View style={styles.thumb}>
+                    <Text style={styles.thumbText}>텅~</Text>
+                  </View>
                 </View>
               </>
             )}
@@ -229,12 +235,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#333',
-    paddingVertical: 0, // iOS 기본 여백 제거
+    paddingVertical: 0, 
     marginHorizontal: 6,
   },
 
   /* ===== 리스트 ===== */
-  list: { flex: 1, paddingHorizontal: 16 },
+  list: { flex: 1, paddingHorizontal: 23 },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -243,8 +249,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
     gap: 10,
   },
-  keywordText: { fontSize: 16, color: '#222', marginBottom: 4, fontWeight: '600' },
-  addressText: { fontSize: 14, color: '#555' },
+  keywordText: { fontSize: 16, color: '#111111', marginBottom: 4, fontWeight: '600', paddingLeft: 4, },
+  addressText: { fontSize: 14, color: '#767676', fontWeight:400, paddingLeft: 4, },
   centerInfo: { textAlign: 'center', marginTop: 20, color: '#666' },
 
   /* ===== 모달 ===== */
@@ -268,7 +274,21 @@ const styles = StyleSheet.create({
   bottomSheetDetail: { fontSize: 15, color: '#797979', marginTop: 6 },
 
   thumbRow: { marginTop: 16, flexDirection: 'row', justifyContent: 'space-between' },
-  thumb: { width: '31%', height: 92, borderRadius: 10, backgroundColor: '#EEE' },
+  // ▼▼▼ [수정] thumb 스타일에 중앙 정렬 속성 추가 ▼▼▼ 
+  thumb: {
+    width: '31%',
+    height: 92,
+    borderRadius: 10,
+    backgroundColor: '#EFEFEF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // 썸네일 텍스트 스타일 추가 ▼▼▼ 텅~~ 이럼
+  thumbText: {
+    fontSize: 17,
+    color: '#A9A9A9',
+    fontWeight: '700',
+  },
 
   bottomSheetButton: {
     marginTop: 18,
