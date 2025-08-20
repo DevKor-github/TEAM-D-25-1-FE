@@ -141,7 +141,6 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
     return result;
   };
 
-  // 🔽 [변경] RowChips 컴포넌트는 이제 ScrollView가 아닌 일반 View를 반환합니다.
   const RowChips = ({
     labels, selected, setSelected, limit,
     variant,
@@ -186,7 +185,6 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
     );
   };
 
-  // 🔽 [변경] renderSection에서 모든 RowChips를 ScrollView로 감쌉니다.
   const renderSection = (
     title: string,
     hint: string,
@@ -239,6 +237,13 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
         <Image source={require('../../assets/selection_ex.png')} style={styles.exampleImage} />
       </View>
 
+      {/* ▼▼▼ 추가된 문구 ▼▼▼ */}
+      <View style={styles.promoContainer}>
+        <Text style={styles.promoText}>
+          내 취향을 등록해서 친구를 추천 받아보세요!
+        </Text>
+      </View>
+
       <ScrollView contentContainerStyle={styles.body}>
         {renderSection('내 MBTI는…😎', '*최대 1개 선택', mbtiLabels, 2, selectedMBTI, setSelectedMBTI, 1, 'mbti')}
         {renderSection('내 미식 스타일은…🍽️', '*최대 3개 선택', styleLabels, 3, selectedStyles, setSelectedStyles, 3, 'style')}
@@ -262,7 +267,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 16, fontWeight: '500' },
   sectionHint: { fontSize: 12, color: '#008F47' },
 
-  /* 칩 스타일(그대로) + 칩들 '서로간' 여백만 적용 */
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -270,7 +274,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#B9B9B9',
     backgroundColor: '#FFF',
-    marginRight: 5,    // ▷ 칩들 사이 간격
+    marginRight: 5,
   },
   chipText: { fontSize: 15, color: '#333' },
 
@@ -284,7 +288,6 @@ const styles = StyleSheet.create({
   chipDisabled: { opacity: 0.8 },
   chipTextDisabled: { color: '#B9B9B9' },
 
-  /* 각 줄은 패딩 없이 꽉 차게, 칩 사이 간격만 보이게 */
   rowContent: {
     paddingHorizontal: 0,
     paddingVertical: 4,
@@ -294,4 +297,17 @@ const styles = StyleSheet.create({
 
   examplewrapper: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 5, paddingVertical: 10, margin: 20 },
   exampleImage: { width: 160, height: 100, resizeMode: 'contain' },
+
+  // ▼▼▼ 추가된 스타일 ▼▼▼
+  promoContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+  },
+  promoText: {
+    fontSize: 14,
+    color: '#505050',
+    fontWeight: 400,
+    textAlign: 'center',
+  },
 });

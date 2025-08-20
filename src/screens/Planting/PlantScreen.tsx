@@ -149,7 +149,6 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        // 헤더 높이에 따라 살짝 조정하고 싶으면 숫자 조절
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView
@@ -258,7 +257,11 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
               value={reviewText}
               onChangeText={(t: string) => dispatch(setReviewText(t))}
             />
-            <Text style={styles.charCount}>{reviewText.length} / 80</Text>
+            {/* ▼▼▼ [수정] 글자 수 표시 부분 ▼▼▼ */}
+            <Text style={styles.charCount}>
+              <Text style={styles.charCountHighlight}>{reviewText.length}</Text>
+              {' / 80'}
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -274,7 +277,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    flexGrow: 1, // ✅ 콘텐츠가 적어도 스크롤 가능
+    flexGrow: 1,
   },
 
   section: { marginBottom: 20 },
@@ -339,9 +342,16 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
     fontSize: 15,
-    color: '#A0A0A0',
+    fontWeight: '400',
+    color: '#111111',
   },
-  charCount: { fontSize: 12, color: '#888', textAlign: 'right', marginTop: 5 },
+  charCount: { fontSize: 12, color: '#868686', textAlign: 'right', marginTop: 5 },
+  
+  // ▼▼▼ [추가] 글자 수 강조 스타일 ▼▼▼
+  charCountHighlight: {
+    color: '#008F47',
+    fontWeight: '600',
+  },
 });
 
 export default PlantScreen;
