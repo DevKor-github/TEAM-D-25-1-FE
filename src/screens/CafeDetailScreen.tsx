@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     zIndex: 10,
   },
-  waterToastText: { color: '#fff', fontSize: 16, fontWeight: '400', flexShrink: 1, marginRight: 12 },
+  waterToastText: { color: '#fff', fontSize: 14, fontWeight: '400', flexShrink: 1, marginRight: 12 },
   waterToastRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  waterToastCount: { color: '#fff', fontSize: 16, fontWeight: '400' },
+  waterToastCount: { color: '#fff', fontSize: 14, fontWeight: '400' },
 });
