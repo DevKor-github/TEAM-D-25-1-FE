@@ -64,9 +64,9 @@ export default React.memo(Chip); // ✅ 선택
 
 const styles = StyleSheet.create({
   chip: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 17,
+    paddingVertical: 9.5,
+    borderRadius: 60,
     borderWidth: 1,
     borderColor: '#B9B9B9',
     margin: 4,
