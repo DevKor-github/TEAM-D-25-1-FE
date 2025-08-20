@@ -1,162 +1,97 @@
+// src/screens/Planting/PlantSearchScreen.tsx
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  SafeAreaView,
   StyleSheet,
+  View,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  ScrollView,
+  Modal,
 } from 'react-native';
+
 import ArrowLeftIcon from '../../assets/arrow-left.svg';
 import SearchIcon from '../../assets/search.svg';
 import PinIcon from '../../assets/pinicon.svg';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import BottomSheet, {
-  BottomSheetBackdrop,
-  BottomSheetView,
-} from '@gorhom/bottom-sheet';
-import {AppDispatch, RootState} from '../../redux/store';
-import {useDispatch, useSelector} from 'react-redux';
-import {
-  setRestaurantQuery,
-  setSavedRestaurant,
-} from '../../redux/seedPlantingSlice';
-import {SavedRestaurantType} from '../../types/types';
-import { getSearchRestaurants } from '../../apis/api/search'; // 경로는 맞게 수정
 import { NaverMapView } from '@mj-studio/react-native-naver-map';
-import { getTreeDetail } from '../../apis/api/tree';
 
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../redux/store';
+import { setRestaurantQuery, setSavedRestaurant } from '../../redux/seedPlantingSlice';
+import { SavedRestaurantType } from '../../types/types';
 
-// SearchHistoryItem 타입 정의 (TypeScript 오류 해결)
-interface SelectRestaurant {
-  // id: number;
-  // keyword: string;
-  // genre: string;
-  // address: string;
+import { getSearchRestaurants } from '../../apis/api/search';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+type SelectRestaurant = {
   id: string;
   placeId: string;
   name: string;
   address: string;
   lat: number;
   lon: number;
-}
+};
 
-// const searchHistory: SearchHistoryItem[] = [
-//   {
-//     id: 1,
-//     keyword: '달링스테이크',
-//     genre: '스테이크, 립',
-//     address: '서울특별시 성북구 고려대로 27길 9',
-//   },
-//   {
-//     id: 2,
-//     keyword: '달링스테이크',
-//     genre: '스테이크, 립',
-//     address: '서울특별시 성북구 고려대로 27길 9',
-//   },
-//   {
-//     id: 3,
-//     keyword: '달링스테이크',
-//     genre: '스테이크, 립',
-//     address: '서울특별시 성북구 고려대로 27길 9',
-//   },
-// ];
+const HEADER_H = 64;
 
-const PlantSearchScreen = ({
-  navigation,
-  route,
-}: {
-  navigation: any;
-  route: any;
-  }) => {
-  
-  const [searchRestaurant, setSearchRestaruant] = useState<SelectRestaurant[]>(
-    [],
-  );
+const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
+  const insets = useSafeAreaInsets();
+  const dispatch: AppDispatch = useDispatch();
+  const { restaurantQuery } = useSelector((state: RootState) => state.seedPlanting);
+
+  const [searchRestaurant, setSearchRestaurant] = useState<SelectRestaurant[]>([]);
   const [loading, setLoading] = useState(false);
 
-
-
-  //const [value, onChangeText] = useState('');
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const [selectedRestaurant, setSelectedRestaurant] =
-    useState<SelectRestaurant | null>(null);
-  const dispatch: AppDispatch = useDispatch(); // AppDispatch 타입 명시
-
-  // Redux 스토어에서 검색어(locationQuery) 상태를 가져옵니다.
-  const {restaurantQuery} = useSelector((state: RootState) => state.seedPlanting);
-
+  // 모달 상태
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedRestaurant, setSelectedRestaurant] = useState<SelectRestaurant | null>(null);
 
   useEffect(() => {
     const fetchSearchResults = async () => {
       if (!restaurantQuery) {
-        setSearchRestaruant([]); // 검색어 없을 경우 초기화
+        setSearchRestaurant([]);
         return;
       }
       setLoading(true);
       try {
         const results = await getSearchRestaurants(restaurantQuery);
-        setSearchRestaruant(results as SelectRestaurant[]); // API에서 받은 목록 저장
-      } catch (error) {
-        console.error('검색 결과 가져오기 실패:', error);
+        setSearchRestaurant((results || []) as SelectRestaurant[]);
+      } catch (e) {
+        console.error('검색 실패:', e);
       } finally {
         setLoading(false);
       }
     };
 
-    const delayDebounce = setTimeout(() => {
-      fetchSearchResults();
-    }, 300); // debounce
-
-    return () => clearTimeout(delayDebounce);
+    const t = setTimeout(fetchSearchResults, 300);
+    return () => clearTimeout(t);
   }, [restaurantQuery]);
 
-
-  //const initialSelectedSeed = route.params?.currentSelectedSeed;
   const handleSearchInputChange = useCallback(
-    (text: string) => {
-      dispatch(setRestaurantQuery(text)); // Redux 스토어의 locationQuery 업데이트
-    },
+    (text: string) => dispatch(setRestaurantQuery(text)),
     [dispatch],
   );
-  const handleItemPress = useCallback(async(item: SelectRestaurant) => {
-    
 
-    //const detailedData = await getRestaurantDetail(item.id);
+  const handleItemPress = useCallback((item: SelectRestaurant) => {
     setSelectedRestaurant(item);
+    setIsModalVisible(true);
+  }, []);
 
-
-    if (bottomSheetRef.current) {
-      bottomSheetRef.current.snapToIndex(0); // BottomSheet를 첫 번째 스냅 포인트(25%)로 엽니다.
-    }
+  const handleCloseModal = useCallback(() => {
+    setIsModalVisible(false);
   }, []);
 
   const handleSelectPlace = useCallback(() => {
-    if (selectedRestaurant) {
-      // 선택된 장소 정보를 Redux 스토어에 디스패치
-      const RestaurantToSave: SavedRestaurantType = {
-        name: selectedRestaurant.name,
-        id: selectedRestaurant.id,
-      };
-      dispatch(setSavedRestaurant(RestaurantToSave)); // Redux 액션 디스패치
-      console.log('Redux에 장소 저장:', RestaurantToSave);
-      // BottomSheet 닫기
-      if (bottomSheetRef.current) {
-        bottomSheetRef.current.close();
-      }
+    if (!selectedRestaurant) return;
+    const save: SavedRestaurantType = { id: selectedRestaurant.id, name: selectedRestaurant.name };
+    dispatch(setSavedRestaurant(save));
+    setIsModalVisible(false);
+    navigation.navigate('PlantHome');
+  }, [dispatch, navigation, selectedRestaurant]);
 
-      // PlantScreen으로 돌아가기
-      navigation.navigate('PlantHome'); // 'Plant'는 App.tsx에 정의된 PlantScreen의 name
-    }
-  }, [selectedRestaurant, dispatch, navigation]);
-
-  const handleCloseBottomSheet = useCallback(() => {
-    setSelectedRestaurant(null); // 선택된 항목 상태 초기화
-  }, []);
-
-  const renderSearchRestaurant = (item: SelectRestaurant) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.itemContainer}
-      onPress={() => handleItemPress(item)}>
+  const renderSearchItem = (item: SelectRestaurant) => (
+    <TouchableOpacity key={item.id} style={styles.itemContainer} onPress={() => handleItemPress(item)}>
       <PinIcon />
       <View>
         <Text style={styles.keywordText}>{item.name}</Text>
@@ -166,187 +101,182 @@ const PlantSearchScreen = ({
   );
 
   return (
-    <View
-      style={{
-        flex: 1,
-        padding: 20,
-        backgroundColor: 'white',
-      }}>
-      {/* TODO 서치바 컴포넌트화 */}
-      <View
-        style={{
-          position: 'absolute',
-          //폰에 따라 달라야 할 것 같은데
-          top: 50,
-          left: 20,
-          right: 20,
-          backgroundColor: 'white',
-          borderRadius: 50,
-          paddingHorizontal: 15,
-          paddingVertical: 10,
-          shadowColor: '#000',
-          shadowOffset: {width: 0, height: 2},
-          shadowOpacity: 0.2,
-          shadowRadius: 2,
-          elevation: 3,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <View
-              style={{
-                marginLeft: 10,
-                marginRight: 10,
-              }}>
+    <SafeAreaView style={styles.safe}>
+      {/* 상단 검색 헤더(고정) */}
+      <View style={styles.headerArea}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.iconBtnInBox}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
               <ArrowLeftIcon />
+            </TouchableOpacity>
+
+            <TextInput
+              value={restaurantQuery}
+              onChangeText={handleSearchInputChange}
+              placeholder="장소, 가게 명, 음식 검색"
+              placeholderTextColor="#9E9E9E"
+              style={styles.searchInput}
+              returnKeyType="search"
+            />
+
+            <View style={styles.iconBtnInBox}>
+              <SearchIcon width={27} height={27}/>
             </View>
-          </TouchableOpacity>
-
-          <TextInput
-            editable
-            onChangeText={text => handleSearchInputChange(text)}
-            value={restaurantQuery}
-            style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
-            placeholder="장소, 음식, 가게 검색"
-          />
-        </View>
-        <View style={{marginRight: 10}}>
-          <SearchIcon />
+          </View>
         </View>
       </View>
-      <View
-        style={{
-          height: 50,
-          top: 110,
-          width: '100%',
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-        }}></View>
 
-      <View
-        style={{
-          top: 50,
-          width: '100%',
-          height: '80%',
-        }}>
+      {/* 결과 리스트(스크롤) */}
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={{ paddingBottom: 30 }}
+        keyboardShouldPersistTaps="handled"
+      >
         {loading ? (
-          <Text style={{textAlign: 'center', marginTop: 20}}>로딩 중...</Text>
+          <Text style={styles.centerInfo}>로딩 중…</Text>
         ) : searchRestaurant.length === 0 ? (
-          <Text style={{textAlign: 'center', marginTop: 20}}>
-            검색 결과가 없습니다
-          </Text>
+          <Text style={styles.centerInfo}>검색 결과가 없습니다</Text>
         ) : (
-          searchRestaurant.map(item => renderSearchRestaurant(item))
+          searchRestaurant.map(renderSearchItem)
         )}
-      </View>
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={-1} // -1 means closed initially
-        snapPoints={['25%', '50%', '75%']} // Define snap points for the sheet height
-        enablePanDownToClose={true} // Allow closing by swiping down
-        onClose={handleCloseBottomSheet}
-        backdropComponent={backdropProps => (
-          <BottomSheetBackdrop
-            {...backdropProps}
-            disappearsOnIndex={-1}
-            appearsOnIndex={0}
-            pressBehavior="close" // ← 이게 핵심
-          />
-        )}>
-        <BottomSheetView style={styles.bottomSheetContent}>
-          {selectedRestaurant ? (
-            <>
+      </ScrollView>
+
+      {/* ===== 모달(스크롤 없음) ===== */}
+      <Modal
+        visible={isModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={handleCloseModal}
+      >
+        {/* 어두운 배경 */}
+        <View style={styles.modalBackdrop}>
+          {/* 바깥 터치 닫기 */}
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleCloseModal} />
+          {/* 하단 카드(고정 콘텐츠) */}
+          <View style={[styles.modalCard, { paddingBottom: 20 + insets.bottom }]}>
+            <View style={styles.mapCard}>
               <NaverMapView
-                      style={{flex: 1}}
-                      
-                      isShowScaleBar={false}
-                      isShowLocationButton={false}>
-                      
-                    </NaverMapView>
-              <Text style={styles.bottomSheetTitle}>
-                {selectedRestaurant.name}
-              </Text>
-              {/* <Text style={styles.bottomSheetDetail}>
-                장르: {selectedRestaurant.genre}
-              </Text> */}
-              <Text style={styles.bottomSheetDetail}>
-                주소: {selectedRestaurant.address}
-              </Text>
-              <TouchableOpacity
-                style={styles.bottomSheetButton}
-                onPress={handleSelectPlace}>
-                <Text style={styles.bottomSheetButtonText}>이 장소 선택</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <Text>No item selected</Text>
-          )}
-        </BottomSheetView>
-      </BottomSheet>
-    </View>
+                style={styles.map}
+                isShowScaleBar={false}
+                isShowLocationButton={false}
+              />
+            </View>
+
+            {selectedRestaurant && (
+              <>
+                <View style={styles.sheetTextBlock}>
+                  <Text style={styles.bottomSheetTitle}>{selectedRestaurant.name}</Text>
+                  <Text style={styles.bottomSheetDetail}>{selectedRestaurant.address}</Text>
+                </View>
+
+                {/* 샘플 썸네일 (원하면 실제 이미지로 대체) */}
+                <View style={styles.thumbRow}>
+                  <View style={styles.thumb} />
+                  <View style={styles.thumb} />
+                  <View style={styles.thumb} />
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity style={styles.bottomSheetButton} onPress={handleSelectPlace} activeOpacity={0.9}>
+              <Text style={styles.bottomSheetButtonText}>이 장소 선택</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
+export default PlantSearchScreen;
+
 const styles = StyleSheet.create({
-  text: {
-    fontSize: 16,
-    color: 'gray',
+  safe: { flex: 1, backgroundColor: '#FFFFFF' },
+
+  /* ===== 헤더 & 검색 ===== */
+  headerArea: {
+    height: HEADER_H,
+    paddingHorizontal: 19,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F2',
   },
-  activeText: {
-    color: 'black',
-  },
-  itemContainer: {
-    flexDirection: 'row',
-    alignContent: 'center',
-    height: 75,
-    paddingVertical: 15, // 각 아이템의 세로 패딩
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  keywordText: {
-    marginLeft: 10,
-    marginBottom: 5,
-    fontSize: 16,
-    color: '#333', // 어두운 글씨색
-  },
-  addressText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#2A2A2A99', // 어두운 글씨색
-  },
-  activeIndicator: {
-    backgroundColor: '#6CDF44', // 활성화된 탭의 바 색상
-  },
-  bottomSheetContent: {
+  searchRow: { flexDirection: 'row', alignItems: 'center' },
+  searchBox: {
     flex: 1,
-    padding: 20,
+    height: 46,
+    paddingHorizontal: 13,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#D9D9D9',    
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  bottomSheetTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+  iconBtnInBox: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 4,
   },
-  bottomSheetDetail: {
+  searchInput: {
+    flex: 1,
     fontSize: 16,
-    marginBottom: 5,
-    color: '#555',
+    color: '#333',
+    paddingVertical: 0, // iOS 기본 여백 제거
+    marginHorizontal: 6,
   },
-  bottomSheetButton: {
-    marginTop: 20,
-    backgroundColor: '#6CDF44',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-  },
-  bottomSheetButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});
 
-export default PlantSearchScreen;
+  /* ===== 리스트 ===== */
+  list: { flex: 1, paddingHorizontal: 16 },
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    gap: 10,
+  },
+  keywordText: { fontSize: 16, color: '#222', marginBottom: 4, fontWeight: '600' },
+  addressText: { fontSize: 14, color: '#555' },
+  centerInfo: { textAlign: 'center', marginTop: 20, color: '#666' },
+
+  /* ===== 모달 ===== */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end', // 화면 하단에 카드
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+  },
+  mapCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#EDEDED' },
+  map: { width: '100%', height: 180 },
+
+  sheetTextBlock: { marginTop: 16 },
+  bottomSheetTitle: { fontSize: 20, fontWeight: '600', color: '#111' },
+  bottomSheetDetail: { fontSize: 15, color: '#797979', marginTop: 6 },
+
+  thumbRow: { marginTop: 16, flexDirection: 'row', justifyContent: 'space-between' },
+  thumb: { width: '31%', height: 92, borderRadius: 10, backgroundColor: '#EEE' },
+
+  bottomSheetButton: {
+    marginTop: 18,
+    backgroundColor: '#6CDF44',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+  },
+  bottomSheetButtonText: { color: '#111', fontSize: 15, fontWeight: '500' },
+});

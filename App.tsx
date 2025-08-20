@@ -23,7 +23,7 @@ import KeywordSelectionScreen from './src/screens/Mypage/KeywordSelectionScreen'
 import SplashScreen from './src/screens/SplashScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import CafeDetailScreen from './src/screens/CafeDetailScreen';
-import FollowerScreen from './src/screens/FollowerScreen'
+import FriendScreen from './src/screens/FriendScreen'
 import FollowListScreen from './src/screens/Mypage/FollowListScreen';
 
 // ✅ RNFirebase 코어: 앱 초기화 보장
@@ -63,7 +63,7 @@ const App = () => {
           />
           <Stack.Screen name="Map" component={BottomNavigationBar} />
           <Stack.Screen name="Search" component={SearchScreen} />
-          <Stack.Screen name="Follower" component={FollowerScreen}/>
+          <Stack.Screen name="Friend" component={FriendScreen}/>
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>

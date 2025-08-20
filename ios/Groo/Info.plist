@@ -36,7 +36,7 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string/>
+	<string>Need Location Permission to recommend nearby Restaurant</string>
 	<key>NSLocationWhenInUseUsageDescription
 
 NSLocationWhenInUseUsageDescription
@@ -44,7 +44,9 @@ NSLocationWhenInUseUsageDescription
 NSLocationWhenInUseUsageDescription
 
 </key>
-	<string>"지도 사용을 위해 위치 권한이 필요합니다."</string>
+	<string>Need Location Permission to use Map</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Need Photo Library Usage to get Image Review</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
