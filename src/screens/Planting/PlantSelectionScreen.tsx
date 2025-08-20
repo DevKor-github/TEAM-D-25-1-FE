@@ -16,7 +16,6 @@ import {AppDispatch, RootState, SavedSeedType} from '../../types/types';
 import {useDispatch, useSelector} from 'react-redux';
 import {setSavedSeed} from '../../redux/seedPlantingSlice';
 
-// ✅ 커스텀 백 아이콘
 const backIcon = require('../../assets/arrow.png');
 
 interface SelectSeed {
@@ -33,14 +32,12 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [modalSeed, setModalSeed] = useState<SavedSeedType | null>(null);
 
-  // ✅ 헤더: 좌측 커스텀 back, 중앙 타이틀, 우측 확인(선택 시만 활성색)
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackVisible: false,
       headerTitle: '씨앗 선택',
       headerTitleAlign: 'center',
       headerTitleStyle: {fontSize: 19, fontWeight: '600', color: '#111'},
-
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -49,21 +46,11 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
           <Image source={backIcon} style={{width: 24, height: 24, resizeMode: 'contain'}} />
         </TouchableOpacity>
       ),
-
       headerRight: () => (
         <TouchableOpacity
-          onPress={() => {
-            if (savedSeed) {
-              navigation.goBack(); // 선택되어 있으면 그대로 돌아가기
-            }
-          }}
+          onPress={() => { if (savedSeed) navigation.goBack(); }}
           style={{paddingRight: 20}}>
-          <Text
-            style={{
-              color: savedSeed ? '#0DBC65' : '#999999',
-              fontSize: 18,
-              fontWeight: '600',
-            }}>
+          <Text style={{color: savedSeed ? '#0DBC65' : '#999', fontSize: 18, fontWeight: '600'}}>
             확인
           </Text>
         </TouchableOpacity>
@@ -71,19 +58,15 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
     });
   }, [navigation, savedSeed]);
 
-  // 씨앗 카드 탭 → 상세 모달 오픈
   const handleSeedItemPress = useCallback((seed: SelectSeed) => {
     setModalSeed(seed);
     setIsModalVisible(true);
   }, []);
 
-  // 모달 내 “이 씨앗 선택”
   const handleSelectSeedFromModal = useCallback(() => {
     if (modalSeed) {
       dispatch(setSavedSeed(modalSeed));
       setIsModalVisible(false);
-      // 필요시 자동 복귀하려면 아래 주석을 해제
-      // navigation.goBack();
     }
   }, [dispatch, modalSeed]);
 
@@ -116,16 +99,10 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
       </ScrollView>
 
       {/* 씨앗 상세 모달 */}
-      <Modal
-        animationType="fade"
-        transparent
-        visible={isModalVisible}
-        onRequestClose={handleCloseModal}>
+      <Modal animationType="fade" transparent visible={isModalVisible} onRequestClose={handleCloseModal}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={handleCloseModal}>
+            <TouchableOpacity style={styles.closeButton} onPress={handleCloseModal}>
               <Text style={styles.closeButtonText}>X</Text>
             </TouchableOpacity>
 
@@ -133,22 +110,17 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
               <>
                 <Text style={styles.modalTitle}>{modalSeed.name}</Text>
                 <Text style={styles.modalDescription}>
-                  {
-                    seedData.find(s => s.seedId === modalSeed.seedId)
-                      ?.description
-                  }
+                  {seedData.find(s => s.seedId === modalSeed.seedId)?.description}
                 </Text>
 
+                {/* 🔧 이미지 크기/비율 제어 추가 */}
                 <Image
-                  source={
-                    seedData.find(s => s.seedId === modalSeed.seedId)
-                      ?.image_description
-                  }
+                  source={seedData.find(s => s.seedId === modalSeed.seedId)?.image_description}
+                  style={styles.modalImage}
+                  resizeMode="contain"
                 />
 
-                <TouchableOpacity
-                  style={styles.selectSeedButton}
-                  onPress={handleSelectSeedFromModal}>
+                <TouchableOpacity style={styles.selectSeedButton} onPress={handleSelectSeedFromModal}>
                   <Text style={styles.selectSeedButtonText}>이 씨앗 선택</Text>
                 </TouchableOpacity>
               </>
@@ -189,10 +161,10 @@ const styles = StyleSheet.create({
     height: 150,
     justifyContent: 'center',
     alignItems: 'center',
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
-  seedImage: {width: '80%', height: '80%'},
+  seedImage: {width: '70%', height: '70%', marginTop: 10},
   horizontalLine: {
     height: 1,
     backgroundColor: '#E0E0E0',
@@ -201,7 +173,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   seedNameContainer: {
-    padding: 15,
+    padding: 10,
+    paddingTop: 4,
     alignItems: 'center',
     backgroundColor: 'transparent',
     borderBottomLeftRadius: 15,
@@ -231,10 +204,25 @@ const styles = StyleSheet.create({
   },
   closeButton: {position: 'absolute', top: 15, right: 15, padding: 5},
   closeButtonText: {fontSize: 20, fontWeight: 'bold', color: '#888'},
-  modalTitle: {fontSize: 24, fontWeight: 'bold', marginBottom: 15, color: '#333'},
-  modalDescription: {fontSize: 16, textAlign: 'center', marginBottom: 20, color: '#555', lineHeight: 24},
-  selectSeedButton: {backgroundColor: '#6CDF44', borderRadius: 25, paddingVertical: 12, paddingHorizontal: 30, elevation: 2},
-  selectSeedButtonText: {color: 'white', fontWeight: 'bold', fontSize: 18, textAlign: 'center'},
+  modalTitle: {fontSize: 22, fontWeight: '600', marginBottom: 15, color: '#111111'},
+  modalDescription: {fontSize: 16, textAlign: 'left', marginBottom: 16, color: '#505050', lineHeight: 24},
+
+  /* 🔧 추가: 모달 이미지 크기 제어 */
+  modalImage: {
+    width: '100%',   // 모달의 가로에 맞춤
+    height: 180,     // 원하는 높이(필요시 조절)
+    marginBottom: 20,
+    // 비율 유지: resizeMode="contain"으로 처리
+  },
+
+  selectSeedButton: {
+    backgroundColor: '#6CDF44',
+    borderRadius: 50,
+    paddingVertical: 15,
+    paddingHorizontal: 96,
+    elevation: 2,
+  },
+  selectSeedButtonText: {color: '#111', fontWeight: '400', fontSize: 16, textAlign: 'center'},
 });
 
 export default PlantSelectionScreen;

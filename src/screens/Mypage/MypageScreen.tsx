@@ -13,12 +13,12 @@ import Chip from '../../components/Chip';
 import SettingsIcon from '../../assets/icons/setting.svg';
 import PencilIcon from '../../assets/icons/edit-pen.svg';
 import BookmarkIcon from '../../assets/icons/bookmark.svg';
+import BasicProfileIcon from '../../assets/basic_profile.svg';
 
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { getMyTree, getUser, getFollwerList, getFollowingList } from '../../apis/api/user';
 
 // PNG 리소스
-const avatar = require('../../assets/image/profile.png');
 const treeImg = require('../../assets/image/mytree.png'); // 폴백 이미지
 const treeicon = require('../../assets/extree.png');
 const grooNameIcon = require('../../assets/groo_name_icon.png');
@@ -29,14 +29,24 @@ const H_MARGIN = 14;
 const CARD_RADIUS = 16;
 const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
 
+// ✅ 카드별 단순 폴백 문구
+const FALLBACKS = {
+  topCard: {
+    message: '나만의 나무를 심어보아요',
+  },
+  recap: {
+    message: '나만의 정원을 꾸며보아요!',
+  },
+};
+
 type TreeItemT = { id: string; name: string; meta: string };
 
 // myTrees / wateredTrees 원소 타입(대략)
 type MyTree = {
   restaurantId?: string;
   restaurantName?: string;
-  recommendationCount?: number; // 정식 키
-  recommandationCount?: number; // 혹시 있을지 모르는 오타 키도 대응
+  recommendationCount?: number;
+  recommandationCount?: number;
   location?: string;
 };
 
@@ -52,9 +62,9 @@ export default function MyPageScreen({ navigation }: any) {
   // 1번 하이라이트(초록 글씨만 동적)
   const [topTree, setTopTree] = useState<{ name: string; count: number } | null>(null);
 
-  // 2번 하이라이트(리캡)
+  // 2번 하이라이트(리캡): 폴백 문구가 보이도록 초기값은 빈 문자열
   const [recap, setRecap] = useState<{ messageEm: string; messageRest: string; imageUrl?: string; }>(
-    { messageEm: '앞마당 텃밭', messageRest: '만큼\n자랐어요!' }
+    { messageEm: '', messageRest: '' }
   );
 
   // 프로필(로컬 편집)
@@ -65,7 +75,7 @@ export default function MyPageScreen({ navigation }: any) {
     foods: [] as string[],
   });
 
-  // ✅ 내가 심은 나무 / 물 준 나무  (백엔드 데이터)
+  // ✅ 내가 심은 나무 / 물 준 나무
   const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
   const [plantedVisible, setPlantedVisible] = useState(2);
 
@@ -118,13 +128,13 @@ export default function MyPageScreen({ navigation }: any) {
   // recapMessage → {em, rest}
   const splitRecapMessage = (msg?: string): { em: string; rest: string } => {
     const raw = (msg ?? '').trim();
-    if (!raw) return { em: recap.messageEm, rest: recap.messageRest };
+    if (!raw) return { em: '', rest: '' }; // 폴백 문구를 보여주기 위해 빈 값 유지
     const idx = raw.indexOf('만큼');
-    if (idx >= 0) return { em: raw.slice(0, idx).trim() || recap.messageEm, rest: raw.slice(idx).trim() || recap.messageRest };
+    if (idx >= 0) return { em: raw.slice(0, idx).trim(), rest: raw.slice(idx).trim() };
     const tokens = raw.split(/\s+/);
     const em = tokens.slice(0, 2).join(' ');
     const rest = raw.slice(em.length).trim();
-    return { em: em || recap.messageEm, rest: rest || recap.messageRest };
+    return { em, rest };
   };
 
   // 데이터 로드
@@ -146,7 +156,7 @@ export default function MyPageScreen({ navigation }: any) {
       if (uFollowing != null) setFollowingCount(uFollowing);
       if (uTreeCount != null) setTreeCount(uTreeCount);
 
-      // ✅ 내가 심은 나무: 정렬/매핑 후 세팅 (2개씩 보기)
+      // 내가 심은 나무
       if (Array.isArray(me?.myTrees)) {
         const items = mapTreesToItems(me.myTrees as MyTree[]);
         setPlantedList(items);
@@ -156,7 +166,7 @@ export default function MyPageScreen({ navigation }: any) {
         setPlantedVisible(0);
       }
 
-      // ✅ 내가 물 준 나무: wateredTrees 사용 (같은 정렬/매핑 규칙)
+      // 내가 물 준 나무
       if (Array.isArray(me?.wateredTrees)) {
         const wItems = mapTreesToItems(me.wateredTrees as MyTree[]);
         setWateredList(wItems);
@@ -174,7 +184,7 @@ export default function MyPageScreen({ navigation }: any) {
       }
 
       // 2번 카드(리캡) 데이터
-      if (typeof me?.recapMessage === 'string' && me.recapMessage.trim()) {
+      if (typeof me?.recapMessage === 'string') {
         const { em, rest } = splitRecapMessage(me.recapMessage);
         setRecap(prev => ({ ...prev, messageEm: em, messageRest: rest }));
       }
@@ -247,6 +257,10 @@ export default function MyPageScreen({ navigation }: any) {
   const plantedHasMore = plantedVisible < plantedList.length;
   const wateredHasMore = wateredVisible < wateredList.length;
 
+  // 2번 카드에서 외부값 조합(폴백 포함)
+  const recapHasText = Boolean((recap.messageEm || '').trim() || (recap.messageRest || '').trim());
+  const recapImgSource = recap.imageUrl ? { uri: recap.imageUrl } : treeImg;
+
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
       {/* 헤더 */}
@@ -273,7 +287,9 @@ export default function MyPageScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <View style={styles.profileRow}>
-            <Image source={avatar} style={styles.avatar} />
+            <View style={styles.avatar}>
+              <BasicProfileIcon width={56} height={56} />
+            </View>
             <View style={styles.profileRight}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{nickname || '닉네임'}</Text>
@@ -319,22 +335,20 @@ export default function MyPageScreen({ navigation }: any) {
             <LinearGradient colors={['#F4F4F4', '#BDEABC']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
             {/* 상단 고정 */}
             <View style={styles.topOverlay}>
-              <View style={styles.titleWrap}>
-                <Text style={styles.highlightTitleLine}>
-                  가장 큰 나무는 <Text style={styles.highlightEm}>{topTree?.name ?? '카페 브레송'}</Text>의
-                </Text>
-                <Text style={styles.highlightTitleLine}>
-                  <Text style={styles.highlightEm}>{String(topTree?.count ?? 182)}</Text>M 아름드리 나무예요!
-                </Text>
-              </View>
+              {topTree ? (
+                <View style={styles.titleWrap}>
+                  <Text style={styles.highlightTitleLine}>
+                    가장 큰 나무는 <Text style={styles.highlightEm}>{topTree.name}</Text>의
+                  </Text>
+                  <Text style={styles.highlightTitleLine}>
+                    <Text style={styles.highlightEm}>{String(topTree.count)}</Text>M 아름드리 나무예요!
+                  </Text>
+                </View>
+              ) : (
+                // ✅ 데이터 없을 때의 단순 폴백 문구
+                <Text style={styles.fallbackTitle}>{FALLBACKS.topCard.message}</Text>
+              )}
             </View>
-            {/* 하단 CTA */}
-            {/* <View style={styles.highlightTextBox}>
-              <TouchableOpacity style={styles.highlightCta} activeOpacity={0.9} onPress={() => {}}>
-                <Text style={styles.highlightCtaText}>보러가기</Text>
-                <Text style={styles.highlightCtaArrow}>›</Text>
-              </TouchableOpacity>
-            </View> */}
             <Image source={treeImg} style={styles.highlightTree} />
           </View>
 
@@ -342,20 +356,26 @@ export default function MyPageScreen({ navigation }: any) {
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#F6D4E3']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
             <View style={styles.recapTopOverlay}>
-              <Text style={styles.recapTitle}>
-                <Text style={styles.highlightEm}>{recap.messageEm}</Text>
-                {recap.messageRest ? ' ' : ''}
-                {recap.messageRest?.split('\n').map((seg, idx) => (
-                  <Text key={idx}>{idx === 0 ? seg : `\n${seg}`}</Text>
-                ))}
-              </Text>
-              <Text style={styles.recapSubtitle}>심은 나무: {treeCount}그루</Text>
+              {recapHasText ? (
+                <>
+                  <Text style={styles.recapTitle}>
+                    <Text style={styles.highlightEm}>{recap.messageEm}</Text>
+                    {recap.messageRest ? ' ' : ''}
+                    {recap.messageRest?.split('\n').map((seg, idx) => (
+                      <Text key={idx}>{idx === 0 ? seg : `\n${seg}`}</Text>
+                    ))}
+                  </Text>
+                  <Text style={styles.recapSubtitle}>심은 나무: {Number.isFinite(treeCount) ? treeCount : 0}그루</Text>
+                </>
+              ) : (
+                // ✅ 데이터 없을 때의 단순 폴백 문구
+                <>
+                  <Text style={styles.recapFallbackTitle}>{FALLBACKS.recap.message}</Text>
+                  <Text style={styles.recapSubtitle}>심은 나무: {Number.isFinite(treeCount) ? treeCount : 0}그루</Text>
+                </>
+              )}
             </View>
-            {recap.imageUrl ? (
-              <Image source={{ uri: recap.imageUrl }} style={styles.recapImage} />
-            ) : (
-              <Image source={treeImg} style={styles.recapImage} />
-            )}
+            <Image source={recapImgSource} style={styles.recapImage} />
           </View>
         </ScrollView>
 
@@ -453,7 +473,14 @@ const styles = StyleSheet.create({
   },
   editFab: { position: 'absolute', top: 10, right: 10, padding: 6, borderRadius: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  avatar: { width: 95, height: 95, borderRadius: 50, backgroundColor: '#E7E7E7' },
+ avatar: {
+  width: 95,
+  height: 95,
+  borderRadius: 50,
+  backgroundColor: '#E7E7E7',
+  alignItems: 'center',      // ✅ 가운데 정렬 추가 (혹시 없다면)
+  justifyContent: 'center',  // ✅ 가운데 정렬 추가 (혹시 없다면)
+},
   profileRight: { flex: 1, marginLeft: 25 },
   nameRow: { flexDirection: 'row', alignItems: 'baseline' },
   name: { fontSize: 18, fontWeight: '600', color: '#111' },
@@ -463,8 +490,8 @@ const styles = StyleSheet.create({
   /* 통계 */
   statsRowSimple: { flexDirection: 'row', justifyContent: 'space-between' },
   statCol: { flex: 1, alignItems: 'center' },
-  statValText: { fontSize: 13, fontWeight: '600', color: '#111' },
-  statKeyText: { fontSize: 13, color: '#111', marginTop: 3 },
+  statValText: { fontSize: 15, fontWeight: '600', color: '#111' },
+  statKeyText: { fontSize: 14, color: '#111', marginTop: 3 },
 
   /* 칩 영역 */
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
@@ -485,32 +512,22 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  /* 1번 카드: 하단 CTA용 컨테이너 */
-  highlightTextBox: {
-    flex: 1,
-    height: '100%',
-    marginLeft: 10,
-    justifyContent: 'flex-end',
-  },
-
   /* 상단 고정 오버레이 */
-  topOverlay: { position: 'absolute', top: 22, left: 30, width: '66%' },
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%' },
 
   /* 1번 카드 타이포 */
   titleWrap: { gap: 6 },
-  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 26 },
+  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
   highlightEm: { color: '#0DBC65' },
-  highlightCta: {
-    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#FFFFFF', borderRadius: 999,
-  },
-  highlightCtaText: { fontSize: 13, fontWeight: '600', color: '#333333' },
-  highlightCtaArrow: { marginLeft: 6, fontSize: 18, lineHeight: 18, color: '#7C7C7C' },
   highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain' },
+
+  // ✅ 1번 카드 폴백 제목
+  fallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
 
   /* 2번 카드(리캡) */
   recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%' },
-  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 30 },
+  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
+  recapFallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapSubtitle: { marginTop: 8, fontSize: 18, color: '#6B6B6B', fontWeight: '600' },
   recapImage: { position: 'absolute', right: -200, bottom: -30, width: '180%', height: '100%', resizeMode: 'contain' },
 

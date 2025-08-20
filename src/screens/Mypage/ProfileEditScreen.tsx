@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SafeAreaView, View, Text, TextInput, TouchableOpacity, Image,
-  StyleSheet, KeyboardAvoidingView, Platform,
+  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; // ✅ 추가
 import CameraIcon from '../../assets/camera.svg';
 import Chip from '../../components/Chip';
 import * as ImagePicker from 'react-native-image-picker';
@@ -14,30 +15,29 @@ const backIcon = require('../../assets/arrow.png');
 const plusIcon = require('../../assets/plus_icon.png');
 
 export default function ProfileEditScreen({ navigation, route }: any) {
-  // ✅ 서버 닉네임
+  const insets = useSafeAreaInsets(); // ✅ 추가
+
+  // 서버 닉네임
   const [nickname, setNickname] = useState<string>('');
 
-  // ✅ MyPage에서 전달한 초기값
+  // MyPage에서 전달한 초기값
   const [intro, setIntro] = useState<string>(route.params?.intro ?? '');
   const [mbti, setMbti] = useState<string | null>(route.params?.mbti ?? null);
   const [stylesArr, setStylesArr] = useState<string[]>(route.params?.styles ?? []);
   const [foodsArr, setFoodsArr] = useState<string[]>(route.params?.foods ?? []);
   const [avatarUri, setAvatarUri] = useState<string | null>(route.params?.avatarUri ?? null);
 
-  // ✅ onSave 콜백 보관
   const onSaveRef = useRef(route.params?.onSave);
   useEffect(() => {
     if (route.params?.onSave) onSaveRef.current = route.params.onSave;
   }, [route.params?.onSave]);
 
-  // ✅ 서버에서 닉네임 불러오기 (MyPage와 동일 흐름)
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (!user) return;
       try {
         const res = await getUser();
-        console.log('getUser from ProfileEdit:', res);
         if (res?.nickname) setNickname(res.nickname);
       } catch (e) {
         console.error('닉네임을 불러오지 못했습니다:', e);
@@ -46,7 +46,6 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     return unsubscribe;
   }, []);
 
-  // ✅ KeywordSelection 복귀 시 동기화
   useEffect(() => {
     if (route.params?.mbti !== undefined) setMbti(route.params.mbti);
     if (route.params?.styles) setStylesArr(route.params.styles);
@@ -54,7 +53,6 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     if (route.params?.avatarUri !== undefined) setAvatarUri(route.params.avatarUri);
   }, [route.params?.mbti, route.params?.styles, route.params?.foods, route.params?.avatarUri]);
 
-  // ▶ 갤러리에서 아바타 선택
   const pickAvatar = useCallback(() => {
     const options: ImagePicker.ImageLibraryOptions = {
       mediaType: 'photo',
@@ -68,7 +66,6 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     });
   }, []);
 
-  // ✅ 확인: 저장 콜백 호출 후 뒤로가기
   const onConfirm = () => {
     const payload = { intro, mbti, styles: stylesArr, foods: foodsArr, avatarUri };
     try { onSaveRef.current?.(payload); } catch {}
@@ -77,7 +74,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
+      {/* Header (스크롤 밖) */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
           <Image source={backIcon} style={styles.headerIcon} />
@@ -88,82 +85,80 @@ export default function ProfileEditScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* ✅ 스크롤 가능 + 키보드 회피 */}
       <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex1}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 52 : 0} // 헤더 높이만큼 오프셋
       >
-        {/* Profile Card */}
-        <View style={styles.card}>
-          <View style={styles.avatarWrapper}>
-            {/* 회색 원 배경 */}
-            <View style={styles.avatarBg} />
-            {/* 선택된 사진이 있을 때만 표시 */}
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
-            ) : null}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent} // ✅ 전체 패딩/바닥 여백
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Profile Card */}
+          <View style={styles.card}>
+            <View style={styles.avatarWrapper}>
+              <View style={styles.avatarBg} />
+              {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarImage} /> : null}
+              <TouchableOpacity
+                onPress={pickAvatar}
+                activeOpacity={0.85}
+                style={styles.avatarHit}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {!avatarUri && <CameraIcon width={44} height={44} />}
+              </TouchableOpacity>
+            </View>
 
-            {/* 원 전체가 터치 영역, 가운데 카메라 아이콘 */}
+            <Text style={styles.nickname}>{nickname || '닉네임'}</Text>
+
+            <View style={styles.introWrapper}>
+              <TextInput
+                style={styles.introInput}
+                placeholder="한줄소개로 나를 설명해보세요!"
+                placeholderTextColor="#999"
+                value={intro}
+                onChangeText={setIntro}
+                maxLength={30}
+                multiline
+              />
+              <Text style={styles.charCount}>{intro.length}/30자</Text>
+            </View>
+          </View>
+
+          {/* Keyword Display */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>내 키워드</Text>
+            <Text style={styles.sectionSubtitle}>키워드를 등록해서 취향을 알려주세요!</Text>
+          </View>
+
+          <View style={styles.chipsWrapper}>
+            {mbti && <Chip label={mbti} variant="mbti" selected />}
+            {stylesArr.map((label: string) => (
+              <Chip key={`style-${label}`} label={label} variant="style" selected />
+            ))}
+            {foodsArr.map((label: string) => (
+              <Chip key={`food-${label}`} label={label} variant="food" selected />
+            ))}
+
             <TouchableOpacity
-              onPress={pickAvatar}
-              activeOpacity={0.85}
-              style={styles.avatarHit}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.plusIconWrapper}
+              onPress={() =>
+                navigation.navigate('KeywordSelection', {
+                  mbti, styles: stylesArr, foods: foodsArr, avatarUri,
+                  onApply: (next: { mbti: string | null; styles: string[]; foods: string[] }) => {
+                    setMbti(next.mbti);
+                    setStylesArr(next.styles);
+                    setFoodsArr(next.foods);
+                  },
+                })
+              }
             >
-              {!avatarUri && <CameraIcon width={44} height={44} />}
+              <Image source={plusIcon} style={styles.plusIconSmall} />
             </TouchableOpacity>
           </View>
-
-          {/* ✅ 서버에서 받은 닉네임 표시 */}
-          <Text style={styles.nickname}>{nickname || '닉네임'}</Text>
-
-          <View style={styles.introWrapper}>
-            <TextInput
-              style={styles.introInput}
-              placeholder="한줄소개로 나를 설명해보세요!"
-              placeholderTextColor="#999"
-              value={intro}
-              onChangeText={setIntro}
-              maxLength={30}
-              multiline
-            />
-            <Text style={styles.charCount}>{intro.length}/30자</Text>
-          </View>
-        </View>
-
-        {/* Keyword Display */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>내 키워드</Text>
-          <Text style={styles.sectionSubtitle}>키워드를 등록해서 취향을 알려주세요!</Text>
-        </View>
-
-        <View style={styles.chipsWrapper}>
-          {mbti && <Chip label={mbti} variant="mbti" selected />}
-
-          {stylesArr.map((label: string) => (
-            <Chip key={`style-${label}`} label={label} variant="style" selected />
-          ))}
-
-          {foodsArr.map((label: string) => (
-            <Chip key={`food-${label}`} label={label} variant="food" selected />
-          ))}
-
-          {/* ➕ 키워드 선택 이동 */}
-          <TouchableOpacity
-            style={styles.plusIconWrapper}
-            onPress={() =>
-              navigation.navigate('KeywordSelection', {
-                mbti, styles: stylesArr, foods: foodsArr, avatarUri,
-                onApply: (next: { mbti: string | null; styles: string[]; foods: string[] }) => {
-                  setMbti(next.mbti);
-                  setStylesArr(next.styles);
-                  setFoodsArr(next.foods);
-                },
-              })
-            }
-          >
-            <Image source={plusIcon} style={styles.plusIconSmall} />
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -173,15 +168,31 @@ const AVATAR_SIZE = 150;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12 },
+  flex1: { flex: 1 }, // ✅ 추가
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 12,
+  },
   headerButton: { width: 40, alignItems: 'center' },
   headerIcon: { width: 24, height: 24, resizeMode: 'contain' },
   headerTitle: { fontSize: 20, fontWeight: '600' },
   headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
 
-  container: { flex: 1, paddingHorizontal: 20 },
+  // ✅ ScrollView 안쪽 여백을 여기서 관리
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
 
-  card: { backgroundColor: '#F7F7F7', borderRadius: 20, paddingVertical: 40, paddingHorizontal: 20, alignItems: 'center', marginTop: 16 },
+  card: {
+    backgroundColor: '#F7F7F7',
+    borderRadius: 20,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginTop: 16,
+  },
 
   /* 아바타 */
   avatarWrapper: {
@@ -211,17 +222,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  nickname: { fontSize: 21, fontWeight: '600', color: '#111', marginTop: 8 , marginBottom: 16,},
+  nickname: { fontSize: 21, fontWeight: '600', color: '#111', marginTop: 8, marginBottom: 16 },
 
   introWrapper: { width: '100%', position: 'relative' },
-  introInput: { backgroundColor: '#EFEFEF', borderRadius: 8, padding: 15, fontSize: 14, color: '#333', height: 80, textAlignVertical: 'top' },
+  introInput: {
+    backgroundColor: '#EFEFEF',
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 14,
+    color: '#333',
+    height: 80,
+    textAlignVertical: 'top',
+  },
   charCount: { position: 'absolute', right: 16, bottom: 12, fontSize: 12, color: '#999' },
 
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginHorizontal: 20 },
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 24, marginHorizontal: 0, // 스크롤 패딩으로 대체
+  },
   sectionTitle: { fontSize: 20, fontWeight: '600' },
   sectionSubtitle: { fontSize: 13, color: '#999' },
 
-  chipsWrapper: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginVertical: 15, marginHorizontal: 15 },
+  chipsWrapper: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginVertical: 15,
+    marginHorizontal: 0,
+  },
   plusIconWrapper: { margin: 4, width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   plusIconSmall: { width: 35, height: 35, resizeMode: 'contain' },
 });
