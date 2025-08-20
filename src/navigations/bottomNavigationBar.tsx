@@ -41,6 +41,7 @@ const BottomNavigationBar = () => {
         name="Plant"
         component={PlantingNavigator}
         options={() => ({
+          title:"씨앗 심기",
           headerShown: false,
           tabBarIcon: ({size}) => (
             <View

@@ -123,7 +123,9 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
         onRequestClose={handleCloseModal}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <TouchableOpacity style={styles.closeButton} onPress={handleCloseModal}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleCloseModal}>
               <Text style={styles.closeButtonText}>X</Text>
             </TouchableOpacity>
 
@@ -137,7 +139,12 @@ const PlantSelectionScreen = ({navigation}: {navigation: any}) => {
                   }
                 </Text>
 
-                <Image source={require('../../assets/seed_growing.png')} />
+                <Image
+                  source={
+                    seedData.find(s => s.seedId === modalSeed.seedId)
+                      ?.image_description
+                  }
+                />
 
                 <TouchableOpacity
                   style={styles.selectSeedButton}
