@@ -8,7 +8,7 @@ type Props = {
   avatar?: ImageSourcePropType;
 };
 
-const defaultAvatar = require('../assets/image/profile.png'); //일단 프로필 사진 하나루..몽땅
+const defaultAvatar = require('../assets/basic_profile.svg'); //일단 프로필 사진 하나루..몽땅
 
 export default function CommentBubble({ name, text, style, avatar = defaultAvatar }: Props) {
   return (
@@ -48,16 +48,17 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 50,
     backgroundColor: '#ddd',
+    marginLeft: 30,
   },
   right: {
-    marginLeft: 8,
+    marginLeft: 9,
   },
   namePill: {
     alignSelf: 'flex-start',
     backgroundColor: '#EAF7EF', 
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
     marginBottom: 6,
   },
   nameText: {
@@ -73,12 +74,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 5,
+    borderRadius: 6,
     elevation: 3,
   },
   bubbleText: {
     fontSize: 12,
     color: '#767676',
+    fontWeight: '400',
   },
   tail: {
     position: 'absolute',

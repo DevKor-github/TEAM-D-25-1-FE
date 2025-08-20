@@ -288,7 +288,7 @@ export default function MyPageScreen({ navigation }: any) {
 
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <BasicProfileIcon width={56} height={56} />
+              <BasicProfileIcon width={50} height={50} />
             </View>
             <View style={styles.profileRight}>
               <View style={styles.nameRow}>

@@ -1,8 +1,9 @@
+// src/screens/MapScreen.tsx
 import {
   NaverMapView,
   NaverMapMarkerOverlay,
 } from '@mj-studio/react-native-naver-map';
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Modal,
   StyleSheet,
@@ -11,65 +12,77 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  Alert,
   Image,
+  Animated,
+  Easing,
+  ScrollView,
 } from 'react-native';
-import {getTree, getTreeDetail} from '../apis/api/tree';
+import {getTree} from '../apis/api/tree';
 import {Tree} from '../types/tree';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
+import BasicProfileIcon from '../assets/basic_profile.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
-import { typography }  from '../styles/typography'
-import { getFollower } from '../apis/api/user';
+import { typography }  from '../styles/typography';
+import { getFollower, getUser } from '../apis/api/user';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const DRAWER_W = 0.85;
 
 const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
-  // 식당 목록 불럭오기
+  const insets = useSafeAreaInsets();
+
+  // 지도/마커
   const [treeList, setTreeList] = useState<Tree[]>([]);
-
-  // 선택한 식당 상태 저장
   const [selectedTree, setSelectedTree] = useState<Tree | null>(null);
-  const [isNotificationVisible, setNotificationVisible] = useState(false);
-
-  // 모달 상태 저장장
   const [modalVisible, setModalVisible] = useState(false);
 
-  const [lon, setLon] = useState(127.03184890085161); // Initial longitude
-  const [lat, setLat] = useState(37.58653559343726); // Initial latitude
+  const [lon, setLon] = useState(127.03184890085161);
+  const [lat, setLat] = useState(37.58653559343726);
   const [zoom, setZoom] = useState(15);
 
-  const [user, setUser] = useState(); 
-  const [profileImgURL, setProfileImgURL] = useState(); 
+  // 마커에 표시용
+  const [user, setUser] = useState<string | undefined>();
+  const [profileImgURL, setProfileImgURL] = useState<string | undefined>();
+
+  // 좌측 드로어
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const slideX = useRef(new Animated.Value(-1000)).current;
+
+  // 프로필 카드 데이터
+  const [nickname, setNickname] = useState<string>('');
+  const [intro, setIntro] = useState<string>('한줄소개로 나를 설명해보세요!');
+  const [followerCount, setFollowerCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
+  const [treeCount, setTreeCount] = useState<number>(0);
+
+  const notifications = [
+    { id: 'n1', text: '해인님이 카페 브레송의 아름드리 나무에 물을 주었어요.', time: '· 2시간' },
+    { id: 'n2', text: '민쭈짱님이 나를 팔로우하기 시작했어요.', time: '· 2시간' },
+    { id: 'n3', text: '주웅님이 나를 팔로우하기 시작했어요.', time: '· 4시간' },
+    { id: 'n4', text: '해마루의 잭과콩나물이(가) 나무 3단계가 되었어요.', time: '· 1일' },
+    { id: 'n5', text: '태현님이 해마루의 잭과콩나물에 물을 주었어요.', time: '· 1일' },
+    { id: 'n6', text: 'SEIN님이 해마루의 잭과콩나물에 물을 주었어요.', time: '· 1일' },
+    { id: 'n7', text: '특별식당의 소나무이(가) 나무 1단계가 되었어요.', time: '· 4일' },
+  ];
 
   useEffect(() => {
-    const auth = getAuth(); // Get the auth instance once
-
-    const unsubscribe = onAuthStateChanged(auth, async user => {
-      // This callback runs whenever the auth state changes
-      if (user) {
-        // User is signed in
-        try {
-          const res = await getTree(lon.toString(), lat.toString()); // Your function call
-          setTreeList(res as Tree[]);
-          console.log(treeList);
-        } catch (error) {
-          console.error('식당 목록을 불러오지 못했습니다:', error);
-        }
-      } else {
-        // No user is signed in
-        console.warn('로그인된 사용자가 없습니다.');
-        // You might want to navigate to a login screen or show a message here
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async cur => {
+      if (!cur) return;
+      try {
+        const res = await getTree(lon.toString(), lat.toString());
+        setTreeList((res || []) as Tree[]);
+      } catch (e) {
+        console.error('식당 목록을 불러오지 못했습니다:', e);
       }
     });
-
-    // Clean up the listener when the component unmounts
-    return () => unsubscribe();
+    return unsubscribe;
   }, [lon, lat]);
 
   useEffect(() => {
-    // navigation으로 넘어온 selectedRestaurant가 있으면
     if (route.params?.selectedRestaurant) {
       const restaurant = route.params.selectedRestaurant as Tree;
-
       setSelectedTree(restaurant);
       setLat(restaurant.latitude);
       setLon(restaurant.longitude);
@@ -77,168 +90,114 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
     }
   }, [route.params?.selectedRestaurant]);
 
+  useEffect(() => {
+    if (drawerVisible) {
+      (async () => {
+        try {
+          const me: any = await getUser();
+          if (me?.nickname) setNickname(me.nickname);
+          if (typeof me?.intro === 'string' && me.intro.trim()) setIntro(me.intro.trim());
+          if (typeof me?.followerCount === 'number') setFollowerCount(me.followerCount);
+          if (typeof me?.followingCount === 'number') setFollowingCount(me.followingCount);
+          if (typeof me?.treeCount === 'number') setTreeCount(me.treeCount);
+        } catch (e) {
+          console.warn('프로필 로드 실패(드로어):', e);
+        }
+      })();
+
+      Animated.timing(slideX, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideX, {
+        toValue: -1000,
+        duration: 200,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [drawerVisible, slideX]);
+
   const handleTreePress = useCallback(async (item: Tree) => {
     setSelectedTree(item);
     setModalVisible(true);
-    console.log('트리를 뽑아보겟서요');
-    console.log(selectedTree);
-    console.log(selectedTree?.images?.[0]);
-
     try {
       const treeId = item.treeId;
       const userId = treeId.split('_')[0];
-
       const userDetails = await getFollower(userId);
-
       setUser(userDetails.nickname);
       setProfileImgURL(userDetails.profileImage);
-      
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }
   }, []);
 
-  const handleSearchClick = () => {
-    navigation.navigate('Search');
-  };
-
-  const handleCloseCustomModal = () => {
-    setModalVisible(false);
-    setSelectedTree(null);
-  };
-
-  const onCameraChange = (e: any) => {
-    setLat(e.latitude);
-    setLon(e.longitude);
-    setZoom(e.zoom);
-  };
-
-  const handleHamburgerPress = () => {
-    setNotificationVisible(true);
-    Alert.alert(
-      '메뉴', // Title of the alert
-      '햄버거 메뉴가 클릭되었습니다!', // Message of the alert
-      [
-        {
-          text: '확인', // Text for the button
-          onPress: () => console.log('확인 버튼 클릭'), // Optional callback when '확인' is pressed
-        },
-      ],
-      {cancelable: true}, // Allows dismissing the alert by tapping outside
-    );
-  };
-  const handleCloseNotification = () => {
-    setNotificationVisible(false);
-  };
+  const handleSearchClick = () => navigation.navigate('Search');
+  const onCameraChange = (e: any) => { setLat(e.latitude); setLon(e.longitude); setZoom(e.zoom); };
 
   return (
     <View style={{flex: 1}}>
-      <View
-        style={{
-          position: 'absolute',
-          //폰에 따라 달라야 할 것 같은데
-          top: 70,
-          left: 20,
-          right: 20,
-          backgroundColor: 'white',
-          borderRadius: 50,
-          paddingHorizontal: 15,
-          paddingVertical: 10,
-          zIndex: 1,
-          shadowColor: '#000',
-          shadowOffset: {width: 0, height: 2},
-          shadowOpacity: 0.2,
-          shadowRadius: 2,
-          elevation: 3,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity onPress={handleHamburgerPress}>
-            <View
-              style={{
-                marginLeft: 10,
-                marginRight: 10,
-              }}>
-              <HamburgerIcon />
-            </View>
+      {/* 검색 바 */}
+      <View style={styles.searchBar}>
+        <View style={styles.searchLeftRow}>
+          <TouchableOpacity onPress={() => setDrawerVisible(true)} style={{paddingHorizontal: 6}}>
+            <HamburgerIcon />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleSearchClick}>
+          <TouchableOpacity onPress={handleSearchClick} style={{flex: 1}}>
             <TextInput
-              style={{fontSize: 16, color: 'gray', textAlign: 'center'}}
-              placeholder="장소, 음식, 가게 검색"
+              style={styles.searchInput}
+              placeholder="장소, 음식, 가게를 검색해보세요!"
               placeholderTextColor={typography.Inputbox_Placeholder_Big.color}
               editable={false}
               pointerEvents="none"
             />
           </TouchableOpacity>
         </View>
-        <View style={{marginRight: 10}}>
-          <SearchIcon />
+        <View style={{marginRight: 2}}>
+          <SearchIcon width={27} height={27}/>
         </View>
       </View>
+
+      {/* 지도 */}
       <NaverMapView
         style={{flex: 1}}
-        initialCamera={{
-          latitude: lat,
-          longitude: lon,
-          zoom: zoom,
-        }}
+        initialCamera={{ latitude: lat, longitude: lon, zoom }}
         isShowScaleBar={false}
         isShowLocationButton={false}
-        onCameraIdle={onCameraChange}>
-        {treeList &&
-          Array.isArray(treeList) &&
-          treeList.map(tree => (
-            <NaverMapMarkerOverlay
-              key={tree.treeId}
-              latitude={tree.latitude}
-              longitude={tree.longitude}
-              anchor={{x: 0.5, y: 1}}
-              width={34}
-              height={54}
-              image={require('../assets/tree_example.png')}
-              onTap={() => {
-                handleTreePress(tree);
-              }}
-            />
-          ))}
+        onCameraIdle={onCameraChange}
+      >
+        {Array.isArray(treeList) && treeList.map(tree => (
+          <NaverMapMarkerOverlay
+            key={tree.treeId}
+            latitude={tree.latitude}
+            longitude={tree.longitude}
+            anchor={{x: 0.5, y: 1}}
+            width={34}
+            height={54}
+            image={require('../assets/real_tree0_0.png')}
+            onTap={() => handleTreePress(tree)}
+          />
+        ))}
       </NaverMapView>
+
+      {/* 하단 카드 */}
       {selectedTree && modalVisible && (
-        <TouchableWithoutFeedback onPress={handleCloseCustomModal}>
+        <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedTree(null); }}>
           <View>
-            <View
-              // 스타일 정리리
-              style={{
-                position: 'absolute',
-                bottom: 20,
-                left: 0,
-                right: 0,
-                margin: 20,
-                backgroundColor: 'white',
-                borderRadius: 20,
-                shadowColor: '#000',
-                shadowOffset: {width: 0, height: 6},
-                shadowOpacity: 0.1,
-                shadowRadius: 20,
-                elevation: 3,
-              }}>
+            <View style={styles.bottomCard}>
               <TouchableOpacity
                 style={[styles.touchableCard, {alignItems: 'flex-start'}]}
                 onPress={() => {
-                  handleCloseCustomModal();
-                  navigation.navigate('Detail', {
-                    restaurant: selectedTree,
-                  });
-                }}>
+                  setModalVisible(false);
+                  navigation.navigate('Detail', { restaurant: selectedTree });
+                }}
+              >
                 <View style={[styles.leftSection, {marginRight: 0}]}>
-                  <Image
-                    source={{uri: selectedTree?.images?.[0]}}
-                    style={styles.placeImage}
-                  />
-                  {/* 여기에 3D 나무 이미지 또는 컴포넌트 추가 */}
+                  <Image source={{uri: selectedTree?.images?.[0]}} style={styles.placeImage}/>
                   <View style={styles.treePlaceholder} />
                 </View>
                 <View style={styles.rightSection}>
@@ -247,17 +206,10 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
                   </View>
                   <Text style={styles.addressText}>{selectedTree.address}</Text>
                   <View style={styles.userInfo}>
-                    <Image
-                        source={{uri: profileImgURL}}
-                        style={styles.userProfileImage}
-                      />
-                      <Text style={styles.userNickname}>
-                        {user}님이 심은 나무
-                      </Text>
+                    <Image source={{uri: profileImgURL}} style={styles.userProfileImage}/>
+                    <Text style={styles.userNickname}>{user}님이 심은 나무</Text>
                     <View style={styles.distanceBadge}>
-                      <Text style={styles.distanceText}>
-                        {selectedTree.recommendationCount} M
-                      </Text>
+                      <Text style={styles.distanceText}>{selectedTree.recommendationCount} M</Text>
                     </View>
                   </View>
                   <Text style={styles.reviewText}>{selectedTree.review}</Text>
@@ -267,147 +219,165 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
           </View>
         </TouchableWithoutFeedback>
       )}
+
+      {/* 좌측 드로어 */}
       <Modal
-        visible={isNotificationVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleCloseNotification}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={handleCloseNotification}>
-          <View style={styles.notificationContainer}>
-            <Text style={styles.title}>새 알림</Text>
-            {/* 여기서 이미지처럼 알림 리스트를 넣으면 됩니다 */}
-            <Text>
-              - 해민님의 카페 브레스송의 아름드리 나무에 물을 주었어요.
-            </Text>
-            <Text>- 민쭈쭈님이 나를 팔로우하기 시작했어요.</Text>
-            <Text>- 주웅님이 나를 팔로우하기 시작했어요.</Text>
-            {/* 더 많은 알림들 */}
-          </View>
-        </TouchableOpacity>
+        visible={drawerVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setDrawerVisible(false)}
+      >
+        <View style={styles.drawerBackdrop}>
+          <Animated.View
+            style={[
+              styles.drawerPanel,
+              { transform: [{ translateX: slideX }], paddingTop: insets.top + 12 } // 👈 안전영역만큼 아래로
+            ]}
+          >
+            {/* 헤더 */}
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerTitle}>내 프로필</Text>
+              <TouchableOpacity onPress={() => setDrawerVisible(false)} hitSlop={{top:10,bottom:10,left:10,right:10}}>
+                <Text style={styles.drawerClose}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 프로필 카드 */}
+            <View style={styles.profileCard}>
+              <View style={styles.profileRow}>
+                <View style={styles.avatar}>
+                  <BasicProfileIcon width={35} height={35} />
+                </View>
+                <View style={{flex:1, marginLeft: 14}}>
+                  <Text style={styles.profileName}>{nickname || '닉네임'}</Text>
+                  <Text style={styles.profileSub}>{intro || '한줄소개로 나를 설명해보세요!'}</Text>
+                  <View style={styles.profileDivider}/>
+                  <View style={styles.statsRow}>
+                    <View style={styles.statCol}>
+                      <Text style={styles.statVal}>{treeCount}</Text>
+                      <Text style={styles.statKey}>심은 나무</Text>
+                    </View>
+                    <View style={styles.statCol}>
+                      <Text style={styles.statVal}>{followerCount}</Text>
+                      <Text style={styles.statKey}>팔로워</Text>
+                    </View>
+                    <View style={styles.statCol}>
+                      <Text style={styles.statVal}>{followingCount}</Text>
+                      <Text style={styles.statKey}>팔로잉</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* 새 소식 */}
+            <Text style={styles.sectionTitle}>새 소식</Text>
+            <ScrollView style={{flex:1}} contentContainerStyle={{paddingBottom: 24}} showsVerticalScrollIndicator={false}>
+              {notifications.map(n => (
+                <View key={n.id} style={styles.noticeRow}>
+                  <View style={styles.noticeAvatar}/>
+                  <View style={{flex:1}}>
+                    <Text style={styles.noticeText}>
+                      {n.text}
+                      <Text style={styles.noticeTime}>{' '}{n.time}</Text>
+                    </Text>
+                  </View>
+                  <View style={styles.noticeDot}/>
+                </View>
+              ))}
+            </ScrollView>
+          </Animated.View>
+
+          {/* 오른쪽 반투명 영역 클릭 시 닫힘 */}
+          <TouchableOpacity style={styles.drawerRightBlank} activeOpacity={1} onPress={() => setDrawerVisible(false)} />
+        </View>
       </Modal>
     </View>
   );
 };
 
 export default MapScreen;
-function auth() {
-  throw new Error('Function not implemented.');
-}
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-start',
-  },
-  notificationContainer: {
-    width: 300,
-    backgroundColor: 'white',
-    padding: 20,
-    marginTop: 50,
-    marginLeft: 0,
-    borderTopRightRadius: 10,
-    borderBottomRightRadius: 10,
-    // 왼쪽에서 슬라이드로 뜨는 느낌을 주려면 애니메이션 더 추가 가능
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  cardContainer: {
+  /* 검색 바 */
+  searchBar: {
     position: 'absolute',
-    backgroundColor: 'white',
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 6},
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 3,
-  },
-  touchableCard: {
+    top: 70,
+    left: 20,
+    right: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 50,
+    height: 50,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+    zIndex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  leftSection: {
-    width: 100,
+  searchLeftRow: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 },
+  searchInput: { fontSize: 16, color: '#999999', textAlign: 'left', paddingVertical: 0 },
+
+  /* 하단 카드 */
+  bottomCard: {
+    position: 'absolute', bottom: 20, left: 0, right: 0, margin: 20,
+    backgroundColor: 'white', borderRadius: 20,
+    shadowColor: '#000', shadowOffset: {width: 0, height: 6}, shadowOpacity: 0.1, shadowRadius: 20, elevation: 3,
+  },
+  touchableCard: { flexDirection: 'row', alignItems: 'center' },
+  leftSection: { width: 100, height: '100%', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  placeImage: { width: '100%', height: '100%', borderTopLeftRadius: 15, borderBottomLeftRadius: 15, resizeMode: 'cover' },
+  treePlaceholder: { position: 'absolute', width: '100%', height: '100%' },
+  rightSection: { flex: 1, marginLeft: 15 },
+  titleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  nameText: { fontSize: 18, fontWeight: 'bold', marginRight: 8, marginTop: 15 },
+  addressText: { fontSize: 14, color: '#555', marginBottom: 8 },
+  userInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  userProfileImage: { width: 24, height: 24, borderRadius: 12, marginRight: 6, backgroundColor: 'red' },
+  userNickname: { fontSize: 14, color: '#555' },
+  distanceBadge: { backgroundColor: '#e6f3e6', borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 10 },
+  distanceText: { fontSize: 12, fontWeight: 'bold', color: '#4CAF50' },
+  reviewText: { fontSize: 14, color: '#555', marginTop: 5, marginBottom: 15 },
+
+  /* 드로어 모달 */
+  drawerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', flexDirection: 'row' },
+  drawerPanel: {
+    flexBasis: `${DRAWER_W * 100}%`,
+    maxWidth: '86%',
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+    backgroundColor: '#FFFFFF',
+    borderTopRightRadius: 18,
+    borderBottomRightRadius: 18,
+    paddingHorizontal: 18,
+    // paddingTop는 runtime에서 insets로 적용 (위에서 inline)
   },
-  placeImage: {
-    width: '100%',
-    height: '100%',
-    borderTopLeftRadius: 15,
-    borderBottomLeftRadius: 15,
-    resizeMode: 'cover',
-    //backgroundColor: 'green',
+  drawerRightBlank: { flex: 1 },
+
+  drawerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  drawerTitle: { fontSize: 20, fontWeight: '700', color: '#111' },
+  drawerClose: { fontSize: 26, lineHeight: 26, color: '#777' },
+
+  /* 프로필 카드 */
+  profileCard: { backgroundColor: '#F6F6F8', borderRadius: 16, padding: 14, marginBottom: 18 },
+  profileRow: { flexDirection: 'row', alignItems: 'center' },
+  avatar: {
+    width: 60, height: 60, borderRadius: 30, backgroundColor: '#E7E7E7',
+    alignItems: 'center', justifyContent: 'center',
   },
-  treePlaceholder: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-  },
-  rightSection: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  nameText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 8,
-    marginTop: 15,
-  },
-  genreText: {
-    fontSize: 14,
-    color: '#888',
-  },
-  addressText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 8,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-    
-  },
-  userProfileImage: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 6,
-    backgroundColor: "red"
-  },
-  userNickname: {
-    fontSize: 14,
-    color: '#555',
-  },
-  distanceBadge: {
-    backgroundColor: '#e6f3e6',
-    borderRadius: 10,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    marginLeft: 10,
-  },
-  distanceText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  reviewText: {
-    fontSize: 14,
-    color: '#555',
-    marginTop: 5,
-    marginBottom: 15,
-  },
+  profileName: { fontSize: 18, fontWeight: '600', color: '#111' },
+  profileSub: { marginTop: 6, color: '#4B4B4B', fontSize: 14 },
+  profileDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#D4D4D4', marginTop: 10, marginBottom: 8 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  statCol: { flex: 1, alignItems: 'center' },
+  statVal: { fontSize: 15, fontWeight: '600', color: '#111' },
+  statKey: { fontSize: 13, color: '#111', marginTop: 3 },
+
+  /* 새 소식 리스트 */
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 10 },
+  noticeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#EFEFEF' },
+  noticeAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#E3E3E3', marginRight: 10 },
+  noticeText: { fontSize: 15, color: '#222' },
+  noticeTime: { fontSize: 14, color: '#9A9A9A' },
+  noticeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#43D049', marginLeft: 8 },
 });
