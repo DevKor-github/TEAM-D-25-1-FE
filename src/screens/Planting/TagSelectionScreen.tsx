@@ -16,25 +16,21 @@ import { getTag } from '../../apis/api/user';
 
 const backIcon = require('../../assets/arrow.png');
 
-// API 호출 실패 시를 대비한 기본(Fallback) 태그 목록 (이제 사용되지 않지만 비상용으로 둘 수 있습니다)
-const fallbackTags = [
-  'DRINKER', 'VEGAN_OR_VEGETARIAN', 'SPICY_FOOD_LOVER', 'PICKY_EATER', 'DESSERT_LOVER', 'DIETER', 'LATE_NIGHT_EATER', 'SWEET_TOOTH', 'HEALTH_CONSCIOUS', 'VALUE_SEEKER', 'MEAT_LOVER', 'DIET_PLANNER', 'CLASSIC_TASTE', 'STREET_FOOD_FAN', 'TTEOKBOKKI_LOVER', 'SMALL_EATER', 'BIG_EATER', 'SOLO_DINER', 'SEAFOOD_LOVER', 'HEARTY_EATER',
-];
-
-// API 응답의 key와 한글 라벨을 매핑하는 객체는 그대로 사용합니다.
-const FOOD_TAG_KOREAN_MAP: {[key: string]: string} = {
-  DRINKER: '애주가', VEGAN_OR_VEGETARIAN: '비건/채식', SPICY_FOOD_LOVER: '맵부심', PICKY_EATER: '편식쟁이', DESSERT_LOVER: '디저트 러버', DIETER: '다이어터', LATE_NIGHT_EATER: '야식', SWEET_TOOTH: '혈당 스파이크', HEALTH_CONSCIOUS: '건강식', VALUE_SEEKER: '가성비', MEAT_LOVER: '육식파', DIET_PLANNER: '식단', CLASSIC_TASTE: '클래식', STREET_FOOD_FAN: '길거리 음식', TTEOKBOKKI_LOVER: '떡볶이', SMALL_EATER: '소식좌', BIG_EATER: '대식가', SOLO_DINER: '혼밥러', SEAFOOD_LOVER: '해산물파', HEARTY_EATER: '든든파',
+// ▼▼▼ 1. API로부터 받아올 태그 객체의 타입을 명확히 정의합니다. ▼▼▼
+type TagObject = {
+  key: string;  // 서버와 통신할 영문 Key (예: 'DRINKER')
+  label: string; // 화면에 보여줄 한글 Label (예: '애주가')
 };
 
 const TagSelectionScreen = ({navigation}: {navigation: any}) => {
   const dispatch = useDispatch();
   const {savedTags} = useSelector((state: RootState) => state.seedPlanting);
 
-  // 화면에 표시할 태그 목록을 state로 관리합니다. 초기값은 빈 배열로 설정합니다.
-  const [displayTags, setDisplayTags] = useState<string[]>([]);
+  // ▼▼▼ 2. displayTags state가 이제 TagObject의 배열을 저장합니다. ▼▼▼
+  const [displayTags, setDisplayTags] = useState<TagObject[]>([]);
+  // selectedTags는 서버로 보낼 영문 key(string)의 배열이므로 그대로 둡니다.
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  // 진입 시 /settings를 호출하여 태그 목록을 구성
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -43,30 +39,27 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
         if (!mounted) return;
         
         const settings = res?.settings ?? res;
-
-        // ▼▼▼ 1. API 응답에서 `tags` 배열을 직접 가져옵니다. ▼▼▼
         const apiTagsArray = settings?.tags;
 
-        // ▼▼▼ 2. `tags` 배열의 각 객체에서 'value' 속성만 추출합니다. ▼▼▼
-        const getTagValues = (arr: any[]) =>
+        // API 응답을 {key, label} 형태의 객체 배열로 정규화합니다.
+        const normalizeApiTags = (arr: any[]): TagObject[] =>
           (Array.isArray(arr) ? arr : [])
-            .map((tag: any) => tag?.value) // 'value' 속성을 추출
-            .filter(Boolean);             // 유효하지 않은 값(null, undefined 등) 제거
+            .map((tag: any) => {
+              // API 응답의 key와 value를 우리 앱의 key와 label에 매핑합니다.
+              if (tag?.key && tag?.value) {
+                return { key: tag.key, label: tag.value };
+              }
+              return null;
+            })
+            .filter((item): item is TagObject => !!item); // null인 항목은 제거합니다.
         
-        const tagValuesFromApi = getTagValues(apiTagsArray);
+        const tagObjectsFromApi = normalizeApiTags(apiTagsArray);
 
-        // ▼▼▼ 3. 추출한 value 목록으로 화면에 표시할 태그 state를 업데이트합니다. ▼▼▼
-        if (tagValuesFromApi.length > 0) {
-          setDisplayTags(tagValuesFromApi);
-        } else {
-          // API가 실패하거나 tags 배열이 비어있을 경우 fallback 데이터 사용
-          setDisplayTags(fallbackTags);
+        if (tagObjectsFromApi.length > 0) {
+          setDisplayTags(tagObjectsFromApi);
         }
-        
       } catch (e) {
         console.log('[TagSelection] getTag error:', e);
-        // 에러 발생 시 fallback 데이터 사용
-        setDisplayTags(fallbackTags);
       }
     })();
     return () => { mounted = false; };
@@ -77,6 +70,7 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
   }, [savedTags]);
 
   const handleSave = () => {
+    // selectedTags에는 'DRINKER'와 같은 영문 key들이 저장되어 있습니다.
     dispatch(setSavedTags(selectedTags));
     navigation.goBack();
   };
@@ -103,9 +97,9 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
     });
   }, [navigation, selectedTags]);
 
-  const toggleTag = (tag: string) => {
+  const toggleTag = (tagKey: string) => {
     setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag],
+      prev.includes(tagKey) ? prev.filter(t => t !== tagKey) : [...prev, tagKey],
     );
   };
 
@@ -115,21 +109,20 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
         <Text style={styles.recommendTitle}>추천 태그</Text>
 
         <ScrollView contentContainerStyle={styles.chipContainer}>
-          {/* API로부터 받아온 displayTags를 사용해 칩을 렌더링 */}
-          {displayTags.map(tag => {
-            const isSelected = selectedTags.includes(tag);
+          {/* ▼▼▼ 3. displayTags 배열의 객체를 순회하며 칩을 렌더링합니다. ▼▼▼ */}
+          {displayTags.map(tag => { // 이제 tag는 {key: '...', label: '...'} 형태의 객체입니다.
+            const isSelected = selectedTags.includes(tag.key);
             return (
               <TouchableOpacity
-                key={tag}
-                onPress={() => toggleTag(tag)}
+                key={tag.key} // key prop에는 영문 key를 사용
+                onPress={() => toggleTag(tag.key)} // 선택 시에도 영문 key를 전달
                 style={[styles.chip, isSelected && styles.chipSelected]}>
                 <Text
                   style={[
                     styles.chipText,
                     isSelected && styles.chipTextSelected,
                   ]}>
-                  {/* tag(예: 'DRINKER')에 해당하는 한글 이름을 MAP에서 찾아 표시 */}
-                  {FOOD_TAG_KOREAN_MAP[tag] || tag}
+                  {tag.label} {/* 화면에는 한글 label을 표시 */}
                 </Text>
               </TouchableOpacity>
             );
@@ -150,7 +143,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 17, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: '#B9B9B9', margin: 4, backgroundColor: '#FFF'
   },
-  chipText: { fontSize: 15, color: '#111111', fontWeight: '400',},
+  chipText: { fontSize: 15, color: '#111111', fontWeight: '400' },
   chipSelected: {
     backgroundColor: '#6CDF44',
     borderColor: '#6CDF44',

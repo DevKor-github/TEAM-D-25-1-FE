@@ -1,5 +1,5 @@
 // src/screens/Planting/PlantScreen.tsx
-import React, { useCallback, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useState, useEffect } from 'react';
 import {
   Alert,
   Image,
@@ -31,6 +31,8 @@ import { postTree } from '../../apis/api/tree';
 import { postImageReview } from '../../apis/api/images';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { getTag } from '../../apis/api/user';
+
 const backIcon = require('../../assets/arrow.png');
 const plusPng = require('../../assets/plus_icon.png');
 
@@ -43,8 +45,31 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
   const { savedRestaurant, savedSeed, savedTags, savedPhotos, reviewText } =
     useSelector((state: RootState) => state.seedPlanting);
 
+  const [tagMap, setTagMap] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
   const isConfirmEnabled = savedRestaurant !== null && savedSeed !== null;
+
+  useEffect(() => {
+    const fetchTagMap = async () => {
+      try {
+        const res = await getTag();
+        const settings = res?.settings ?? res;
+        const apiTags = settings?.tags || [];
+
+        const newTagMap = (Array.isArray(apiTags) ? apiTags : []).reduce((map, tag) => {
+          if (tag?.key && tag?.value) {
+            map[tag.key] = tag.value;
+          }
+          return map;
+        }, {} as Record<string, string>);
+
+        setTagMap(newTagMap);
+      } catch (error) {
+        console.error('태그 맵 정보를 가져오는 데 실패했습니다:', error);
+      }
+    };
+    fetchTagMap();
+  }, []);
 
   const goToMapTab = () => {
     const parent = navigation.getParent?.();
@@ -203,9 +228,9 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
             </View>
 
             <View style={styles.tagContainer}>
-              {savedTags.map((tag, idx) => (
-                <View key={`${tag}-${idx}`} style={styles.tagBadge}>
-                  <Text style={styles.tagText}>{FOOD_TAG_KOREAN_MAP[tag] || tag}</Text>
+              {savedTags.map((tagKey, idx) => (
+                <View key={`${tagKey}-${idx}`} style={styles.tagBadge}>
+                  <Text style={styles.tagText}>{tagMap[tagKey] || tagKey}</Text>
                 </View>
               ))}
               <TouchableOpacity
@@ -257,7 +282,6 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
               value={reviewText}
               onChangeText={(t: string) => dispatch(setReviewText(t))}
             />
-            {/* ▼▼▼ [수정] 글자 수 표시 부분 ▼▼▼ */}
             <Text style={styles.charCount}>
               <Text style={styles.charCountHighlight}>{reviewText.length}</Text>
               {' / 80'}
@@ -272,7 +296,6 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFFFF' },
 
-  // 스크롤(전체)
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
@@ -282,7 +305,6 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 20 },
 
-  // 헤더(제목 + 필수표시)
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,7 +314,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '400', color: '#111111' },
   required: { fontSize: 12, color: '#008F47', fontWeight: '400' },
 
-  // 선택 필드
   selectField: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -305,7 +326,6 @@ const styles = StyleSheet.create({
   selectFieldText: { fontSize: 15, color: '#333' },
   selectFieldPlaceholder: { fontSize: 15, color: '#888' },
 
-  // 태그
   tagContainer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   tagBadge: {
     backgroundColor: '#6CDF44',
@@ -318,7 +338,6 @@ const styles = StyleSheet.create({
   tagText: { color: '#111', fontSize: 14, fontWeight: '400' },
   addTagSpacer: { marginRight: 4, marginBottom: 14, },
 
-  // 사진
   imageScrollContainer: { flexDirection: 'row', alignItems: 'center' },
   addPhotoButton: {
     width: 100,
@@ -334,7 +353,6 @@ const styles = StyleSheet.create({
   addPhotoText: { fontSize: 12, color: '#B0B0B0', marginTop: 5 },
   addedImage: { width: 100, height: 100, borderRadius: 1, marginRight: 10, flexShrink: 0 },
 
-  // 한줄평
   reviewInput: {
     backgroundColor: '#F6F6F8',
     borderRadius: 1,
@@ -347,7 +365,6 @@ const styles = StyleSheet.create({
   },
   charCount: { fontSize: 12, color: '#868686', textAlign: 'right', marginTop: 5 },
   
-  // ▼▼▼ [추가] 글자 수 강조 스타일 ▼▼▼
   charCountHighlight: {
     color: '#008F47',
     fontWeight: '600',
@@ -355,8 +372,3 @@ const styles = StyleSheet.create({
 });
 
 export default PlantScreen;
-
-// (필요시) 태그 한글 매핑 상수
-const FOOD_TAG_KOREAN_MAP: Record<string, string> = {
-  // 예) spicy: '매운맛'
-};
