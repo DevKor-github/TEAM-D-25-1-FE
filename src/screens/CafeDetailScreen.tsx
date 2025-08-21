@@ -110,8 +110,9 @@ export default function CafeDetailScreen() {
 
           const slides = data.map(item => ({
             id: item.treeId,
-            levelText: `나무 ${item.treeType}단계`,
-            infoText: `${item.tags.join(' · ') || '참나무'}·${item.recommendationCount} m`,
+            levelText: `나무 ${item.treeType + 1}단계`,
+            // ▼▼▼ 이 부분에 요청하신 텍스트를 추가합니다. ▼▼▼
+            infoText: `참나무 · ${item.recommendationCount} M`,
             img: { uri: item.images[0] || '' },
             review: item.review || '한줄평이 없습니다.',
             nickname: item.nickname,
@@ -155,12 +156,10 @@ export default function CafeDetailScreen() {
   const onPressWater = async (treeId: string) => {
     try {
       await postTreeWater(treeId);
-      // ✅ 기본 iOS Alert(성공) 제거 — 커스텀 토스트만 표시
       const current = restaurantList[page] ?? restaurantList[0];
       const count = Number(current?.recommendationCount ?? 0);
       showToast(count);
     } catch (error) {
-      // 실패 시엔 안내 유지(원하면 이것도 토스트로 바꿀 수 있음)
       console.error(error);
     }
   };
@@ -201,7 +200,7 @@ export default function CafeDetailScreen() {
                 <CommentBubble
                   name={slide.nickname}
                   text={slide.review}
-                  style={{ position: 'absolute', top: insets.top + 28, left: 83, zIndex: 4 }}
+                  style={{ position: 'absolute', top: insets.top + 28, zIndex: 4 }}
                 />
 
                 <View style={styles.treeWrapper}>
