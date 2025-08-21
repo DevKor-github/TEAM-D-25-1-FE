@@ -109,9 +109,8 @@ export default function NicknameScreen({ navigation }: { navigation: any }) {
       const firebaseIdToken = await user.getIdToken();
       console.log('Firebase ID Token:', firebaseIdToken);
 
-      const customApplicationToken = await exchangeFirebaseTokenWithBackend(
-        firebaseIdToken,
-      );
+      const payload = await exchangeFirebaseTokenWithBackend(firebaseIdToken);
+      const customApplicationToken = payload.accessToken
       await patchNickname(nickname);
       
       console.log(

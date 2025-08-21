@@ -51,10 +51,8 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       const firebaseIdToken = await user.getIdToken();
       console.log('Firebase ID Token:', firebaseIdToken);
 
-      const customApplicationToken = await exchangeFirebaseTokenWithBackend(
-        firebaseIdToken
-      );
-
+      const payload = await exchangeFirebaseTokenWithBackend(firebaseIdToken);
+      const customApplicationToken = payload.accessToken
       console.log('로그인 성공! 커스텀 애플리케이션 토큰:', customApplicationToken);
 
       // 필요하면 reset으로 스택 정리
