@@ -214,13 +214,13 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
                 activeOpacity={0.8}
                 style={styles.addTagSpacer}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Image source={plusPng} style={{ width: 35, height: 35, resizeMode: 'contain' }} />
+                <Image source={plusPng} style={{ width: 34, height: 34, resizeMode: 'contain' }} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* 구분선 */}
-          <View style={{ height: 1, backgroundColor: '#ECECEC', marginVertical: 12 }} />
+          <View style={{ height: 1, backgroundColor: '#EFECEC', marginVertical: 10 }} />
 
           {/* 사진 (선택) */}
           <View style={styles.section}>
@@ -313,10 +313,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 19,
     borderRadius: 20,
     marginRight: 1,
-    marginBottom: 10,
+    marginBottom: 2,
   },
-  tagText: { color: '#111', fontSize: 14, fontWeight: '500' },
-  addTagSpacer: { marginRight: 4, marginBottom: 8 },
+  tagText: { color: '#111', fontSize: 14, fontWeight: '400' },
+  addTagSpacer: { marginRight: 4, marginBottom: 14, },
 
   // 사진
   imageScrollContainer: { flexDirection: 'row', alignItems: 'center' },

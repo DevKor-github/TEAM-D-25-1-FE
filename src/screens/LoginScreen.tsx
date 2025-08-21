@@ -177,7 +177,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
       {/* 회원가입 */}
       <TouchableOpacity
         style={styles.signupButton}
-        onPress={() => navigation.navigate('Register')}
+        onPress={() => navigation.navigate('SignUp')}
       >
         <Text style={styles.signupText}>회원가입</Text>
       </TouchableOpacity>
@@ -207,8 +207,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F6F8',
     borderRadius: 10,
     marginBottom: 12,
-    paddingHorizontal: 14,
-    height: 55,
+    paddingHorizontal: 12,
+    height: 56,
   },
   icon: { width: 20, height: 20, marginRight: 8, resizeMode: 'contain' },
   input: { flex: 1, fontSize: 14, color: '#333' },
@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(0, 0, 0, 0.20)',
-    marginVertical: 50,
-    marginHorizontal: 5,
+    marginVertical: 30,
+    marginHorizontal: 4,
     marginTop: 125,
   },
   socialRow: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   socialIcon: { width: 32, height: 32, resizeMode: 'contain' },
   socialLabel: { marginTop: 6, fontSize: 14, color: '#767676', fontWeight: '400', },
   signupButton: { marginTop: 16, alignSelf: 'center' },
-  signupText: { fontSize: 14, color: '#43C217' , marginBottom: 30,},
+  signupText: { fontSize: 15, color: '#43C217' , marginBottom: 35,fontWeight: '500',},
 });
 
 export default LoginScreen;

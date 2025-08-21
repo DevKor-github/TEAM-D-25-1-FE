@@ -1,5 +1,5 @@
 // src/screens/Planting/PlantSearchScreen.tsx
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
@@ -9,19 +9,21 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 import ArrowLeftIcon from '../../assets/arrow-left.svg';
 import SearchIcon from '../../assets/search.svg';
 import PinIcon from '../../assets/pinicon.svg';
-import { NaverMapView } from '@mj-studio/react-native-naver-map';
+import { NaverMapView, NaverMapMarkerOverlay } from '@mj-studio/react-native-naver-map';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../redux/store';
 import { setRestaurantQuery, setSavedRestaurant } from '../../redux/seedPlantingSlice';
 import { SavedRestaurantType } from '../../types/types';
 
-import { getSearchRestaurants } from '../../apis/api/search';
+import { getSearchRestaurants, getRestaurantDetail } from '../../apis/api/search';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type SelectRestaurant = {
@@ -29,8 +31,9 @@ type SelectRestaurant = {
   placeId: string;
   name: string;
   address: string;
-  lat: number;
-  lon: number;
+  lat?: number;
+  lon?: number; // 서버에서 lon으로 올 수 있음
+  lng?: number; // 정규화 후 사용
 };
 
 const HEADER_H = 64;
@@ -43,10 +46,16 @@ const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
   const [searchRestaurant, setSearchRestaurant] = useState<SelectRestaurant[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // 모달 상태
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState<SelectRestaurant | null>(null);
 
+  // 지도 상태
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 37.5665, lng: 126.978 });
+  const [markerCoord, setMarkerCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapZoom, setMapZoom] = useState<number>(15);
+  const mapRef = useRef<any>(null);
+
+  // 검색 결과 로드
   useEffect(() => {
     const fetchSearchResults = async () => {
       if (!restaurantQuery) {
@@ -55,15 +64,19 @@ const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
       }
       setLoading(true);
       try {
-        const results = await getSearchRestaurants(restaurantQuery);
-        setSearchRestaurant((results || []) as SelectRestaurant[]);
+        const results = (await getSearchRestaurants(restaurantQuery)) as SelectRestaurant[] | any[];
+        const normalized = (results || []).map((r: any) => ({
+          ...r,
+          lng: r?.lng ?? r?.lon, // 표준화
+        }));
+        setSearchRestaurant(normalized);
       } catch (e) {
         console.error('검색 실패:', e);
+        setSearchRestaurant([]);
       } finally {
         setLoading(false);
       }
     };
-
     const t = setTimeout(fetchSearchResults, 300);
     return () => clearTimeout(t);
   }, [restaurantQuery]);
@@ -73,10 +86,46 @@ const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
     [dispatch],
   );
 
-  const handleItemPress = useCallback((item: SelectRestaurant) => {
-    setSelectedRestaurant(item);
-    setIsModalVisible(true);
+  // 리스트 탭 → 상세 호출 → 지도 이동 & 핀 설정
+  const handleItemPress = useCallback(async (item: SelectRestaurant) => {
+    try {
+      setSelectedRestaurant(item);
+
+      const detail = await getRestaurantDetail(item.id);
+      console.log('식당 디테일 =', detail);
+
+      // 다양한 키에 대응(문자열일 수 있음)
+      const latRaw = detail?.latitude ?? detail?.lat;
+      const lngRaw = detail?.longitude ?? detail?.lng ?? detail?.lon;
+
+      const lat = Number(latRaw);
+      const lng = Number(lngRaw);
+
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        setMapCenter({ lat, lng });
+        setMarkerCoord({ lat, lng });
+        setMapZoom(16);
+      } else {
+        // 좌표가 없으면 핀 제거
+        setMarkerCoord(null);
+      }
+
+      setIsModalVisible(true);
+    } catch (e) {
+      console.error('식당 상세 가져오기 실패:', e);
+      setMarkerCoord(null);
+      setIsModalVisible(true);
+    }
   }, []);
+
+  // 모달이 열리고 마커가 있으면 카메라 이동(호환 메서드)
+  useEffect(() => {
+    if (!isModalVisible || !markerCoord) return;
+    const cam = { latitude: markerCoord.lat, longitude: markerCoord.lng, zoom: 20 };
+    mapRef.current?.setCamera?.(cam);
+    mapRef.current?.animateCamera?.(cam);
+    mapRef.current?.moveCamera?.(cam);
+  }, [isModalVisible, markerCoord]);
 
   const handleCloseModal = useCallback(() => {
     setIsModalVisible(false);
@@ -102,68 +151,81 @@ const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* 상단 검색 헤더(고정) */}
-      <View style={styles.headerArea}>
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.iconBtnInBox}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <ArrowLeftIcon />
-            </TouchableOpacity>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        {/* 헤더 */}
+        <View style={styles.headerArea}>
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={styles.iconBtnInBox}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <ArrowLeftIcon />
+              </TouchableOpacity>
 
-            <TextInput
-              value={restaurantQuery}
-              onChangeText={handleSearchInputChange}
-              placeholder="장소, 가게 명, 음식 검색"
-              placeholderTextColor="#9E9E9E"
-              style={styles.searchInput}
-              returnKeyType="search"
-            />
+              <TextInput
+                value={restaurantQuery}
+                onChangeText={handleSearchInputChange}
+                placeholder="장소, 가게 명, 음식 검색"
+                placeholderTextColor="#9E9E9E"
+                style={styles.searchInput}
+                returnKeyType="search"
+              />
 
-            <View style={styles.iconBtnInBox}>
-              <SearchIcon width={27} height={27}/>
+              <View style={styles.iconBtnInBox}>
+                <SearchIcon width={27} height={27} />
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* 결과 리스트(스크롤) */}
-      <ScrollView
-        style={styles.list}
-        contentContainerStyle={{ paddingBottom: 30 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {loading ? (
-          <Text style={styles.centerInfo}>로딩 중…</Text>
-        ) : searchRestaurant.length === 0 ? (
-          <Text style={styles.centerInfo}>검색 결과가 없습니다</Text>
-        ) : (
-          searchRestaurant.map(renderSearchItem)
-        )}
-      </ScrollView>
+        {/* 결과 리스트 */}
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={{ paddingBottom: 30 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {loading ? (
+            <Text style={styles.centerInfo}>로딩 중…</Text>
+          ) : searchRestaurant.length === 0 ? (
+            <Text style={styles.centerInfo}>검색 결과가 없습니다</Text>
+          ) : (
+            searchRestaurant.map(renderSearchItem)
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-      {/* ===== 모달(스크롤 없음) ===== */}
+      {/* 모달 */}
       <Modal
         visible={isModalVisible}
         animationType="fade"
         transparent
         onRequestClose={handleCloseModal}
       >
-        {/* 어두운 배경 */}
         <View style={styles.modalBackdrop}>
-          {/* 바깥 터치 닫기 */}
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={handleCloseModal} />
-          {/* 하단 카드(고정 콘텐츠) */}
           <View style={[styles.modalCard, { paddingBottom: 20 + insets.bottom }]}>
             <View style={styles.mapCard}>
               <NaverMapView
+                ref={mapRef}
                 style={styles.map}
+                camera={{ latitude: mapCenter.lat, longitude: mapCenter.lng, zoom: mapZoom }}
                 isShowScaleBar={false}
                 isShowLocationButton={false}
-              />
+              >
+                {markerCoord && (
+                  <NaverMapMarkerOverlay
+                    latitude={markerCoord.lat}
+                    longitude={markerCoord.lng}
+                    // 핀 크기, 이미지사용도 가능
+                    width={25}         
+                    height={31.5}
+                    anchor={{ x: 0.5, y: 1 }}
+                    caption={{ text: selectedRestaurant?.name ?? '', textSize: 11 }}
+                  />
+                )}
+              </NaverMapView>
             </View>
 
             {selectedRestaurant && (
@@ -173,7 +235,6 @@ const PlantSearchScreen = ({ navigation }: { navigation: any }) => {
                   <Text style={styles.bottomSheetDetail}>{selectedRestaurant.address}</Text>
                 </View>
 
-                {/* ▼▼▼ [수정] 썸네일 View 안에 Text 추가 ▼▼▼ */}
                 <View style={styles.thumbRow}>
                   <View style={styles.thumb}>
                     <Text style={styles.thumbText}>텅~</Text>
@@ -202,8 +263,6 @@ export default PlantSearchScreen;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFFFF' },
-
-  /* ===== 헤더 & 검색 ===== */
   headerArea: {
     height: HEADER_H,
     paddingHorizontal: 19,
@@ -219,7 +278,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     borderRadius: 50,
     borderWidth: 1,
-    borderColor: '#D9D9D9',    
+    borderColor: '#D9D9D9',
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,11 +294,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#333',
-    paddingVertical: 0, 
+    paddingVertical: 0,
     marginHorizontal: 6,
   },
-
-  /* ===== 리스트 ===== */
   list: { flex: 1, paddingHorizontal: 23 },
   itemContainer: {
     flexDirection: 'row',
@@ -249,15 +306,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
     gap: 10,
   },
-  keywordText: { fontSize: 16, color: '#111111', marginBottom: 4, fontWeight: '600', paddingLeft: 4, },
-  addressText: { fontSize: 14, color: '#767676', fontWeight:400, paddingLeft: 4, },
+  keywordText: { fontSize: 16, color: '#111111', marginBottom: 4, fontWeight: '600', paddingLeft: 4 },
+  addressText: { fontSize: 14, color: '#767676', fontWeight: '400', paddingLeft: 4 },
   centerInfo: { textAlign: 'center', marginTop: 20, color: '#666' },
 
-  /* ===== 모달 ===== */
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end', // 화면 하단에 카드
+    justifyContent: 'flex-end',
   },
   modalCard: {
     backgroundColor: '#FFFFFF',
@@ -266,6 +322,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingHorizontal: 20,
   },
+
   mapCard: { borderRadius: 12, overflow: 'hidden', backgroundColor: '#EDEDED' },
   map: { width: '100%', height: 180 },
 
@@ -274,7 +331,6 @@ const styles = StyleSheet.create({
   bottomSheetDetail: { fontSize: 15, color: '#797979', marginTop: 6 },
 
   thumbRow: { marginTop: 16, flexDirection: 'row', justifyContent: 'space-between' },
-  // ▼▼▼ [수정] thumb 스타일에 중앙 정렬 속성 추가 ▼▼▼ 
   thumb: {
     width: '31%',
     height: 92,
@@ -283,12 +339,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // 썸네일 텍스트 스타일 추가 ▼▼▼ 텅~~ 이럼
-  thumbText: {
-    fontSize: 17,
-    color: '#A9A9A9',
-    fontWeight: '700',
-  },
+  thumbText: { fontSize: 17, color: '#A9A9A9', fontWeight: '700' },
 
   bottomSheetButton: {
     marginTop: 18,
