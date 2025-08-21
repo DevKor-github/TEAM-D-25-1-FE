@@ -1,4 +1,4 @@
-import { getAuth } from '@react-native-firebase/auth';
+import auth from '@react-native-firebase/auth';
 import { defaultInstance } from '../utils/axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -11,7 +11,7 @@ export const exchangeFirebaseTokenWithBackend = async (idToken: string) => {
 
     await AsyncStorage.setItem('customApplicationToken', data.accessToken);
 
-    return data.accessToken;
+    return data;
   } catch (error) {
     console.log("토큰 에러");
     console.log(idToken);
@@ -31,8 +31,7 @@ export const getCustomApplicationToken = async (): Promise<string | null> => {
 
 export const logoutAndClearToken = async (): Promise<void> => {
   try {
-    const auth = getAuth();
-    await auth.signOut();
+    await auth().signOut();
     await AsyncStorage.removeItem('customApplicationToken');
     console.log('User logged out and tokens cleared.');
   } catch (error) {
