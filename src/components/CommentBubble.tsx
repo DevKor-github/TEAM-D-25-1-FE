@@ -1,22 +1,31 @@
 // src/components/CommentBubble.tsx
 import React from 'react';
 import { View, Text, Image, StyleSheet, ViewStyle, ImageSourcePropType } from 'react-native';
+import BasicProfileIcon from '../assets/basic_profile.svg';
 
 type Props = {
   name: string;
   text: string;
   style?: ViewStyle; 
-  avatar?: ImageSourcePropType;
+  avatar?: string;
 };
 
-const defaultAvatar = require('../assets/basic_profile.svg');
 
-export default function CommentBubble({ name, text, style, avatar = defaultAvatar }: Props) {
+export default function CommentBubble({ name, text, style, avatar }: Props) {
+  
+  console.log(avatar);
   return (
     <View style={[styles.container, style]} pointerEvents="none">
       {/* ▼▼▼ 이 View가 실제 콘텐츠를 감싸고, 부모인 container에 의해 중앙 정렬됩니다. ▼▼▼ */}
       <View style={styles.contentWrapper}>
-        <Image source={avatar} style={styles.avatar} />
+        {avatar ? (
+          <Image source={{uri: avatar}} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatar}>
+            <BasicProfileIcon width={35} height={35} />
+          </View>
+        )}
+        {/* <Image source={{uri: avatar}} style={styles.avatar} /> */}
         <View style={styles.right}>
           <View style={styles.namePill}>
             <Text style={styles.nameText}>{name}</Text>
@@ -56,13 +65,16 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 50,
     backgroundColor: '#ddd',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   right: {
     marginLeft: 9,
   },
   namePill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EAF7EF', 
+    backgroundColor: '#EAF7EF',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,

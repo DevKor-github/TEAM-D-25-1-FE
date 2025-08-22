@@ -24,6 +24,7 @@ import {
   getMe,           // /users/me (코어: description, profileImageUrl 등)
   getTag,          // ✅ 태그 옵션(키/값) 불러오기
 } from '../../apis/api/user';
+import { CLOUDFRONT_URL } from '@env';
 
 // PNG 리소스
 const treeImg = require('../../assets/image/mytree.png'); // 폴백 이미지
@@ -132,7 +133,7 @@ export default function MyPageScreen({ navigation }: any) {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
 
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | undefined>(undefined);
   const [avatarVer, setAvatarVer] = useState(0);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -180,7 +181,7 @@ export default function MyPageScreen({ navigation }: any) {
       }) => {
         setProfile(prev => ({ ...prev, intro: data.intro, mbti: data.mbti, styles: data.styles, foods: data.foods }));
         if (typeof data.avatarUri !== 'undefined') {
-          setProfileImageUrl(data.avatarUri || null);
+          setProfileImageUrl(data.avatarUri?.toString());
           setAvatarVer(v => v + 1);
           setAvatarFailed(false);
         }
@@ -248,6 +249,8 @@ export default function MyPageScreen({ navigation }: any) {
       setProfileImageUrl(img.length ? img : null);
       setAvatarVer(v => v + 1);
       setAvatarFailed(false);
+
+      console.log(profileImageUrl)
 
       // ✅ MBTI/스타일/음식 → “항상 value(한글)”로 맞춤
       const mbtiValue =
@@ -332,7 +335,7 @@ export default function MyPageScreen({ navigation }: any) {
   const recapImgSource = recap.imageUrl ? { uri: recap.imageUrl } : treeImg;
 
   const avatarSrc = profileImageUrl
-    ? { uri: profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
+    ? { uri: CLOUDFRONT_URL + profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
     : null;
 
   return (
@@ -364,7 +367,7 @@ export default function MyPageScreen({ navigation }: any) {
             <View style={styles.avatar}>
               {avatarSrc && !avatarFailed ? (
                 <Image
-                  source={avatarSrc}
+                  source={{uri:profileImageUrl}}
                   style={styles.avatarImg}
                   onError={() => setAvatarFailed(true)}
                 />

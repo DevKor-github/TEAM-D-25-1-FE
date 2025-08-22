@@ -21,6 +21,8 @@ import CommentBubble from '../components/CommentBubble';
 import { getRestaurant, postTreeWater } from '../apis/api/tree';
 import { Restaurant } from '../types/tree';
 import WateredIcon from '../assets/watered.svg';
+import { getFollower } from '../apis/api/user';
+import { CLOUDFRONT_URL } from '@env';
 
 const { width, height } = Dimensions.get('window');
 const HERO_HEIGHT = 400;
@@ -41,7 +43,9 @@ type TreeSlide = {
   levelText: string;
   infoText: string;
   img: any;
+  profileImageURl: any;
 };
+
 type ImgData = {
   imageUri: any;
   userId: string;
@@ -124,16 +128,21 @@ export default function CafeDetailScreen() {
         if (Array.isArray(data) && data.length > 0) {
           setRestaurantList(data);
 
+
           const slides = data.map(item => ({
             id: item.treeId,
             levelText: `나무 ${item.treeType + 1}단계`,
             // ▼▼▼ 이 부분에 요청하신 텍스트를 추가합니다. ▼▼▼
             infoText: `참나무 · ${item.recommendationCount} M`,
             img: {uri: item.images[0] || ''},
+            profileImageURl:
+              item.profileImageUrl? CLOUDFRONT_URL + item.profileImageUrl : null,
             review: item.review || '한줄평이 없습니다.',
             nickname: item.nickname,
           }));
           setTreeSlides(slides);
+          console.log('treeSlide', treeSlides);
+          
 
           const allImages = data.flatMap(r => r.images);
           // {
@@ -271,6 +280,7 @@ export default function CafeDetailScreen() {
                     top: insets.top + 28,
                     zIndex: 4,
                   }}
+                  avatar={slide.profileImageURl}
                 />
 
                 <View style={styles.treeWrapper}>

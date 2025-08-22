@@ -31,6 +31,7 @@ import messaging from '@react-native-firebase/messaging';
 import {Alert} from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/types';
+import { CLOUDFRONT_URL } from '@env';
 
 const DRAWER_W = 0.85;
 
@@ -161,7 +162,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
           const img = typeof imgRaw === 'string' ? imgRaw.trim() : '';
           setMyProfileImageUrl(img.length ? img : null);
           setAvatarVer(v => v + 1); // 캐시 깨기
-
+          
           // 카운트류
           if (typeof mePage?.followerCount === 'number') setFollowerCount(mePage.followerCount);
           if (typeof mePage?.followingCount === 'number') setFollowingCount(mePage.followingCount);
@@ -299,7 +300,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
                   </View>
                   <Text style={styles.addressText}>{selectedTree.address}</Text>
                   <View style={styles.userInfo}>
-                    <Image source={{uri: profileImgURL}} style={styles.userProfileImage}/>
+                    <Image source={{uri: CLOUDFRONT_URL +profileImgURL}} style={styles.userProfileImage}/>
                     <Text style={styles.userNickname}>{user}님이 심은 나무</Text>
                     <View style={styles.distanceBadge}>
                       <Text style={styles.distanceText}>{selectedTree.recommendationCount} M</Text>
