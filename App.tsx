@@ -23,6 +23,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import CafeDetailScreen from './src/screens/CafeDetailScreen';
 import FriendScreen from './src/screens/FriendScreen'
 import FollowListScreen from './src/screens/Mypage/FollowListScreen';
+import CompleteScreen from './src/screens/Planting/CompleteScreen';
 
 // ✅ RNFirebase 코어: 앱 초기화 보장
 import { getApps, initializeApp } from '@react-native-firebase/app';
@@ -52,6 +53,7 @@ const App = () => {
           <Stack.Screen name="Detail" component={CafeDetailScreen} />
           <Stack.Screen name="PhotoDetail" component={PhotoDetailScreen} />
           <Stack.Screen name="Mypage" component={MyPageScreen} />
+          <Stack.Screen name='Complete' component={CompleteScreen}/>
           <Stack.Screen name="FollowList" component={FollowListScreen} />
           <Stack.Screen
             name="KeywordSelection"

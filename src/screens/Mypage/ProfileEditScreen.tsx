@@ -1,21 +1,27 @@
-// src/screens/ProfileEditScreen.tsx
+// 파일: src/screens/ProfileEditScreen.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SafeAreaView, View, Text, TextInput, TouchableOpacity, Image,
-  StyleSheet, KeyboardAvoidingView, Platform, ScrollView,
+  StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context'; // ✅ 추가
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CameraIcon from '../../assets/camera.svg';
 import Chip from '../../components/Chip';
 import * as ImagePicker from 'react-native-image-picker';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
-import { getUser } from '../../apis/api/user';
+
+import {
+  getUser,
+  patchMyDescription,
+  patchMyProfileImageByUrl,
+} from '../../apis/api/user';
+import { postImageReview } from '../../apis/api/images';
 
 const backIcon = require('../../assets/arrow.png');
 const plusIcon = require('../../assets/plus_icon.png');
 
 export default function ProfileEditScreen({ navigation, route }: any) {
-  const insets = useSafeAreaInsets(); // ✅ 추가
+  const insets = useSafeAreaInsets();
 
   // 서버 닉네임
   const [nickname, setNickname] = useState<string>('');
@@ -26,6 +32,13 @@ export default function ProfileEditScreen({ navigation, route }: any) {
   const [stylesArr, setStylesArr] = useState<string[]>(route.params?.styles ?? []);
   const [foodsArr, setFoodsArr] = useState<string[]>(route.params?.foods ?? []);
   const [avatarUri, setAvatarUri] = useState<string | null>(route.params?.avatarUri ?? null);
+
+  const initialRef = useRef({
+    intro: route.params?.intro ?? '',
+    avatarUri: route.params?.avatarUri ?? null,
+  });
+
+  const [saving, setSaving] = useState(false);
 
   const onSaveRef = useRef(route.params?.onSave);
   useEffect(() => {
@@ -61,27 +74,80 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     };
     ImagePicker.launchImageLibrary(options, (res) => {
       if (res.didCancel || res.errorCode) return;
-      const uri = res.assets?.[0]?.uri;
-      if (uri) setAvatarUri(uri);
+      const asset = res.assets?.[0];
+      if (asset?.uri) setAvatarUri(asset.uri);
     });
   }, []);
 
-  const onConfirm = () => {
-    const payload = { intro, mbti, styles: stylesArr, foods: foodsArr, avatarUri };
-    try { onSaveRef.current?.(payload); } catch {}
-    navigation.goBack();
+  const isHttpUrl = (u?: string | null) => !!u && /^https?:\/\//i.test(u || '');
+
+  const onConfirm = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const tasks: Promise<any>[] = [];
+
+      // 1) 한줄소개 변경 시에만 PATCH
+      const introTrimmed = intro.trim();
+      if (introTrimmed !== (initialRef.current.intro ?? '')) {
+        tasks.push(patchMyDescription(introTrimmed));
+      }
+
+      // 2) 프로필 이미지 변경 시 처리
+      if (avatarUri && avatarUri !== initialRef.current.avatarUri) {
+        if (isHttpUrl(avatarUri)) {
+          // 이미 원격 URL이면 바로 반영
+          tasks.push(patchMyProfileImageByUrl(avatarUri));
+        } else {
+          // 로컬 이미지 → /images/review 업로드 → URL 획득 → URL PATCH
+          const uploadResArr = await postImageReview([avatarUri]);
+          const first: any = uploadResArr?.[0];
+          // 서버 응답의 URL 키 이름에 맞게 아래 중 하나가 잡히도록 처리
+          const url =
+            first?.url ||
+            first?.imageUrl ||
+            first?.profileImageUrl ||
+            first?.data?.url ||
+            first?.data?.imageUrl;
+          if (!url || !/^https?:\/\//i.test(url)) {
+            throw new Error('이미지 업로드 응답에서 URL을 찾지 못했어');
+          }
+          tasks.push(patchMyProfileImageByUrl(url));
+        }
+      }
+
+      if (tasks.length) await Promise.all(tasks);
+
+      // 상위 화면에 변경 값 전달 (UI 즉시 반영)
+      try {
+        onSaveRef.current?.({
+          intro: introTrimmed,
+          mbti,
+          styles: stylesArr,
+          foods: foodsArr,
+          avatarUri, // 필요하면 여기서 서버 URL로 교체해도 됨
+        });
+      } catch {}
+
+      navigation.goBack();
+    } catch (e) {
+      console.error(e);
+      Alert.alert('저장 실패', '프로필을 저장하는 중 오류가 발생했어. 잠시 뒤 다시 시도해줘.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header (스크롤 밖) */}
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <Image source={backIcon} style={styles.headerIcon} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton} disabled={saving}>
+          <Image source={backIcon} style={[styles.headerIcon, saving && { opacity: 0.5 }]} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>프로필 수정</Text>
-        <TouchableOpacity onPress={onConfirm} style={styles.headerButton}>
-          <Text style={styles.headerConfirm}>확인</Text>
+        <TouchableOpacity onPress={onConfirm} style={styles.headerButton} disabled={saving}>
+          {saving ? <ActivityIndicator /> : <Text style={styles.headerConfirm}>확인</Text>}
         </TouchableOpacity>
       </View>
 
@@ -89,10 +155,10 @@ export default function ProfileEditScreen({ navigation, route }: any) {
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 52 : 0} // 헤더 높이만큼 오프셋
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 52 : 0}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent} // ✅ 전체 패딩/바닥 여백
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -106,6 +172,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
                 activeOpacity={0.85}
                 style={styles.avatarHit}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                disabled={saving}
               >
                 {!avatarUri && <CameraIcon width={44} height={44} />}
               </TouchableOpacity>
@@ -122,6 +189,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
                 onChangeText={setIntro}
                 maxLength={30}
                 multiline
+                editable={!saving}
               />
               <Text style={styles.charCount}>{intro.length}/30자</Text>
             </View>
@@ -154,6 +222,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
                   },
                 })
               }
+              disabled={saving}
             >
               <Image source={plusIcon} style={styles.plusIconSmall} />
             </TouchableOpacity>
@@ -168,7 +237,7 @@ const AVATAR_SIZE = 150;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  flex1: { flex: 1 }, // ✅ 추가
+  flex1: { flex: 1 },
 
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -179,7 +248,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '600' },
   headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
 
-  // ✅ ScrollView 안쪽 여백을 여기서 관리
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 24,
@@ -194,7 +262,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  /* 아바타 */
   avatarWrapper: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
@@ -238,7 +305,7 @@ const styles = StyleSheet.create({
 
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 24, marginHorizontal: 0, // 스크롤 패딩으로 대체
+    marginTop: 24, marginHorizontal: 0,
   },
   sectionTitle: { fontSize: 20, fontWeight: '600' },
   sectionSubtitle: { fontSize: 13, color: '#999' },

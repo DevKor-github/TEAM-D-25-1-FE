@@ -92,9 +92,12 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         savedTags,
         uploadedUrls,
       );
-      Alert.alert('성공', '씨앗이 성공적으로 심어졌습니다!');
+      
+      // ▼▼▼ [수정] 성공 시 Alert 대신 CompleteScreen으로 이동합니다. ▼▼▼
       dispatch(resetSeedPlanting());
-      goToMapTab();
+      // `replace`를 사용하면 뒤로가기로 이 화면에 다시 돌아오는 것을 방지할 수 있습니다.
+      navigation.replace('Complete'); 
+      
     } catch (error) {
       Alert.alert('실패', '씨앗 심기에 실패했습니다. 다시 시도해주세요.');
       console.error(error);

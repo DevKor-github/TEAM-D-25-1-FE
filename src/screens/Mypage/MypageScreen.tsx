@@ -59,6 +59,9 @@ export default function MyPageScreen({ navigation }: any) {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
 
+  // ✅ 서버의 프로필 이미지 URL (없으면 null)
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+
   // 1번 하이라이트(초록 글씨만 동적)
   const [topTree, setTopTree] = useState<{ name: string; count: number } | null>(null);
 
@@ -67,9 +70,9 @@ export default function MyPageScreen({ navigation }: any) {
     { messageEm: '', messageRest: '' }
   );
 
-  // 프로필(로컬 편집)
+  // 프로필(로컬 편집 미리보기 포함)
   const [profile, setProfile] = useState({
-    intro: '',
+    intro: '',                 // 서버 description
     mbti: null as string | null,
     styles: [] as string[],
     foods: [] as string[],
@@ -84,8 +87,24 @@ export default function MyPageScreen({ navigation }: any) {
 
   const openProfileEdit = () => {
     navigation.navigate('ProfileEdit', {
-      mbti: profile.mbti, styles: profile.styles, foods: profile.foods, intro: profile.intro,
-      onSave: (data: { intro: string; mbti: string | null; styles: string[]; foods: string[] }) => setProfile(data),
+      mbti: profile.mbti,
+      styles: profile.styles,
+      foods: profile.foods,
+      intro: profile.intro,
+      avatarUri: profileImageUrl, // 미리보기로 현재 URL 넘겨줌
+      onSave: (data: {
+        intro: string;
+        mbti: string | null;
+        styles: string[];
+        foods: string[];
+        avatarUri?: string | null; // 편집 화면에서 로컬파일/URL 모두 가능
+      }) => {
+        setProfile(prev => ({ ...prev, intro: data.intro, mbti: data.mbti, styles: data.styles, foods: data.foods }));
+        // 즉시 미리보기 반영(서버에서 다시 가져오기 전까지)
+        if (typeof data.avatarUri !== 'undefined') {
+          setProfileImageUrl(data.avatarUri || null);
+        }
+      },
     });
   };
 
@@ -143,6 +162,15 @@ export default function MyPageScreen({ navigation }: any) {
       const me: any = await getUser();
 
       if (me?.nickname) setNickname(me.nickname);
+
+      // ✅ 한줄소개: 서버 description
+      if (typeof me?.description === 'string') {
+        setProfile(prev => ({ ...prev, intro: me.description ?? '' }));
+      }
+
+      // ✅ 프로필 이미지 URL (키 이름이 다를 가능성 고려)
+      const img = (me?.profileImageUrl ?? me?.profileImage ?? '').trim?.() || '';
+      setProfileImageUrl(img.length ? img : null);
 
       const userId = (me?.userId ?? me?.id) as string | undefined;
       const uFollower = typeof me?.followerCount === 'number' ? me.followerCount : undefined;
@@ -288,15 +316,20 @@ export default function MyPageScreen({ navigation }: any) {
 
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              <BasicProfileIcon width={50} height={50} />
+              {profileImageUrl ? (
+                <Image source={{ uri: profileImageUrl }} style={styles.avatarImg} />
+              ) : (
+                <BasicProfileIcon width={50} height={50} />
+              )}
             </View>
             <View style={styles.profileRight}>
               <View style={styles.nameRow}>
                 <Text style={styles.name}>{nickname || '닉네임'}</Text>
               </View>
 
+              {/* ✅ 한줄소개 폴백 문구 */}
               <Text style={styles.bio}>
-                {profile.intro?.trim()?.length ? profile.intro : '한줄소개로 나를 설명해보세요!'}
+                {profile.intro?.trim()?.length ? profile.intro : '한줄소개로 나를 표현해보세요!'}
               </Text>
 
               <View style={styles.divider} />
@@ -394,7 +427,7 @@ export default function MyPageScreen({ navigation }: any) {
           hasMore={wateredHasMore}
           emptyText="아직 내역이 없어요."
         />
-      </ScrollView>
+      </ScrollView>     
     </SafeAreaView>
   );
 }
@@ -473,18 +506,31 @@ const styles = StyleSheet.create({
   },
   editFab: { position: 'absolute', top: 10, right: 10, padding: 6, borderRadius: 14 },
   profileRow: { flexDirection: 'row', alignItems: 'flex-start' },
- avatar: {
-  width: 95,
-  height: 95,
-  borderRadius: 50,
-  backgroundColor: '#E7E7E7',
-  alignItems: 'center',      // ✅ 가운데 정렬 추가 (혹시 없다면)
-  justifyContent: 'center',  // ✅ 가운데 정렬 추가 (혹시 없다면)
-},
+
+  avatar: {
+    width: 95,
+    height: 95,
+    borderRadius: 50,
+    backgroundColor: '#E7E7E7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  // ✅ 프로필 이미지 반영
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+    resizeMode: 'cover',
+  },
+
   profileRight: { flex: 1, marginLeft: 25 },
   nameRow: { flexDirection: 'row', alignItems: 'baseline' },
   name: { fontSize: 18, fontWeight: '600', color: '#111' },
+
+  // ✅ 한줄소개 텍스트
   bio: { marginTop: 8, color: '#4B4B4B', fontSize: 16 },
+
   divider: { height: RNStyleSheet.hairlineWidth, backgroundColor: '#D4D4D4', marginTop: 10, marginBottom: 8 },
 
   /* 통계 */
