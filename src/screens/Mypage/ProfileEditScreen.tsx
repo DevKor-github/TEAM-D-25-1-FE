@@ -1,4 +1,4 @@
-// 파일: src/screens/ProfileEditScreen.tsx
+// src/screens/ProfileEditScreen.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SafeAreaView, View, Text, TextInput, TouchableOpacity, Image,
@@ -11,7 +11,7 @@ import * as ImagePicker from 'react-native-image-picker';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 
 import {
-  getUser,
+  getUser,               // ✅ 서버에서 mbti/styleTags/foodTags 포함해서 가져옴
   patchMyDescription,
   patchMyProfileImageByUrl,
 } from '../../apis/api/user';
@@ -26,7 +26,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
   // 서버 닉네임
   const [nickname, setNickname] = useState<string>('');
 
-  // MyPage에서 전달한 초기값
+  // MyPage에서 전달한 초기값 (있으면 우선 사용)
   const [intro, setIntro] = useState<string>(route.params?.intro ?? '');
   const [mbti, setMbti] = useState<string | null>(route.params?.mbti ?? null);
   const [stylesArr, setStylesArr] = useState<string[]>(route.params?.styles ?? []);
@@ -45,20 +45,66 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     if (route.params?.onSave) onSaveRef.current = route.params.onSave;
   }, [route.params?.onSave]);
 
+  /** ---------- helpers ---------- */
+  const toStringArray = (src: any): string[] => {
+    if (!src) return [];
+    if (Array.isArray(src)) {
+      return src
+        .map(v =>
+          typeof v === 'string'
+            ? v
+            : (v?.label ?? v?.value ?? v?.name ?? v?.title ?? '').toString()
+        )
+        .filter(Boolean);
+    }
+    return [];
+  };
+  const isHttpUrl = (u?: string | null) => !!u && /^https?:\/\//i.test(u || '');
+
+  /** ---------- 서버의 저장값(마이페이지) 로드 ---------- */
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async user => {
       if (!user) return;
       try {
-        const res = await getUser();
-        if (res?.nickname) setNickname(res.nickname);
+        const me: any = await getUser();
+
+        // 닉네임
+        if (me?.nickname) setNickname(me.nickname);
+
+        // 한줄소개
+        if (typeof me?.description === 'string' && me.description.trim()) {
+          setIntro(prev => (prev?.length ? prev : me.description.trim()));
+          // 초기 ref도 업데이트(변경 비교 정확도↑)
+          if (!initialRef.current.intro) initialRef.current.intro = me.description.trim();
+        }
+
+        // ✅ 서버에 저장된 태그들을 초기 표시로 반영 (route로 이미 값이 오면 유지)
+        if (mbti == null && typeof me?.mbti === 'string' && me.mbti.trim()) {
+          setMbti(me.mbti.trim());
+        }
+        if ((!stylesArr || stylesArr.length === 0) && me?.styleTags) {
+          setStylesArr(toStringArray(me.styleTags));
+        }
+        if ((!foodsArr || foodsArr.length === 0) && me?.foodTags) {
+          setFoodsArr(toStringArray(me.foodTags));
+        }
+
+        // 아바타(경로가 서버 상대경로일 수 있으니 그냥 그대로 미리보기로 사용)
+        if (!avatarUri) {
+          const img = (me?.profileImageUrl ?? me?.profileImage ?? '').trim?.() || '';
+          if (img) setAvatarUri(img);
+          if (!initialRef.current.avatarUri) initialRef.current.avatarUri = img || null;
+        }
       } catch (e) {
-        console.error('닉네임을 불러오지 못했습니다:', e);
+        console.error('프로필/키워드 로드 실패:', e);
       }
     });
     return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // route로 넘어온 값이 바뀌면 동기화
   useEffect(() => {
     if (route.params?.mbti !== undefined) setMbti(route.params.mbti);
     if (route.params?.styles) setStylesArr(route.params.styles);
@@ -66,6 +112,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     if (route.params?.avatarUri !== undefined) setAvatarUri(route.params.avatarUri);
   }, [route.params?.mbti, route.params?.styles, route.params?.foods, route.params?.avatarUri]);
 
+  /** ---------- 이미지 선택 ---------- */
   const pickAvatar = useCallback(() => {
     const options: ImagePicker.ImageLibraryOptions = {
       mediaType: 'photo',
@@ -79,21 +126,20 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     });
   }, []);
 
-  const isHttpUrl = (u?: string | null) => !!u && /^https?:\/\//i.test(u || '');
-
+  /** ---------- 저장 ---------- */
   const onConfirm = async () => {
     if (saving) return;
     setSaving(true);
     try {
       const tasks: Promise<any>[] = [];
 
-      // 1) 한줄소개
+      // 1) 한줄소개 변경 시에만 PATCH
       const introTrimmed = intro.trim();
       if (introTrimmed !== (initialRef.current.intro ?? '')) {
         tasks.push(patchMyDescription(introTrimmed));
       }
 
-      // 2) 프로필 이미지
+      // 2) 프로필 이미지 변경 시 처리
       if (avatarUri && avatarUri !== initialRef.current.avatarUri) {
         if (isHttpUrl(avatarUri)) {
           tasks.push(patchMyProfileImageByUrl(avatarUri));
@@ -115,7 +161,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
 
       if (tasks.length) await Promise.all(tasks);
 
-      // 부모 전달(미리보기 반영)
+      // 상위 화면에 변경 값 전달 (UI 즉시 반영)
       try {
         onSaveRef.current?.({
           intro: introTrimmed,
@@ -148,7 +194,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* ✅ 스크롤 + 키보드 회피 */}
+      {/* ✅ 스크롤 가능 + 키보드 회피 */}
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -165,7 +211,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
               <View style={styles.avatarBg} />
               {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarImage} /> : null}
 
-              {/* ▶︎ 이미지 전체를 덮는 카메라 오버레이 */}
+              {/* 프로필 이미지 전체와 겹치는 카메라 오버레이 */}
               <TouchableOpacity
                 onPress={pickAvatar}
                 activeOpacity={0.85}
@@ -173,9 +219,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 disabled={saving}
               >
-                <View style={styles.cameraOverlay}>
-                  <CameraIcon width={44} height={44} />
-                </View>
+                <CameraIcon width={44} height={44} />
               </TouchableOpacity>
             </View>
 
@@ -196,7 +240,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* Keyword Display */}
+          {/* Keyword Display (서버 저장값/선택값을 그대로 보여줌) */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>내 키워드</Text>
             <Text style={styles.sectionSubtitle}>키워드를 등록해서 취향을 알려주세요!</Text>
@@ -215,7 +259,10 @@ export default function ProfileEditScreen({ navigation, route }: any) {
               style={styles.plusIconWrapper}
               onPress={() =>
                 navigation.navigate('KeywordSelection', {
-                  mbti, styles: stylesArr, foods: foodsArr, avatarUri,
+                  mbti,
+                  styles: stylesArr,
+                  foods: foodsArr,
+                  avatarUri,
                   onApply: (next: { mbti: string | null; styles: string[]; foods: string[] }) => {
                     setMbti(next.mbti);
                     setStylesArr(next.styles);
@@ -249,7 +296,10 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '600' },
   headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
 
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
 
   card: {
     backgroundColor: '#F7F7F7',
@@ -260,7 +310,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  /* 아바타 */
   avatarWrapper: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
@@ -282,19 +331,9 @@ const styles = StyleSheet.create({
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
   },
+  // 전체를 덮는 카메라 버튼(항상 보이게)
   avatarHit: {
-    ...StyleSheet.absoluteFillObject, // 전체 덮기
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  /* ▶︎ 전체 오버레이 (원형) */
-  cameraOverlay: {
-    position: 'absolute',
-    width: AVATAR_SIZE,
-    height: AVATAR_SIZE,
-    borderRadius: AVATAR_SIZE / 2,
-    backgroundColor: 'rgba(0,0,0,0.25)', // 살짝 어둡게
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
