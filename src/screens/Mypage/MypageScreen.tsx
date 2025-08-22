@@ -27,7 +27,7 @@ import {
 
 // PNG 리소스
 const treeImg = require('../../assets/image/mytree.png'); // 폴백 이미지
-const treeicon = require('../../assets/extree.png');
+const treeicon = require('../../assets/real_tree0_0.png');
 const grooNameIcon = require('../../assets/groo_name_icon.png');
 const grooPictureIcon = require('../../assets/groo_picture_icon.png');
 
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14,
     backgroundColor: '#F6F6F8', borderRadius: 15, marginBottom: 5,
   },
-  treeIcon: { width: 45, height: 45, marginRight: 12, resizeMode: 'contain' },
+  treeIcon: { width: 35, height: 35, marginRight: 12, resizeMode: 'contain' },
   treeName: { fontSize: 15, fontWeight: '600', color: '#0E0F11' },
   treeMeta: { fontSize: 14, color: '#A0A0A0', marginTop: 4 },
   dotMenu: { marginLeft: 13, fontSize: 25, color: '#949494' },
