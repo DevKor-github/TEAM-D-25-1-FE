@@ -24,7 +24,7 @@ import SearchIcon from '../assets/search.svg';
 import BasicProfileIcon from '../assets/basic_profile.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { typography }  from '../styles/typography';
-import { getFollower, getUser } from '../apis/api/user';
+import { getFollower, getUser, getMe } from '../apis/api/user'; // ✅ getMe 추가
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import messaging from '@react-native-firebase/messaging';
 
@@ -48,7 +48,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
   const [lat, setLat] = useState(37.58653559343726);
   const [zoom, setZoom] = useState(15);
 
-  // 마커에 표시용
+  // 마커 하단 카드(나무 주인) 표시용
   const [user, setUser] = useState<string | undefined>();
   const [profileImgURL, setProfileImgURL] = useState<string | undefined>();
 
@@ -56,9 +56,12 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const slideX = useRef(new Animated.Value(-1000)).current;
 
-  // 프로필 카드 데이터
+  // 드로어 프로필 카드 데이터
   const [nickname, setNickname] = useState<string>('');
-  const [intro, setIntro] = useState<string>('한줄소개로 나를 설명해보세요!');
+  const [intro, setIntro] = useState<string>(''); // ✅ 빈 값으로 두고 UI에서 폴백 문구 처리
+  const [myProfileImageUrl, setMyProfileImageUrl] = useState<string | null>(null); // ✅ 내 프로필 이미지
+  const [avatarVer, setAvatarVer] = useState(0); // ✅ 이미지 캐시 버스터
+
   const [followerCount, setFollowerCount] = useState<number>(0);
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
@@ -74,6 +77,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
   ];
   //const route = useRoute<RouteProp<RootStackParamList, 'Map'>>();
 
+  // 좌표 변화 시 식당 목록 로드
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async cur => {
@@ -88,6 +92,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
     return unsubscribe;
   }, [lon, lat]);
 
+  // 외부에서 특정 식당 선택해서 들어온 경우
   useEffect(() => {
     const fetchTreeFromRestaurant = async () => {
       if (route.params?.selectedRestaurant) {
@@ -135,12 +140,32 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
     if (drawerVisible) {
       (async () => {
         try {
-          const me: any = await getUser();
-          if (me?.nickname) setNickname(me.nickname);
-          if (typeof me?.intro === 'string' && me.intro.trim()) setIntro(me.intro.trim());
-          if (typeof me?.followerCount === 'number') setFollowerCount(me.followerCount);
-          if (typeof me?.followingCount === 'number') setFollowingCount(me.followingCount);
-          if (typeof me?.treeCount === 'number') setTreeCount(me.treeCount);
+          // ✅ 핵심: /users/me(코어) + /users/me/mypage(집계) 병행 호출
+          const [meCore, mePage]: any[] = await Promise.all([
+            getMe(),   // description, profileImageUrl 등
+            getUser(), // follower/following/treeCount 등
+          ]);
+
+          // 닉네임
+          const nick = meCore?.nickname ?? mePage?.nickname;
+          if (nick) setNickname(nick);
+
+          // 한줄소개 (설명)
+          const desc = (typeof meCore?.description === 'string' ? meCore.description : mePage?.description) ?? '';
+          setIntro((desc || '').trim());
+
+          // 내 프로필 이미지 URL (키 변형 대응)
+          const imgRaw =
+            (meCore?.profileImageUrl ?? meCore?.profileImage ??
+             mePage?.profileImageUrl ?? mePage?.profileImage ?? '');
+          const img = typeof imgRaw === 'string' ? imgRaw.trim() : '';
+          setMyProfileImageUrl(img.length ? img : null);
+          setAvatarVer(v => v + 1); // 캐시 깨기
+
+          // 카운트류
+          if (typeof mePage?.followerCount === 'number') setFollowerCount(mePage.followerCount);
+          if (typeof mePage?.followingCount === 'number') setFollowingCount(mePage.followingCount);
+          if (typeof mePage?.treeCount === 'number') setTreeCount(mePage.treeCount);
         } catch (e) {
           console.warn('프로필 로드 실패(드로어):', e);
         }
@@ -192,7 +217,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
       const userId = treeId.split('_')[0];
       const userDetails = await getFollower(userId);
       setUser(userDetails.nickname);
-      setProfileImgURL(userDetails.profileImage);
+      setProfileImgURL(userDetails.profileImage); // 서버 키명에 맞게 유지
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }
@@ -200,6 +225,11 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
 
   const handleSearchClick = () => navigation.navigate('Search');
   const onCameraChange = (e: any) => { setLat(e.latitude); setLon(e.longitude); setZoom(e.zoom); };
+
+  // ✅ 드로어 아바타 캐시 버스터 적용
+  const myAvatarSrc = myProfileImageUrl
+    ? { uri: myProfileImageUrl + (myProfileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
+    : null;
 
   return (
     <View style={{flex: 1}}>
@@ -247,7 +277,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
         ))}
       </NaverMapView>
 
-      {/* 하단 카드 */}
+      {/* 하단 카드 (선택한 식당) */}
       {selectedTree && modalVisible && (
         <TouchableWithoutFeedback onPress={() => { setModalVisible(false); setSelectedTree(null); }}>
           <View>
@@ -294,7 +324,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
           <Animated.View
             style={[
               styles.drawerPanel,
-              { transform: [{ translateX: slideX }], paddingTop: insets.top + 12 } // 👈 안전영역만큼 아래로
+              { transform: [{ translateX: slideX }], paddingTop: insets.top + 12 }
             ]}
           >
             {/* 헤더 */}
@@ -309,11 +339,17 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
             <View style={styles.profileCard}>
               <View style={styles.profileRow}>
                 <View style={styles.avatar}>
-                  <BasicProfileIcon width={35} height={35} />
+                  {myAvatarSrc ? (
+                    <Image source={myAvatarSrc} style={styles.avatarImg} />
+                  ) : (
+                    <BasicProfileIcon width={35} height={35} />
+                  )}
                 </View>
                 <View style={{flex:1, marginLeft: 14}}>
                   <Text style={styles.profileName}>{nickname || '닉네임'}</Text>
-                  <Text style={styles.profileSub}>{intro || '한줄소개로 나를 설명해보세요!'}</Text>
+                  <Text style={styles.profileSub}>
+                    {intro?.trim()?.length ? intro : '한줄소개로 나를 표현해보세요!'}
+                  </Text>
                   <View style={styles.profileDivider}/>
                   <View style={styles.statsRow}>
                     <View style={styles.statCol}>
@@ -359,7 +395,6 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
   );
 };
 
-export default MapScreen;
 
 const styles = StyleSheet.create({
   /* 검색 바 */
@@ -398,7 +433,7 @@ const styles = StyleSheet.create({
   addressText: { fontSize: 14, color: '#555', marginBottom: 8 },
   userInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
   userProfileImage: { width: 24, height: 24, borderRadius: 12, marginRight: 6, backgroundColor: '#6CDF44' },
-  userNickname: { fontSize: 14, color: '#555', fontWeight: 400, },
+  userNickname: { fontSize: 14, color: '#555', fontWeight: '400' },
   distanceBadge: { backgroundColor: '#e6f3e6', borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 10 },
   distanceText: { fontSize: 12, fontWeight: 'bold', color: '#4CAF50' },
   reviewText: { fontSize: 14, color: '#555', marginTop: 5, marginBottom: 15 },
@@ -413,7 +448,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 18,
     borderBottomRightRadius: 18,
     paddingHorizontal: 18,
-    // paddingTop는 runtime에서 insets로 적용 (위에서 inline)
   },
   drawerRightBlank: { flex: 1 },
 
@@ -426,8 +460,11 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
     width: 60, height: 60, borderRadius: 30, backgroundColor: '#E7E7E7',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
+  // ✅ 드로어 아바타 이미지
+  avatarImg: { width: '100%', height: '100%', borderRadius: 30, resizeMode: 'cover' },
+
   profileName: { fontSize: 18, fontWeight: '600', color: '#111' },
   profileSub: { marginTop: 6, color: '#4B4B4B', fontSize: 14 },
   profileDivider: { height: StyleSheet.hairlineWidth, backgroundColor: '#D4D4D4', marginTop: 10, marginBottom: 8 },
@@ -444,3 +481,5 @@ const styles = StyleSheet.create({
   noticeTime: { fontSize: 14, color: '#9A9A9A' },
   noticeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#43D049', marginLeft: 8 },
 });
+
+export default MapScreen;

@@ -16,7 +16,13 @@ import BookmarkIcon from '../../assets/icons/bookmark.svg';
 import BasicProfileIcon from '../../assets/basic_profile.svg';
 
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
-import { getMyTree, getUser, getFollwerList, getFollowingList } from '../../apis/api/user';
+import {
+  getMyTree,
+  getUser,         // /users/me/mypage (집계)
+  getFollwerList,
+  getFollowingList,
+  getMe,           // ✅ /users/me (코어: description, profileImageUrl 등)
+} from '../../apis/api/user';
 
 // PNG 리소스
 const treeImg = require('../../assets/image/mytree.png'); // 폴백 이미지
@@ -31,12 +37,8 @@ const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
 
 // ✅ 카드별 단순 폴백 문구
 const FALLBACKS = {
-  topCard: {
-    message: '나만의 나무를 심어보아요',
-  },
-  recap: {
-    message: '나만의 정원을 꾸며보아요!',
-  },
+  topCard: { message: '나만의 나무를 심어보아요' },
+  recap:   { message: '나만의 정원을 꾸며보아요!' },
 };
 
 type TreeItemT = { id: string; name: string; meta: string };
@@ -59,8 +61,9 @@ export default function MyPageScreen({ navigation }: any) {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
 
-  // ✅ 서버의 프로필 이미지 URL (없으면 null)
+  // ✅ 서버의 프로필 이미지 URL (없으면 null) + 캐시버스터
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [avatarVer, setAvatarVer] = useState(0); // 캐시버스터
 
   // 1번 하이라이트(초록 글씨만 동적)
   const [topTree, setTopTree] = useState<{ name: string; count: number } | null>(null);
@@ -103,6 +106,7 @@ export default function MyPageScreen({ navigation }: any) {
         // 즉시 미리보기 반영(서버에서 다시 가져오기 전까지)
         if (typeof data.avatarUri !== 'undefined') {
           setProfileImageUrl(data.avatarUri || null);
+          setAvatarVer(v => v + 1); // ✅ 이미지 즉시 새로고침
         }
       },
     });
@@ -156,23 +160,25 @@ export default function MyPageScreen({ navigation }: any) {
     return { em, rest };
   };
 
-  // 데이터 로드
+  // ✅ 데이터 로드: /users/me(코어) + /users/me/mypage(집계) 병행 호출
   const loadProfileAndCounts = useCallback(async () => {
     try {
-      const me: any = await getUser();
+      const [meCore, me]: any[] = await Promise.all([getMe(), getUser()]);
 
-      if (me?.nickname) setNickname(me.nickname);
+      if (meCore?.nickname || me?.nickname) setNickname(meCore?.nickname ?? me?.nickname);
 
-      // ✅ 한줄소개: 서버 description
-      if (typeof me?.description === 'string') {
-        setProfile(prev => ({ ...prev, intro: me.description ?? '' }));
-      }
+      // ✅ 한줄소개
+      const desc = (typeof meCore?.description === 'string' ? meCore.description : me?.description) ?? '';
+      setProfile(prev => ({ ...prev, intro: desc }));
 
-      // ✅ 프로필 이미지 URL (키 이름이 다를 가능성 고려)
-      const img = (me?.profileImageUrl ?? me?.profileImage ?? '').trim?.() || '';
+      // ✅ 프로필 이미지 URL (키 다양성 대응)
+      const rawImg =
+        (meCore?.profileImageUrl ?? meCore?.profileImage ??
+         me?.profileImageUrl ?? me?.profileImage ?? '');
+      const img = (typeof rawImg === 'string' ? rawImg.trim() : '');
       setProfileImageUrl(img.length ? img : null);
 
-      const userId = (me?.userId ?? me?.id) as string | undefined;
+      // 카운트류
       const uFollower = typeof me?.followerCount === 'number' ? me.followerCount : undefined;
       const uFollowing = typeof me?.followingCount === 'number' ? me.followingCount : undefined;
       const uTreeCount =
@@ -219,44 +225,6 @@ export default function MyPageScreen({ navigation }: any) {
       if (typeof me?.recapImageUrl === 'string' && me.recapImageUrl.trim()) {
         setRecap(prev => ({ ...prev, imageUrl: me.recapImageUrl }));
       }
-
-      // 폴백 호출들
-      const needFollower = uFollower == null;
-      const needFollowing = uFollowing == null;
-      const needTreeCount = uTreeCount == null;
-
-      if (userId && (needFollower || needFollowing)) {
-        const [followersRes, followingRes] = await Promise.all([
-          needFollower ? getFollwerList() : Promise.resolve(null),
-          needFollowing ? getFollowingList(userId) : Promise.resolve(null),
-        ]);
-        if (needFollower) {
-          const followersLen = Array.isArray(followersRes) ? followersRes.length : followersRes?.items?.length ?? 0;
-          setFollowerCount(followersLen);
-        }
-        if (needFollowing) {
-          const followingLen = Array.isArray(followingRes) ? followingRes.length : followingRes?.items?.length ?? 0;
-          setFollowingCount(followingLen);
-        }
-      }
-
-      if (needTreeCount) {
-        try {
-          const trees = await getMyTree();
-          const len = Array.isArray(trees) ? trees.length : trees?.items?.length ?? 0;
-          setTreeCount(len);
-
-          if (Array.isArray(trees)) {
-            const items = mapTreesToItems(trees as MyTree[]);
-            setPlantedList(items);
-            setPlantedVisible(Math.min(2, items.length));
-
-            if (trees.length > 0) setTopTree(pickTopTree(trees as MyTree[]));
-          }
-        } catch (e) {
-          console.error('내 나무 폴백 호출 실패:', e);
-        }
-      }
     } catch (e) {
       console.error('프로필/팔로우/나무 카운트 로드 실패:', e);
     }
@@ -289,6 +257,11 @@ export default function MyPageScreen({ navigation }: any) {
   const recapHasText = Boolean((recap.messageEm || '').trim() || (recap.messageRest || '').trim());
   const recapImgSource = recap.imageUrl ? { uri: recap.imageUrl } : treeImg;
 
+  // ✅ 이미지 캐시버스터 적용
+  const avatarSrc = profileImageUrl
+    ? { uri: profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
+    : null;
+
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
       {/* 헤더 */}
@@ -316,8 +289,8 @@ export default function MyPageScreen({ navigation }: any) {
 
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
-              {profileImageUrl ? (
-                <Image source={{ uri: profileImageUrl }} style={styles.avatarImg} />
+              {avatarSrc ? (
+                <Image source={avatarSrc} style={styles.avatarImg} />
               ) : (
                 <BasicProfileIcon width={50} height={50} />
               )}
@@ -417,14 +390,14 @@ export default function MyPageScreen({ navigation }: any) {
           title="내가 심은 나무"
           data={plantedList.slice(0, plantedVisible)}
           onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
-          hasMore={plantedHasMore}
+          hasMore={plantedVisible < plantedList.length}
         />
 
         <Section
           title="내가 물 준 나무"
           data={wateredList.slice(0, wateredVisible)}
           onMore={() => setWateredVisible(v => Math.min(v + 2, wateredList.length))}
-          hasMore={wateredHasMore}
+          hasMore={wateredVisible < wateredList.length}
           emptyText="아직 내역이 없어요."
         />
       </ScrollView>     

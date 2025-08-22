@@ -87,22 +87,19 @@ export default function ProfileEditScreen({ navigation, route }: any) {
     try {
       const tasks: Promise<any>[] = [];
 
-      // 1) 한줄소개 변경 시에만 PATCH
+      // 1) 한줄소개
       const introTrimmed = intro.trim();
       if (introTrimmed !== (initialRef.current.intro ?? '')) {
         tasks.push(patchMyDescription(introTrimmed));
       }
 
-      // 2) 프로필 이미지 변경 시 처리
+      // 2) 프로필 이미지
       if (avatarUri && avatarUri !== initialRef.current.avatarUri) {
         if (isHttpUrl(avatarUri)) {
-          // 이미 원격 URL이면 바로 반영
           tasks.push(patchMyProfileImageByUrl(avatarUri));
         } else {
-          // 로컬 이미지 → /images/review 업로드 → URL 획득 → URL PATCH
           const uploadResArr = await postImageReview([avatarUri]);
           const first: any = uploadResArr?.[0];
-          // 서버 응답의 URL 키 이름에 맞게 아래 중 하나가 잡히도록 처리
           const url =
             first?.url ||
             first?.imageUrl ||
@@ -118,14 +115,14 @@ export default function ProfileEditScreen({ navigation, route }: any) {
 
       if (tasks.length) await Promise.all(tasks);
 
-      // 상위 화면에 변경 값 전달 (UI 즉시 반영)
+      // 부모 전달(미리보기 반영)
       try {
         onSaveRef.current?.({
           intro: introTrimmed,
           mbti,
           styles: stylesArr,
           foods: foodsArr,
-          avatarUri, // 필요하면 여기서 서버 URL로 교체해도 됨
+          avatarUri,
         });
       } catch {}
 
@@ -151,7 +148,7 @@ export default function ProfileEditScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* ✅ 스크롤 가능 + 키보드 회피 */}
+      {/* ✅ 스크롤 + 키보드 회피 */}
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -167,6 +164,8 @@ export default function ProfileEditScreen({ navigation, route }: any) {
             <View style={styles.avatarWrapper}>
               <View style={styles.avatarBg} />
               {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarImage} /> : null}
+
+              {/* ▶︎ 이미지 전체를 덮는 카메라 오버레이 */}
               <TouchableOpacity
                 onPress={pickAvatar}
                 activeOpacity={0.85}
@@ -174,7 +173,9 @@ export default function ProfileEditScreen({ navigation, route }: any) {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 disabled={saving}
               >
-                {!avatarUri && <CameraIcon width={44} height={44} />}
+                <View style={styles.cameraOverlay}>
+                  <CameraIcon width={44} height={44} />
+                </View>
               </TouchableOpacity>
             </View>
 
@@ -248,10 +249,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: '600' },
   headerConfirm: { fontSize: 20, color: '#0DBC65', fontWeight: '600' },
 
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
 
   card: {
     backgroundColor: '#F7F7F7',
@@ -262,6 +260,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
+  /* 아바타 */
   avatarWrapper: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
@@ -284,7 +283,18 @@ const styles = StyleSheet.create({
     borderRadius: AVATAR_SIZE / 2,
   },
   avatarHit: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFillObject, // 전체 덮기
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  /* ▶︎ 전체 오버레이 (원형) */
+  cameraOverlay: {
+    position: 'absolute',
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    backgroundColor: 'rgba(0,0,0,0.25)', // 살짝 어둡게
     justifyContent: 'center',
     alignItems: 'center',
   },
