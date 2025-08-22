@@ -1,5 +1,6 @@
-
+// 파일: src/apis/api/user.ts
 import { defaultInstance } from '../utils/axios';
+
 export type UserSummary = {
   id: string;
   username: string;
@@ -13,15 +14,11 @@ export type UserSummary = {
 
 type UserListResponse = { items: UserSummary[] };
 
-
-
 export const getUser = async () => {
   try {
-    
-    const {data} = await defaultInstance.get('/users/me/mypage');
+    const { data } = await defaultInstance.get('/users/me/mypage');
     console.log("유저 가져오기");
     console.log(data);
-    
     return data;
   } catch (error) {
     console.log(error);
@@ -43,23 +40,21 @@ export const getMyTree = async () => {
 
 export const getFollower = async (userId: string) => {
   try {
-    const {data} = await defaultInstance.get(`/users/profile/${userId}`);
+    const { data } = await defaultInstance.get(`/users/profile/${userId}`);
     console.log('팔로잉할 유저 가져오기');
     console.log(data);
-
     return data;
   } catch (error) {
     console.log(error);
     return error;
   }
-}; 
+};
 
 export const followUser = async (userId: string) => {
   try {
-    const {data} = await defaultInstance.post(`/users/${userId}/follow`);
+    const { data } = await defaultInstance.post(`/users/${userId}/follow`);
     console.log('팔로잉!!');
     console.log(data);
-
   } catch (error) {
     console.log(error);
     return error;
@@ -67,19 +62,18 @@ export const followUser = async (userId: string) => {
 };
 
 export const unfollowUser = async (userId: string) => {
-    try {
-        const { data } = await defaultInstance.post(`/users/${userId}/unfollow`);
-        console.log('언팔!!');
-        console.log(data);
-    } catch (error) {
+  try {
+    const { data } = await defaultInstance.post(`/users/${userId}/unfollow`);
+    console.log('언팔!!');
+    console.log(data);
+  } catch (error) {
     console.log(error);
     return error;
   }
-}
+};
+
 export const getFollowingList = async (userId: string): Promise<UserSummary[]> => {
   const { data } = await defaultInstance.get<UserListResponse>(`/users/${userId}/following`);
-  // 필요하면 pagination: defaultInstance.get(..., { params: { page, size } })
-  
   return data.items;
 };
 
@@ -125,43 +119,34 @@ export const getMyPage = async () => {
 };
 
 export const getFollwerList = async () => {
-    try {
-    
-    const {data} = await defaultInstance.get('/users/me/followers');
+  try {
+    const { data } = await defaultInstance.get('/users/me/followers');
     console.log("팔로워 가져오기");
     console.log(data);
-    
-        return data;
-    } catch (error) {
-        console.log(error);
-        return error;
-    }
-
+    return data;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
 };
 
-
-
 export const patchNickname = async (nickname: string) => {
-    try {
-      const {data} = await defaultInstance.patch('/users/me', {
-        nickname: nickname,
-      });
-      console.log('유저 가져오기');
-      console.log(data);
-
-      return data;
-    } catch (error) {
-      console.log(error);
-      return error;
-    }
-}
+  try {
+    const { data } = await defaultInstance.patch('/users/me', { nickname });
+    console.log('유저 가져오기');
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
+};
 
 export const getUserFollowStatus = async (userId: string) => {
   try {
-    const {data} = await defaultInstance.get(`/users/${userId}/follow-status`);
+    const { data } = await defaultInstance.get(`/users/${userId}/follow-status`);
     console.log('유저 팔로우 상태 가져오기');
     console.log(data);
-
     return data;
   } catch (error) {
     console.log('유저 팔로우 상태 가져오기 실패');
@@ -170,4 +155,44 @@ export const getUserFollowStatus = async (userId: string) => {
   }
 };
 
+export const signUpUser = async (userData: { nickname: string; email: string; password: string }) => {
+  try {
+    const response = await defaultInstance.post('/auth/register', userData);
+    return response.data;
+  } catch (error) {
+    console.error('회원가입 API 호출에 실패했습니다:', error);
+    throw error;
+  }
+};
 
+/* ===========================
+   ✅ 새로 추가된 두 개의 PATCH
+   =========================== */
+
+/** 한줄소개(설명)만 부분 업데이트 */
+export const patchMyDescription = async (description: string) => {
+  try {
+    const { data } = await defaultInstance.patch('/users/me', { description });
+    return data;
+  } catch (error: any) {
+    console.log('[patchMyDescription] error', {
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    throw error;
+  }
+};
+
+/** 프로필 이미지 URL을 서버에 반영 */
+export const patchMyProfileImageByUrl = async (profileImageUrl: string) => {
+  try {
+    const { data } = await defaultInstance.patch('/users/me/profile-image', { profileImageUrl });
+    return data;
+  } catch (error: any) {
+    console.log('[patchMyProfileImageByUrl] error', {
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
+    throw error;
+  }
+};

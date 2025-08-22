@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   seedImage: {width: '70%', height: '70%', marginTop: 10},
   horizontalLine: {
     height: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#767676',
     width: '85%',
     alignSelf: 'center',
     marginBottom: 10,
@@ -219,10 +219,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#6CDF44',
     borderRadius: 50,
     paddingVertical: 15,
-    paddingHorizontal: 96,
+    paddingHorizontal: 90,
     elevation: 2,
   },
-  selectSeedButtonText: {color: '#111', fontWeight: '400', fontSize: 16, textAlign: 'center'},
+  selectSeedButtonText: {color: '#111', fontWeight: '400', fontSize: 15, textAlign: 'center'},
 });
 
 export default PlantSelectionScreen;

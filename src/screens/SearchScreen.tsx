@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
+  SafeAreaView, // ◀ SafeAreaView로 변경하는 것을 권장합니다.
+  KeyboardAvoidingView, // ◀ KeyboardAvoidingView 추가
+  Platform,             // ◀ Platform 추가
 } from 'react-native';
 import SearchIcon from '../assets/search.svg';
 import ArrowLeftIcon from '../assets/arrow-left.svg';
@@ -27,9 +30,9 @@ interface SearchUser {
   profileImageUrl: string;
 }
 
-const SEARCH_BOX_TOP = 70;   // 검색바 Y
-const TABS_TOP       = 128;  // 탭 Y (검색바 바로 아래)
-const LIST_TOP       = 170;  // 리스트 시작 Y (탭 바로 아래)
+const SEARCH_BOX_TOP = 70;
+const TABS_TOP       = 128;
+const LIST_TOP       = 170;
 
 const SearchScreen = ({ navigation }: { navigation: any }) => {
   const [value, onChangeText] = useState('');
@@ -103,14 +106,14 @@ const SearchScreen = ({ navigation }: { navigation: any }) => {
       : isInputFocused ? '' : '친구를 검색해보세요';
 
   return (
-    <View style={styles.root}>
-      {/* 검색바 (고정) */}
+    // 최상단 View를 SafeAreaView로 변경하는 것을 권장합니다.
+    <SafeAreaView style={styles.root}>
+      {/* 검색바 (고정) - 변경 없음 */}
       <View style={styles.searchBarWrap}>
         <View style={styles.searchBarRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <ArrowLeftIcon />
           </TouchableOpacity>
-
           <TextInput
             value={value}
             onChangeText={onChangeText}
@@ -121,14 +124,13 @@ const SearchScreen = ({ navigation }: { navigation: any }) => {
             style={styles.searchInput}
             returnKeyType="search"
           />
-
           <View style={styles.iconBtn}>
             <SearchIcon width={27} height={27} />
           </View>
         </View>
       </View>
 
-      {/* 탭 (고정) */}
+      {/* 탭 (고정) - 변경 없음 */}
       <View style={styles.tabs}>
         <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('검색')}>
           <View style={styles.tabInner}>
@@ -136,7 +138,6 @@ const SearchScreen = ({ navigation }: { navigation: any }) => {
           </View>
           <View style={[styles.indicator, activeTab === '검색' && styles.activeIndicator]} />
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.tabBtn} onPress={() => setActiveTab('친구')}>
           <View style={styles.tabInner}>
             <Text style={[styles.tabText, activeTab === '친구' && styles.tabTextActive]}>친구</Text>
@@ -145,27 +146,32 @@ const SearchScreen = ({ navigation }: { navigation: any }) => {
         </TouchableOpacity>
       </View>
 
-      {/* 리스트 (스크롤) */}
-      <ScrollView
-        style={styles.scrollList}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
+      {/* ▼▼▼ 리스트 영역을 KeyboardAvoidingView로 감쌉니다. ▼▼▼ */}
+      <KeyboardAvoidingView 
+        style={styles.listContainer} // ◀ 기존 scrollList 스타일을 여기에 적용
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {loading ? (
-          <Text style={styles.centerInfo}>로딩 중…</Text>
-        ) : activeTab === '검색' ? (
-          searchRestaurants.length ? (
-            searchRestaurants.map(renderRestaurant)
+        <ScrollView
+          style={{ flex: 1 }} // ◀ KeyboardAvoidingView 내부를 꽉 채우도록
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {loading ? (
+            <Text style={styles.centerInfo}>로딩 중…</Text>
+          ) : activeTab === '검색' ? (
+            searchRestaurants.length ? (
+              searchRestaurants.map(renderRestaurant)
+            ) : (
+              <Text style={styles.centerInfo}>검색 결과가 없습니다</Text>
+            )
+          ) : searchUsers.length ? (
+            searchUsers.map(renderUser)
           ) : (
             <Text style={styles.centerInfo}>검색 결과가 없습니다</Text>
-          )
-        ) : searchUsers.length ? (
-          searchUsers.map(renderUser)
-        ) : (
-          <Text style={styles.centerInfo}>검색 결과가 없습니다</Text>
-        )}
-      </ScrollView>
-    </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -176,13 +182,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-
   /* 검색바 */
   searchBarWrap: {
     position: 'absolute',
     top: SEARCH_BOX_TOP,
     left: 20,
     right: 20,
+    zIndex: 2, // ◀ 다른 요소 위에 있도록 zIndex 추가
   },
   searchBarRow: {
     height: 48,
@@ -208,7 +214,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     textAlign: 'left',
   },
-
   /* 탭 */
   tabs: {
     position: 'absolute',
@@ -217,6 +222,7 @@ const styles = StyleSheet.create({
     right: 20,
     height: 40,
     flexDirection: 'row',
+    zIndex: 2, // ◀ 다른 요소 위에 있도록 zIndex 추가
   },
   tabBtn: {
     flex: 1,
@@ -245,13 +251,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#6CDF44',
   },
 
-  /* 리스트 (스크롤 영역) */
-  scrollList: {
+  /* ▼▼▼ 리스트 컨테이너(KeyboardAvoidingView) 스타일 ▼▼▼ */
+  listContainer: {
     position: 'absolute',
     top: LIST_TOP,
     left: 20,
     right: 20,
-    bottom: 0, // 하단까지 꽉 채워 스크롤 가능
+    bottom: 0,
   },
   listContent: {
     paddingBottom: 26,
