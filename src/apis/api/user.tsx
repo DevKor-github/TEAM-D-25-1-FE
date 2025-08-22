@@ -171,3 +171,13 @@ export const getUserFollowStatus = async (userId: string) => {
 };
 
 
+export const signUpUser = async (userData: { nickname: string; email: string; password: string }) => {
+  try {
+    // 서버의 회원가입 API (예: POST /users/signup)를 호출합니다.
+    const response = await defaultInstance.post('/auth/register', userData);
+    return response.data;
+  } catch (error) {
+    console.error('회원가입 API 호출에 실패했습니다:', error);
+    throw error; // 에러를 다시 던져서 호출한 쪽에서 처리하도록 합니다.
+  }
+};

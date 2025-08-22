@@ -1,4 +1,4 @@
-// 파일 경로: src/screens/SignUpScreen.tsx (최종 수정 버전)
+// 파일 경로: src/screens/SignUpScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -9,9 +9,11 @@ import {
   SafeAreaView,
   Platform,
   TouchableOpacity,
+  Alert, // ◀ Alert를 import 합니다.
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import SignupNavigation from '../components/signupNavigation';
+import { signUpUser } from '../apis/api/user'; // ◀ 1. 위에서 만든 API 함수를 import 합니다.
 
 type EmailErrorKind = null | 'empty' | 'invalid' | 'duplicate';
 
@@ -31,6 +33,9 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
+  // 로딩 상태 추가 (선택 사항이지만 좋은 UX를 위해 권장)
+  const [isLoading, setIsLoading] = useState(false);
+
   const isEmailDuplicate = (input: string) =>
     input.trim().toLowerCase() === 'eina05@korea.ac.kr';
 
@@ -44,7 +49,9 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
     return null;
   };
 
-  const onPressNext = () => {
+  // ▼▼▼ 2. onPressNext 함수를 async로 변경하고 API 호출 로직을 추가합니다. ▼▼▼
+  const onPressNext = async () => {
+    // --- 1. 클라이언트 측 유효성 검사 (기존과 동일) ---
     const trimmedEmail = email.trim().toLowerCase();
     if (trimmedEmail === '') return setEmailErrorKind('empty');
     if (!trimmedEmail.includes('@')) return setEmailErrorKind('invalid');
@@ -61,7 +68,27 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
     }
     setConfirmPasswordError(null);
 
-    navigation.navigate('Welcome', { nickname: name });
+    // --- 2. 서버에 계정 생성 요청 ---
+    setIsLoading(true); // 로딩 시작
+    try {
+      // API 함수를 호출하여 서버에 데이터를 전송합니다.
+      await signUpUser({
+        nickname: name,
+        email: email,
+        password: password,
+      });
+
+      // --- 3. 성공 시 화면 이동 ---
+      navigation.navigate('Welcome', { nickname: name });
+
+    } catch (error: any) {
+      // API 호출 실패 시 서버에서 보내주는 에러 메시지를 사용자에게 보여줍니다.
+      // (예: "이미 사용 중인 이메일입니다.")
+      const errorMessage = error.response?.data?.message || '알 수 없는 에러가 발생했습니다.';
+      Alert.alert('회원가입 실패', errorMessage);
+    } finally {
+      setIsLoading(false); // 로딩 종료
+    }
   };
 
   const onPressBack = () => {
@@ -74,8 +101,7 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
     : emailErrorKind === 'duplicate' ? '해당 이메일은 이미 존재합니다.'
     : '';
   
-  // ▼▼▼ '다음' 버튼 활성화 로직 수정 ▼▼▼
-  const disabledNext = !(name && email && password && confirmPassword);
+  const disabledNext = !(name && email && password && confirmPassword) || isLoading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,7 +112,6 @@ export default function SignUpScreen({ navigation }: { navigation: any }) {
         extraScrollHeight={Platform.OS === 'ios' ? 20 : 0}
         enableOnAndroid={true}
       >
-        {/* 입력폼 전체 */}
         <View>
           <Text style={styles.title}>회원가입</Text>
 
