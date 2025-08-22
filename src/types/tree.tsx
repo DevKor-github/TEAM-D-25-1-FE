@@ -14,7 +14,7 @@ export interface Tree {
   
 }
 
-export interface Restaruant {
+export interface Restaurant {
   treeId: string;
   name: string;
   address: string;

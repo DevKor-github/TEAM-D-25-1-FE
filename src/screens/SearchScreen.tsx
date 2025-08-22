@@ -34,7 +34,7 @@ const SEARCH_BOX_TOP = 70;
 const TABS_TOP       = 128;
 const LIST_TOP       = 170;
 
-const SearchScreen = ({ navigation }: { navigation: any }) => {
+const SearchScreen = ({ navigation, route }: { navigation: any, route: any }) => {
   const [value, onChangeText] = useState('');
   const [activeTab, setActiveTab] = useState<'검색' | '친구'>('검색');
 

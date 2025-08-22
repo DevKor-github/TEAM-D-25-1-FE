@@ -23,7 +23,7 @@ const renderLabel = (title: string) => () => (
   <Text style={{ fontSize: 13, fontWeight: '500', color: LABEL_COLOR }}>{title}</Text>
 );
 
-const BottomNavigationBar = () => {
+const BottomNavigationBar = ({route}: any) => {
   return (
     <Tab.Navigator
       initialRouteName="Map"
@@ -36,14 +36,14 @@ const BottomNavigationBar = () => {
         tabBarActiveTintColor: LABEL_COLOR,
         tabBarInactiveTintColor: LABEL_COLOR,
         headerShown: false,
-      }}
-    >
+      }}>
       <Tab.Screen
         name="Map"
         component={MapScreen}
+        initialParams={route.params}
         options={{
           tabBarLabel: renderLabel('홈'),
-          tabBarIcon: ({ size, focused }) =>
+          tabBarIcon: ({size, focused}) =>
             focused ? (
               <HomeIconActive width={size * 1.2} height={size * 1.2} />
             ) : (
@@ -57,11 +57,11 @@ const BottomNavigationBar = () => {
         component={PlantingNavigator}
         options={{
           tabBarLabel: renderLabel('씨앗 심기'),
-          tabBarIcon: ({ size, focused }) => (
+          tabBarIcon: ({size, focused}) => (
             <View
               style={[
                 styles.plantWrapper,
-                { width: size * 2.0, height: size * 2.0 },
+                {width: size * 2.0, height: size * 2.0},
               ]}
               // 아이콘 전체를 기준으로 절대 배치를 하려면 relative 필수
             >
@@ -69,8 +69,8 @@ const BottomNavigationBar = () => {
               {focused && (
                 <LinearGradient
                   colors={['rgba(108,223,68,0.55)', 'rgba(108,223,68,0)']}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
+                  start={{x: 0.5, y: 0}}
+                  end={{x: 0.5, y: 1}}
                   pointerEvents="none"
                   style={[
                     styles.plantGlow,
@@ -87,12 +87,15 @@ const BottomNavigationBar = () => {
               <View style={styles.iconContainer}>
                 <LinearGradient
                   colors={['#AACFED', '#6CDF44']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.gradientBackground}
-                >
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 1}}
+                  style={styles.gradientBackground}>
                   {/* 아이콘은 흰색 고정 */}
-                  <PlantIcon width={size * 1.5} height={size * 1.5} color="#FFFFFF" />
+                  <PlantIcon
+                    width={size * 1.5}
+                    height={size * 1.5}
+                    color="#FFFFFF"
+                  />
                 </LinearGradient>
               </View>
             </View>
@@ -105,7 +108,7 @@ const BottomNavigationBar = () => {
         component={MyPageScreen}
         options={{
           tabBarLabel: renderLabel('MY'),
-          tabBarIcon: ({ size, focused }) =>
+          tabBarIcon: ({size, focused}) =>
             focused ? (
               <MyPageIconActive width={size * 1.2} height={size * 1.2} />
             ) : (

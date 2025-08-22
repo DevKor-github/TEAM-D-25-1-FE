@@ -47,21 +47,24 @@ const App = () => {
           <Stack.Screen name="Splash" component={SplashScreen} />
           <Stack.Screen name="Onboard" component={OnboardingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} /> 
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
           <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
           <Stack.Screen name="Detail" component={CafeDetailScreen} />
           <Stack.Screen name="PhotoDetail" component={PhotoDetailScreen} />
           <Stack.Screen name="Mypage" component={MyPageScreen} />
-          <Stack.Screen name='Complete' component={CompleteScreen}/>
+          <Stack.Screen name="Complete" component={CompleteScreen} />
           <Stack.Screen name="FollowList" component={FollowListScreen} />
           <Stack.Screen
             name="KeywordSelection"
             component={KeywordSelectionScreen}
           />
-          <Stack.Screen name="Map" component={BottomNavigationBar} />
+          <Stack.Screen
+            name="Map"
+            component={BottomNavigationBar}
+          />
           <Stack.Screen name="Search" component={SearchScreen} />
-          <Stack.Screen name="Friend" component={FriendScreen}/>
+          <Stack.Screen name="Friend" component={FriendScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </Provider>

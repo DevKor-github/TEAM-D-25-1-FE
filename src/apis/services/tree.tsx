@@ -12,6 +12,11 @@ export const getTreeList = (
     updatedAt: string;
     recommendationCount: number;
     images: string[];
+    user?: {
+      id: string;
+      nickname?: string;
+      profileImageUrl?: string;
+    };
   }[],
 ) => {
   return rawTree.map(
@@ -28,6 +33,7 @@ export const getTreeList = (
       updatedAt,
       recommendationCount,
       images,
+      user,
     }) => {
       return {
         treeId: treeId,
@@ -43,7 +49,10 @@ export const getTreeList = (
         createdAt: createdAt,
         updatedAt: updatedAt,
         recommendationCount: recommendationCount,
-        images:images,
+        images: images,
+        userId: user?.id,
+        nickname: user?.nickname,
+        profileImageUrl: user?.profileImageUrl,
       };
     },
   );

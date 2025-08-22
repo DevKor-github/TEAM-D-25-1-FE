@@ -21,6 +21,11 @@ export type PlantingStackParamList = {
   TagSelection: { initialParam?: number;}
 };
 
+export type RootStackParamList = {
+  Map: {selectedRestaurant: Restaurant};
+  Search: undefined; // 필수로 들어온다면
+};
+
 
 export type SeedPlantingState = {
   restaurantQuery: string;

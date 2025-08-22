@@ -17,7 +17,7 @@ import {
   Easing,
   ScrollView,
 } from 'react-native';
-import {getTree} from '../apis/api/tree';
+import {getTree, getTreeFromRestaurant} from '../apis/api/tree';
 import {Tree} from '../types/tree';
 import HamburgerIcon from '../assets/hamburger.svg';
 import SearchIcon from '../assets/search.svg';
@@ -29,10 +29,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import messaging from '@react-native-firebase/messaging';
 
 import {Alert} from 'react-native';
+import { RouteProp, useRoute } from '@react-navigation/native';
+import { RootStackParamList } from '../types/types';
 
 const DRAWER_W = 0.85;
 
-const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
+
+const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
+
   const insets = useSafeAreaInsets();
 
   // 지도/마커
@@ -68,6 +72,7 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
     { id: 'n6', text: 'SEIN님이 해마루의 잭과콩나물에 물을 주었어요.', time: '· 1일' },
     { id: 'n7', text: '특별식당의 소나무이(가) 나무 1단계가 되었어요.', time: '· 4일' },
   ];
+  //const route = useRoute<RouteProp<RootStackParamList, 'Map'>>();
 
   useEffect(() => {
     const auth = getAuth();
@@ -84,17 +89,47 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   }, [lon, lat]);
 
   useEffect(() => {
-    if (route.params?.selectedRestaurant) {
-      const restaurant = route.params.selectedRestaurant as Tree;
-      setSelectedTree(restaurant);
-      setLat(restaurant.latitude);
-      setLon(restaurant.longitude);
-      setModalVisible(true);
-    }
+    const fetchTreeFromRestaurant = async () => {
+      if (route.params?.selectedRestaurant) {
+        try {
+          const id = route.params.selectedRestaurant.id;
+          
+          // 1. placeId로 나무 리스트 가져오기
+          const trees: Tree[] = await getTreeFromRestaurant(id);
+
+          // 2. createdAt 기준으로 최신 나무 찾기
+          const latestTree = trees.reduce((a, b) =>
+            new Date(a.createdAt) > new Date(b.createdAt) ? a : b,
+          );
+
+          // 3. state 업데이트 & 모달 열기
+          setSelectedTree(latestTree);
+          setModalVisible(true);
+
+          // 4. treeId → userId 추출
+          const treeId = latestTree.treeId;
+          const userId = treeId.split('_')[0];
+
+          // 5. 유저 정보 가져오기
+          const userDetails = await getFollower(userId);
+          setUser(userDetails.nickname);
+          setProfileImgURL(userDetails.profileImage);
+
+
+          setLat(latestTree.latitude);
+          setLon(latestTree.longitude);
+          
+        } catch (error) {
+          console.error('Failed to fetch tree:', error);
+        }
+      }
+    };
+
+    fetchTreeFromRestaurant();
   }, [route.params?.selectedRestaurant]);
 
 
-  
+
 
   useEffect(() => {
     if (drawerVisible) {
