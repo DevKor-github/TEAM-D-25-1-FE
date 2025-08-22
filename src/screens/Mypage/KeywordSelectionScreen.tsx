@@ -1,4 +1,3 @@
-// src/screens/KeywordSelectionScreen.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, StyleSheet, ScrollView, Image,
@@ -6,7 +5,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { getTag, patchMyPreference } from '../../apis/api/user';
 
-type OptionKV = { key: string; label: string };
+type OptionKV = { key: string; value: string };
 
 const FALLBACK = {
   MBTIs: ['ESTJ','INFP','ISFP','INTJ','INFJ','ENTP','ISTJ','ESTP','ENTJ','ENFJ','ESFP','ISFJ'],
@@ -20,13 +19,13 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
   // 서버 옵션
   const [mbtiOptions, setMbtiOptions] = useState<string[]>(FALLBACK.MBTIs);
   const [styleOptions, setStyleOptions] = useState<OptionKV[]>(
-    FALLBACK.FoodStyles.map(v => ({ key: v, label: v }))
+    FALLBACK.FoodStyles.map(v => ({ key: v, value: v }))
   );
   const [foodOptions, setFoodOptions] = useState<OptionKV[]>(
-    FALLBACK.FavoriteFoods.map(v => ({ key: v, label: v }))
+    FALLBACK.FavoriteFoods.map(v => ({ key: v, value: v }))
   );
 
-  // 선택(라벨 기준) – 초기값은 params가 있으면 사용, 없으면 빈값
+  // 선택값은 전부 "value" 문자열
   const [selectedMBTI, setSelectedMBTI] = useState<string | null>(prevMBTI ?? null);
   const [selectedStyles, setSelectedStyles] = useState<string[]>(Array.isArray(prevStyles) ? prevStyles : []);
   const [selectedFoods, setSelectedFoods] = useState<string[]>(Array.isArray(prevFoods) ? prevFoods : []);
@@ -34,20 +33,21 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
   /** ---------- helpers ---------- */
   const coalesce = (...vals: any[]) => vals.find(v => v !== undefined && v !== null);
 
+  // 옵션 표준화: 항상 { key, value }로 만들기
   const normalizeOptions = (src: any): OptionKV[] => {
     if (!src) return [];
     if (Array.isArray(src)) {
       return src.map((it: any) => {
-        if (typeof it === 'string') return { key: it, label: it };
-        const label = coalesce(it?.value, it?.label, it?.name, it?.title, it?.text);
-        const key = String(coalesce(it?.key, it?.code, it?.id, label));
-        return label ? { key, label: String(label) } : null;
+        if (typeof it === 'string') return { key: it, value: it };
+        const value = coalesce(it?.value, it?.label, it?.name, it?.title, it?.text);
+        const key   = String(coalesce(it?.key, it?.code, it?.id, value));
+        return value ? { key, value: String(value) } : null;
       }).filter(Boolean) as OptionKV[];
     }
     if (typeof src === 'object') {
       return Object.entries(src).map(([k, v]) => {
-        const label = typeof v === 'string' ? v : coalesce((v as any)?.value, (v as any)?.label, k);
-        return { key: String(k), label: String(label) };
+        const value = typeof v === 'string' ? v : coalesce((v as any)?.value, (v as any)?.label, k);
+        return { key: String(k), value: String(value) };
       });
     }
     return [];
@@ -81,10 +81,10 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
         if (styleKVs.length) setStyleOptions(styleKVs);
         if (foodKVs.length)  setFoodOptions(foodKVs);
 
-        // ✅ 옵션과 교차검증하여 “유령 선택” 제거 (예: 내가 선택 안했는데 자동으로 들어간 값)
+        // ✅ 옵션과 교차검증(유효한 value만 유지)
         setSelectedMBTI(prev => (prev && mbtis.includes(prev) ? prev : null));
-        setSelectedStyles(prev => Array.isArray(prev) ? prev.filter(lbl => styleKVs.some(o => o.label === lbl)) : []);
-        setSelectedFoods(prev => Array.isArray(prev) ? prev.filter(lbl => foodKVs.some(o => o.label === lbl)) : []);
+        setSelectedStyles(prev => Array.isArray(prev) ? prev.filter(v => styleKVs.some(o => o.value === v)) : []);
+        setSelectedFoods(prev => Array.isArray(prev) ? prev.filter(v => foodKVs.some(o => o.value === v)) : []);
       } catch {}
     })();
   }, [route?.params]);
@@ -92,36 +92,35 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
   useFocusEffect(useCallback(() => { return () => {}; }, []));
 
   const toggleSelect = (
-    item: string,
+    itemValue: string,
     selected: string[] | string | null,
     setSelected: (v: any) => void,
     limit: number
   ) => {
     if (Array.isArray(selected)) {
-      // 배열(스타일/음식)
-      if (selected.includes(item)) setSelected(selected.filter(x => x !== item));
-      else if (selected.length < limit) setSelected([...selected, item]);
+      // 배열(스타일/음식) — value 기준 토글
+      if (selected.includes(itemValue)) setSelected(selected.filter(x => x !== itemValue));
+      else if (selected.length < limit) setSelected([...selected, itemValue]);
     } else {
-      // 단일(MBTI)
-      setSelected(item === selected ? null : item);
+      // 단일(MBTI) — value 기준 단일선택
+      setSelected(itemValue === selected ? null : itemValue);
     }
   };
 
-  // 라벨 → 서버 코드(key)
+  // 저장 시 서버에는 key를 보낸다
   const styleKeysToSave = useMemo(
-    () => selectedStyles.map(lbl => styleOptions.find(o => o.label === lbl)?.key).filter(Boolean) as string[],
+    () => selectedStyles.map(v => styleOptions.find(o => o.value === v)?.key).filter(Boolean) as string[],
     [selectedStyles, styleOptions]
   );
   const foodKeysToSave = useMemo(
-    () => selectedFoods.map(lbl => foodOptions.find(o => o.label === lbl)?.key).filter(Boolean) as string[],
+    () => selectedFoods.map(v => foodOptions.find(o => o.value === v)?.key).filter(Boolean) as string[],
     [selectedFoods, foodOptions]
   );
 
-  // 저장
   const onConfirm = async () => {
     const payload = {
-      mbti: selectedMBTI,
-      tags: Array.from(new Set([...styleKeysToSave, ...foodKeysToSave])),
+      mbti: selectedMBTI,                       // MBTI는 value가 그대로 저장되는 API라면 그대로 사용
+      tags: Array.from(new Set([...styleKeysToSave, ...foodKeysToSave])), // key 묶음
     };
     try {
       await patchMyPreference(payload);
@@ -130,14 +129,13 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
     } catch {}
   };
 
-  // 라벨 배열
-  const mbtiLabels  = mbtiOptions;
-  const styleLabels = styleOptions.map(o => o.label);
-  const foodLabels  = foodOptions.map(o => o.label);
+  // 칩에 표시할 값은 전부 "value"
+  const styleValues = styleOptions.map(o => o.value);
+  const foodValues  = foodOptions.map(o => o.value);
 
   const splitToRows = (labels: string[], rows: number): string[][] => {
     const result = Array.from({ length: rows }, () => [] as string[]);
-    labels.forEach((label, i) => result[i % rows].push(label)); // 균등 분배
+    labels.forEach((label, i) => result[i % rows].push(label));
     return result;
   };
 
@@ -161,8 +159,8 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
 
     return (
       <View style={styles.rowContent}>
-        {labels.map((label) => {
-          const isSelected = isArraySel ? (selected as string[]).includes(label) : selected === label;
+        {labels.map((value) => {
+          const isSelected = isArraySel ? (selected as string[]).includes(value) : selected === value;
           const disabled =
             variant !== 'mbti'
               ? !isSelected && isArraySel && (selected as string[]).length >= limit
@@ -170,13 +168,13 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
 
           return (
             <TouchableOpacity
-              key={label}
+              key={value}
               disabled={disabled}
-              onPress={() => toggleSelect(label, selected, setSelected, limit)}
+              onPress={() => toggleSelect(value, selected, setSelected, limit)}
               style={[styles.chip, isSelected && selectedChipStyle, disabled && styles.chipDisabled]}
             >
               <Text style={[styles.chipText, isSelected && selectedTextStyle, disabled && styles.chipTextDisabled]}>
-                {label}
+                {value}
               </Text>
             </TouchableOpacity>
           );
@@ -188,14 +186,14 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
   const renderSection = (
     title: string,
     hint: string,
-    labels: string[],
+    values: string[],
     rows: number,
     selected: string[] | string | null,
     setSelected: (v: any) => void,
     limit: number,
     variant: 'mbti' | 'style' | 'food'
   ) => {
-    const rowsData = splitToRows(labels, rows);
+    const rowsData = splitToRows(values, rows);
     return (
       <>
         <View style={styles.sectionHeader}>
@@ -237,17 +235,14 @@ export default function KeywordSelectionScreen({ navigation, route }: any) {
         <Image source={require('../../assets/selection_ex.png')} style={styles.exampleImage} />
       </View>
 
-      {/* ▼▼▼ 추가된 문구 ▼▼▼ */}
-      <View style={styles.promoContainer}>
-        <Text style={styles.promoText}>
-          내 취향을 등록해서 친구를 추천 받아보세요!
-        </Text>
+      <View className="promoContainer" style={styles.promoContainer}>
+        <Text style={styles.promoText}>내 취향을 등록해서 친구를 추천 받아보세요!</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.body}>
-        {renderSection('내 MBTI는…😎', '*최대 1개 선택', mbtiLabels, 2, selectedMBTI, setSelectedMBTI, 1, 'mbti')}
-        {renderSection('내 미식 스타일은…🍽️', '*최대 3개 선택', styleLabels, 3, selectedStyles, setSelectedStyles, 3, 'style')}
-        {renderSection('내 최애 음식은…🍕', '*최대 3개 선택', foodLabels, 3, selectedFoods, setSelectedFoods, 3, 'food')}
+        {renderSection('내 MBTI는…😎', '*최대 1개 선택', mbtiOptions, 2, selectedMBTI, setSelectedMBTI, 1, 'mbti')}
+        {renderSection('내 미식 스타일은…🍽️', '*최대 3개 선택', styleValues, 3, selectedStyles, setSelectedStyles, 3, 'style')}
+        {renderSection('내 최애 음식은…🍕', '*최대 3개 선택', foodValues, 3, selectedFoods, setSelectedFoods, 3, 'food')}
       </ScrollView>
     </SafeAreaView>
   );
@@ -298,16 +293,6 @@ const styles = StyleSheet.create({
   examplewrapper: { alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 5, paddingVertical: 10, margin: 20 },
   exampleImage: { width: 160, height: 100, resizeMode: 'contain' },
 
-  // ▼▼▼ 추가된 스타일 ▼▼▼
-  promoContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingBottom: 15,
-  },
-  promoText: {
-    fontSize: 14,
-    color: '#505050',
-    fontWeight: 400,
-    textAlign: 'center',
-  },
+  promoContainer: { alignItems: 'center', paddingHorizontal: 15, paddingBottom: 15 },
+  promoText: { fontSize: 14, color: '#505050', fontWeight: '400', textAlign: 'center' },
 });
