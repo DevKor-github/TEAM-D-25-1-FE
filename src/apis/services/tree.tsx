@@ -75,7 +75,8 @@ export const getRestaruantList = (
     images: string[];
     user: {
       id: string;
-      nickname?: string; 
+      nickname?: string;
+      profileImageUrl?: string;
     };
   }[],
 ) => {
@@ -110,7 +111,9 @@ export const getRestaruantList = (
         updatedAt: updatedAt,
         recommendationCount: recommendationCount,
         images: images,
+        userId: user?.id,
         nickname: user?.nickname,
+        profileImageUrl: user?.profileImageUrl,
       };
     },
   );
