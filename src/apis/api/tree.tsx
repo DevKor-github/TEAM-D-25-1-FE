@@ -1,3 +1,4 @@
+import { Tree } from '../../types/tree';
 import {getRestaruantList, getTreeList} from '../services/tree';
 import { defaultInstance } from '../utils/axios';
 
@@ -32,6 +33,22 @@ export const getTreeDetail = async (treeId: string) => {
     console.log('트리 디테일 가져오기 실패');
     console.log(error);
     return error;
+  }
+};
+
+export const getTreeFromRestaurant = async (restaurantId: string): Promise<Tree[]> => {
+  try {
+    const {data} = await defaultInstance.get(
+      `/tree/restaurants/${restaurantId}`,
+    );
+    console.log('식당에 대한 나무 목록 반환 성공');
+    console.log(data);
+
+    return getTreeList(data.items);
+  } catch (error) {
+    console.log('식당에 대한 나무 목록 반환 실패');
+    console.log(error);
+    return [];
   }
 };
 
