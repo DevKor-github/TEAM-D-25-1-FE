@@ -26,6 +26,9 @@ import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { typography }  from '../styles/typography';
 import { getFollower, getUser } from '../apis/api/user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import messaging from '@react-native-firebase/messaging';
+
+import {Alert} from 'react-native';
 
 const DRAWER_W = 0.85;
 
@@ -90,6 +93,9 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
     }
   }, [route.params?.selectedRestaurant]);
 
+
+  
+
   useEffect(() => {
     if (drawerVisible) {
       (async () => {
@@ -120,6 +126,28 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
       }).start();
     }
   }, [drawerVisible, slideX]);
+
+
+  useEffect(() => {
+    // 알림 권한 요청 (Android 13 이상 필요)
+    messaging().requestPermission();
+
+    // FCM 토큰 가져오기
+    messaging()
+      .getToken()
+      .then(token => {
+        console.log('FCM Token:', token);
+      });
+
+    // 앱이 foreground일 때 알림 수신
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      Alert.alert('새 알림!', JSON.stringify(remoteMessage));
+    });
+
+    return unsubscribe;
+  }, []);
+
+
 
   const handleTreePress = useCallback(async (item: Tree) => {
     setSelectedTree(item);

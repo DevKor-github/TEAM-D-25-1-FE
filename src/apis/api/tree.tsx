@@ -35,6 +35,23 @@ export const getTreeDetail = async (treeId: string) => {
   }
 };
 
+export const getTreeFromRestaurant = async (restaurantId: string) => {
+  try {
+    const {data} = await defaultInstance.get(
+      `/tree/restaurants/${restaurantId}`,
+    );
+    console.log('식당에 대한 나무 목록 반환 성공');
+    console.log(data.items);
+
+    return getTreeList(data.items);
+
+  } catch (error) {
+    console.log('식당에 대한 나무 목록 반환 실패');
+    console.log(error);
+    return error;
+  }
+};
+
 
 export const postTree = async (
   treeType : number,
