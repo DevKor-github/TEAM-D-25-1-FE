@@ -24,10 +24,57 @@ import SearchIcon from '../assets/search.svg';
 import BasicProfileIcon from '../assets/basic_profile.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import { typography }  from '../styles/typography';
-import { getFollower, getUser, getMe } from '../apis/api/user'; // ✅ getMe 추가
+import { getFollower, getUser, getMe } from '../apis/api/user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DRAWER_W = 0.85;
+
+/** 공통 오리진 후보 (드로어/모달 동일 규칙) */
+const WEB_ORIGIN = 'https://groo.space';
+const API_ORIGIN = 'https://api.groo.space';
+const CDN_ORIGIN = 'https://d16lnvwz2az818.cloudfront.net';
+
+/** 경로 합치기 */
+const joinUrl = (base: string, path: string) =>
+  base.replace(/\/+$/, '') + '/' + String(path || '').replace(/^\/+/, '');
+
+/** 다양한 키명 대응해 프로필 이미지 경로 뽑기 */
+const pickProfileImgUrl = (obj: any): string | null => {
+  const cand = [
+    obj?.profileImageUrl,
+    obj?.profileImage,
+    obj?.imageUrl,
+    obj?.avatarUrl,
+    obj?.avatar,
+    obj?.profile_url,
+    obj?.profile_image_url,
+  ];
+  const found = cand.find(v => typeof v === 'string' && v.trim().length > 0);
+  return found ? found.trim() : null;
+};
+
+/** HEAD(실패 시 GET range)로 실제 image/* 인지 검증 */
+const isImageUrl = async (url: string): Promise<boolean> => {
+  try {
+    const r1 = await fetch(url, { method: 'HEAD' as any });
+    const ct1 = r1.headers.get('content-type') || r1.headers.get('Content-Type') || '';
+    if (r1.ok && ct1.toLowerCase().startsWith('image/')) return true;
+  } catch {}
+  try {
+    const r2 = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0', Accept: 'image/*' } });
+    const ct2 = r2.headers.get('content-type') || r2.headers.get('Content-Type') || '';
+    if (r2.ok && ct2.toLowerCase().startsWith('image/')) return true;
+  } catch {}
+  return false;
+};
+
+/** 후보 배열에서 처음으로 진짜 이미지인 URL 하나 고르기 */
+const firstValidImage = async (cands: string[]): Promise<string | null> => {
+  for (const u of cands) {
+    if (await isImageUrl(u)) return u;
+  }
+  return null;
+};
 
 const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   const insets = useSafeAreaInsets();
@@ -41,19 +88,27 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   const [lat, setLat] = useState(37.58653559343726);
   const [zoom, setZoom] = useState(15);
 
-  // 마커 하단 카드(나무 주인) 표시용
-  const [user, setUser] = useState<string | undefined>();
-  const [profileImgURL, setProfileImgURL] = useState<string | undefined>();
+  /** 공통 오리진(앱 시작 시 한 번 추출해서 공유) */
+  const [staticOrigin, setStaticOrigin] = useState<string | null>(null);
 
-  // 좌측 드로어
+  /** 모달(하단 카드 — 나무 주인) */
+  const [ownerNickname, setOwnerNickname] = useState<string | undefined>();
+  const [ownerProfileImageUrl, setOwnerProfileImageUrl] = useState<string | null>(null);
+  const [ownerAvatarFailed, setOwnerAvatarFailed] = useState(false);
+  const [ownerUrlCandidates, setOwnerUrlCandidates] = useState<string[]>([]);
+  const [ownerIdx, setOwnerIdx] = useState(0);
+  const [ownerVer, setOwnerVer] = useState(0); // 캐시버스터
+
+  /** 좌측 드로어 */
   const [drawerVisible, setDrawerVisible] = useState(false);
   const slideX = useRef(new Animated.Value(-1000)).current;
 
-  // 드로어 프로필 카드 데이터
+  /** 드로어(내 정보) */
   const [nickname, setNickname] = useState<string>('');
-  const [intro, setIntro] = useState<string>(''); // ✅ 빈 값으로 두고 UI에서 폴백 문구 처리
-  const [myProfileImageUrl, setMyProfileImageUrl] = useState<string | null>(null); // ✅ 내 프로필 이미지
-  const [avatarVer, setAvatarVer] = useState(0); // ✅ 이미지 캐시 버스터
+  const [intro, setIntro] = useState<string>('');
+  const [myProfileImageUrl, setMyProfileImageUrl] = useState<string | null>(null);
+  const [myAvatarFailed, setMyAvatarFailed] = useState(false);
+  const [avatarVer, setAvatarVer] = useState(0);
 
   const [followerCount, setFollowerCount] = useState<number>(0);
   const [followingCount, setFollowingCount] = useState<number>(0);
@@ -69,7 +124,18 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
     { id: 'n7', text: '특별식당의 소나무이(가) 나무 1단계가 되었어요.', time: '· 4일' },
   ];
 
-  // 좌표 변화 시 식당 목록 로드
+  /** 드로어/모달 공통: 상대경로를 절대URL 후보 배열로 변환 */
+  const buildCandidates = useCallback((raw?: string | null) => {
+    if (!raw) return [] as string[];
+    const s = raw.trim();
+    if (!s) return [] as string[];
+    if (/^https?:\/\//i.test(s)) return [s]; // 이미 절대 URL
+    // 동일한 우선순위: (있으면) staticOrigin → WEB → CDN → API
+    const origins = [staticOrigin, WEB_ORIGIN, CDN_ORIGIN, API_ORIGIN].filter(Boolean) as string[];
+    return origins.map(o => joinUrl(o, s));
+  }, [staticOrigin]);
+
+  // ── 데이터 로드 (목록) ─────────────────────────────────────────────────────
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async cur => {
@@ -95,79 +161,110 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
     }
   }, [route.params?.selectedRestaurant]);
 
-  // 드로어 열릴 때 내 프로필 & 카운트 로드
+  // ✅ 앱 시작 시 내 정보로부터 절대 URL 하나 찾아서 staticOrigin 저장
   useEffect(() => {
-    if (drawerVisible) {
-      (async () => {
-        try {
-          // ✅ 핵심: /users/me(코어) + /users/me/mypage(집계) 병행 호출
-          const [meCore, mePage]: any[] = await Promise.all([
-            getMe(),   // description, profileImageUrl 등
-            getUser(), // follower/following/treeCount 등
-          ]);
-
-          // 닉네임
-          const nick = meCore?.nickname ?? mePage?.nickname;
-          if (nick) setNickname(nick);
-
-          // 한줄소개 (설명)
-          const desc = (typeof meCore?.description === 'string' ? meCore.description : mePage?.description) ?? '';
-          setIntro((desc || '').trim());
-
-          // 내 프로필 이미지 URL (키 변형 대응)
-          const imgRaw =
-            (meCore?.profileImageUrl ?? meCore?.profileImage ??
-             mePage?.profileImageUrl ?? mePage?.profileImage ?? '');
-          const img = typeof imgRaw === 'string' ? imgRaw.trim() : '';
-          setMyProfileImageUrl(img.length ? img : null);
-          setAvatarVer(v => v + 1); // 캐시 깨기
-
-          // 카운트류
-          if (typeof mePage?.followerCount === 'number') setFollowerCount(mePage.followerCount);
-          if (typeof mePage?.followingCount === 'number') setFollowingCount(mePage.followingCount);
-          if (typeof mePage?.treeCount === 'number') setTreeCount(mePage.treeCount);
-        } catch (e) {
-          console.warn('프로필 로드 실패(드로어):', e);
+    (async () => {
+      try {
+        const [meCore, mePage]: any[] = await Promise.all([getMe(), getUser()]);
+        const abs = [
+          meCore?.profileImageUrl,
+          mePage?.profileImageUrl,
+          mePage?.recapImageUrl,
+        ].find((u: any) => typeof u === 'string' && /^https?:\/\//i.test(u));
+        if (abs) {
+          try { setStaticOrigin(new URL(abs).origin); } catch {}
         }
-      })();
+      } catch {}
+    })();
+  }, []);
 
+  // 드로어 열릴 때 내 프로필 동기화
+  useEffect(() => {
+    if (!drawerVisible) {
       Animated.timing(slideX, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        toValue: -1000, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true,
       }).start();
-    } else {
-      Animated.timing(slideX, {
-        toValue: -1000,
-        duration: 200,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
+      return;
     }
-  }, [drawerVisible, slideX]);
 
-  // 마커 탭 시 하단 카드용 유저 정보
+    (async () => {
+      try {
+        const [meCore, mePage]: any[] = await Promise.all([getMe(), getUser()]);
+        const nick = meCore?.nickname ?? mePage?.nickname;
+        if (nick) setNickname(nick);
+
+        const desc = (typeof meCore?.description === 'string' ? meCore.description : mePage?.description) ?? '';
+        setIntro((desc || '').trim());
+
+        // 오리진 갱신(있으면)
+        const abs = [
+          meCore?.profileImageUrl,
+          mePage?.profileImageUrl,
+          mePage?.recapImageUrl,
+        ].find((u: any) => typeof u === 'string' && /^https?:\/\//i.test(u));
+        if (abs) { try { setStaticOrigin(new URL(abs).origin); } catch {} }
+
+        // 내 아바타 URL 결정
+        const rawImg =
+          meCore?.profileImageUrl ?? meCore?.profileImage ??
+          mePage?.profileImageUrl ?? mePage?.profileImage ?? null;
+        const mineCands = buildCandidates(rawImg);
+        const mine = await firstValidImage(mineCands);
+        setMyProfileImageUrl(mine);
+        setMyAvatarFailed(!mine);
+        setAvatarVer(v => v + 1);
+
+        if (typeof mePage?.followerCount === 'number') setFollowerCount(mePage.followerCount);
+        if (typeof mePage?.followingCount === 'number') setFollowingCount(mePage.followingCount);
+        if (typeof mePage?.treeCount === 'number') setTreeCount(mePage.treeCount);
+      } catch (e) {
+        console.warn('프로필 로드 실패(드로어):', e);
+      }
+    })();
+
+    Animated.timing(slideX, {
+      toValue: 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    }).start();
+  }, [drawerVisible, slideX, buildCandidates]);
+
+  // ── 모달(하단 카드)도 동일 규칙 적용 ───────────────────────────────────────
   const handleTreePress = useCallback(async (item: Tree) => {
     setSelectedTree(item);
     setModalVisible(true);
+
     try {
       const treeId = item.treeId;
       const userId = treeId.split('_')[0];
       const userDetails = await getFollower(userId);
-      setUser(userDetails.nickname);
-      setProfileImgURL(userDetails.profileImage); // 서버 키명에 맞게 유지
+
+      setOwnerNickname(userDetails?.nickname);
+
+      const raw = pickProfileImgUrl(userDetails);     // '/images/review/...' 가능
+      const cands = buildCandidates(raw);             // ✅ 드로어와 동일 규칙
+      setOwnerUrlCandidates(cands);
+      setOwnerIdx(0);
+      setOwnerAvatarFailed(false);                    // 이전 실패 상태 초기화
+
+      // 후보들 중 실제 이미지 응답인 URL만 선택
+      const good = await firstValidImage(cands);
+      setOwnerProfileImageUrl(good);
+      setOwnerAvatarFailed(!good);
+      setOwnerVer(v => v + 1);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      setOwnerAvatarFailed(true);
     }
-  }, []);
+  }, [buildCandidates]);
 
   const handleSearchClick = () => navigation.navigate('Search');
   const onCameraChange = (e: any) => { setLat(e.latitude); setLon(e.longitude); setZoom(e.zoom); };
 
-  // ✅ 드로어 아바타 캐시 버스터 적용
+  // 캐시 버스터
   const myAvatarSrc = myProfileImageUrl
     ? { uri: myProfileImageUrl + (myProfileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
+    : null;
+  const ownerAvatarSrc = ownerProfileImageUrl
+    ? { uri: ownerProfileImageUrl + (ownerProfileImageUrl.includes('?') ? '&' : '?') + 'v=' + ownerVer }
     : null;
 
   return (
@@ -237,13 +334,37 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
                     <Text style={styles.nameText}>{selectedTree.name}</Text>
                   </View>
                   <Text style={styles.addressText}>{selectedTree.address}</Text>
+
                   <View style={styles.userInfo}>
-                    <Image source={{uri: profileImgURL}} style={styles.userProfileImage}/>
-                    <Text style={styles.userNickname}>{user}님이 심은 나무</Text>
+                    {ownerAvatarSrc && !ownerAvatarFailed ? (
+                      <Image
+                        key={ownerAvatarSrc.uri}             // URL 변할 때 강제 리마운트
+                        source={ownerAvatarSrc}
+                        style={styles.userProfileImage}
+                        onError={() => {
+                          // 혹시 통과했는데도 로딩 실패하면 다음 후보 시도
+                          const next = ownerIdx + 1;
+                          if (next < ownerUrlCandidates.length) {
+                            setOwnerIdx(next);
+                            setOwnerProfileImageUrl(ownerUrlCandidates[next]);
+                            setOwnerAvatarFailed(false);
+                            setOwnerVer(v => v + 1);
+                          } else {
+                            setOwnerAvatarFailed(true);
+                          }
+                        }}
+                      />
+                    ) : (
+                      <View style={[styles.userProfileImage, styles.userProfileFallback]}>
+                        <BasicProfileIcon width={14} height={14} />
+                      </View>
+                    )}
+                    <Text style={styles.userNickname}>{ownerNickname}님이 심은 나무</Text>
                     <View style={styles.distanceBadge}>
                       <Text style={styles.distanceText}>{selectedTree.recommendationCount} M</Text>
                     </View>
                   </View>
+
                   <Text style={styles.reviewText}>{selectedTree.review}</Text>
                 </View>
               </TouchableOpacity>
@@ -278,8 +399,8 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
             <View style={styles.profileCard}>
               <View style={styles.profileRow}>
                 <View style={styles.avatar}>
-                  {myAvatarSrc ? (
-                    <Image source={myAvatarSrc} style={styles.avatarImg} />
+                  {myAvatarSrc && !myAvatarFailed ? (
+                    <Image source={myAvatarSrc} style={styles.avatarImg} onError={() => setMyAvatarFailed(true)} />
                   ) : (
                     <BasicProfileIcon width={35} height={35} />
                   )}
@@ -334,7 +455,6 @@ const MapScreen = ({ navigation, route }: { navigation: any;  route: any}) => {
   );
 };
 
-
 const styles = StyleSheet.create({
   /* 검색 바 */
   searchBar: {
@@ -370,8 +490,16 @@ const styles = StyleSheet.create({
   titleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
   nameText: { fontSize: 17, fontWeight: '500', marginRight: 8, marginTop: 15 },
   addressText: { fontSize: 14, color: '#555', marginBottom: 8 },
+
   userInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  userProfileImage: { width: 24, height: 24, borderRadius: 12, marginRight: 6, backgroundColor: '#6CDF44' },
+  userProfileImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 6,
+    backgroundColor: '#E6E6E6',
+  },
+  userProfileFallback: { alignItems: 'center', justifyContent: 'center' },
   userNickname: { fontSize: 14, color: '#555', fontWeight: '400' },
   distanceBadge: { backgroundColor: '#e6f3e6', borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8, marginLeft: 10 },
   distanceText: { fontSize: 12, fontWeight: 'bold', color: '#4CAF50' },
@@ -394,14 +522,13 @@ const styles = StyleSheet.create({
   drawerTitle: { fontSize: 20, fontWeight: '700', color: '#111' },
   drawerClose: { fontSize: 26, lineHeight: 26, color: '#777' },
 
-  /* 프로필 카드 */
+  /* 프로필 카드 (드로어) */
   profileCard: { backgroundColor: '#F6F6F8', borderRadius: 16, padding: 14, marginBottom: 18 },
   profileRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: {
     width: 60, height: 60, borderRadius: 30, backgroundColor: '#E7E7E7',
     alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
-  // ✅ 드로어 아바타 이미지
   avatarImg: { width: '100%', height: '100%', borderRadius: 30, resizeMode: 'cover' },
 
   profileName: { fontSize: 18, fontWeight: '600', color: '#111' },

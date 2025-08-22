@@ -6,17 +6,24 @@ type Props = {
   name: string;
   text: string;
   style?: ViewStyle; 
-  avatar?: ImageSourcePropType;
+  // ▼▼▼ 1. avatar 대신 profileImage URL을 직접 받도록 props를 수정합니다. (string | null | undefined) ▼▼▼
+  profileImage?: string | null; 
 };
 
+// 기본 이미지 경로는 그대로 유지합니다.
 const defaultAvatar = require('../assets/basic_profile.svg');
 
-export default function CommentBubble({ name, text, style, avatar = defaultAvatar }: Props) {
+export default function CommentBubble({ name, text, style, profileImage }: Props) {
+  // ▼▼▼ 2. profileImage URL의 유무에 따라 이미지 소스를 결정합니다. ▼▼▼
+  const imageSource = profileImage
+    ? { uri: profileImage } // URL이 있으면 네트워크 이미지를 사용
+    : defaultAvatar;        // URL이 없으면(null, undefined) 기본 이미지를 사용
+
   return (
     <View style={[styles.container, style]} pointerEvents="none">
-      {/* ▼▼▼ 이 View가 실제 콘텐츠를 감싸고, 부모인 container에 의해 중앙 정렬됩니다. ▼▼▼ */}
       <View style={styles.contentWrapper}>
-        <Image source={avatar} style={styles.avatar} />
+        {/* ▼▼▼ 3. 위에서 결정된 imageSource를 적용합니다. ▼▼▼ */}
+        <Image source={imageSource} style={styles.avatar} />
         <View style={styles.right}>
           <View style={styles.namePill}>
             <Text style={styles.nameText}>{name}</Text>
@@ -36,26 +43,22 @@ export default function CommentBubble({ name, text, style, avatar = defaultAvata
 }
 
 const styles = StyleSheet.create({
-  // ▼▼▼ [수정] container를 화면 전체 너비를 차지하는 중앙 정렬 컨테이너로 변경 ▼▼▼
   container: {
     position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: 'center', // 자식 요소를 가로 중앙에 배치
+    alignItems: 'center',
     zIndex: 15,
   },
-  // ▼▼▼ [추가] 실제 콘텐츠(아바타+말풍선)를 감싸는 래퍼 추가 ▼▼▼
   contentWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    // 이 View의 자식인 'right'(말풍선 부분)을 기준으로 중앙 정렬됩니다.
-    // 아바타는 말풍선 왼쪽에 위치하므로, 전체적으로 말풍선이 중앙에 가깝게 보입니다.
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 50,
-    backgroundColor: '#ddd',
+    backgroundColor: '#ddd', // 이미지가 로드되기 전 배경색
   },
   right: {
     marginLeft: 9,

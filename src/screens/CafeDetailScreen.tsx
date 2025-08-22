@@ -12,6 +12,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Animated,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -24,14 +25,14 @@ import WateredIcon from '../assets/watered.svg';
 
 const { width, height } = Dimensions.get('window');
 const HERO_HEIGHT = 400;
-const TREE_WIDTH = 300;
-const TREE_HEIGHT = 320;
+const TREE_WIDTH = 180;
+const TREE_HEIGHT = 200;
 const BUTTON_HEIGHT = 48;
 const BUTTON_GAP = 10;
 
 const PANEL_W = 120;
 const PANEL_H = 110;
-const PANEL_BOTTOM = 60;
+const PANEL_BOTTOM = -7;
 const PANEL_SHIFT_X = 110;
 
 type TreeSlide = {
@@ -41,6 +42,7 @@ type TreeSlide = {
   levelText: string;
   infoText: string;
   img: any;
+  profileImage?: string | null;
 };
 
 type CafeDetailRouteParams = { restaurant: Restaruant };
@@ -62,13 +64,18 @@ export default function CafeDetailScreen() {
   const [page, setPage] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
 
-  // Toast
   const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [toastCount, setToastCount] = useState<number>(0);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
-  const showToast = (count: number) => {
-    setToastCount(count);
+  const showCustomToast = (message: string, type: 'success' | 'error', count?: number) => {
+    setToastMessage(message);
+    setToastType(type);
+    if (type === 'success' && count !== undefined) {
+      setToastCount(count);
+    }
     setToastVisible(true);
     Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }).start(() => {
       setTimeout(() => {
@@ -99,26 +106,22 @@ export default function CafeDetailScreen() {
     const fetchRestaurantData = async () => {
       try {
         setIsLoading(true);
-
         const treeId = restaurant.treeId;
         const restaurantId = treeId.split('_')[1];
-
         const data = await getRestaurant(restaurantId);
 
         if (Array.isArray(data) && data.length > 0) {
           setRestaurantList(data);
-
           const slides = data.map(item => ({
             id: item.treeId,
             levelText: `나무 ${item.treeType + 1}단계`,
-            // ▼▼▼ 이 부분에 요청하신 텍스트를 추가합니다. ▼▼▼
             infoText: `참나무 · ${item.recommendationCount} M`,
             img: { uri: item.images[0] || '' },
             review: item.review || '한줄평이 없습니다.',
             nickname: item.nickname,
+            profileImage: item.profileImage,
           }));
           setTreeSlides(slides);
-
           const allImages = data.flatMap(r => r.images);
           setRemainPhotos(Math.max(0, allImages.length - 3));
         } else {
@@ -127,22 +130,15 @@ export default function CafeDetailScreen() {
         }
       } catch (error) {
         console.error('Failed to fetch restaurant data:', error);
-        setRestaurantList([]);
-        setTreeSlides([]);
       } finally {
         setIsLoading(false);
       }
     };
-
     if (restaurant) fetchRestaurantData();
   }, [restaurant]);
 
   if (isLoading || restaurantList.length === 0) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>데이터를 불러오는 중...</Text>
-      </View>
-    );
+    return <View style={styles.loadingContainer}><Text>데이터를 불러오는 중...</Text></View>;
   }
 
   const mainRestaurantData = restaurantList[0];
@@ -157,10 +153,15 @@ export default function CafeDetailScreen() {
     try {
       await postTreeWater(treeId);
       const current = restaurantList[page] ?? restaurantList[0];
-      const count = Number(current?.recommendationCount ?? 0);
-      showToast(count);
-    } catch (error) {
-      console.error(error);
+      const count = Number(current?.recommendationCount ?? 0) + 1;
+      showCustomToast(`‘${name}’에 물을 주었어요!`, 'success', count);
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        showCustomToast('내 나무에는 물을 줄 수 없어요ㅠㅠ', 'error');
+      } else {
+        // ▼▼▼ [수정] 다른 종류의 에러 발생 시 Alert 대신 콘솔에만 로그를 남깁니다. ▼▼▼
+        console.error('물주기 실패 (400 외 에러):', error);
+      }
     }
   };
 
@@ -172,9 +173,7 @@ export default function CafeDetailScreen() {
         bookmarked={bookmarked}
         iconSize={30}
       />
-
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* 히어로 */}
         <View style={styles.hero}>
           <Image
             source={allImages[0] ? { uri: allImages[0] } : require('../assets/dummypic.png')}
@@ -182,7 +181,6 @@ export default function CafeDetailScreen() {
             resizeMode="cover"
           />
           <View pointerEvents="none" style={styles.heroOverlay} />
-
           <ScrollView
             ref={pagerRef}
             horizontal
@@ -201,10 +199,10 @@ export default function CafeDetailScreen() {
                   name={slide.nickname}
                   text={slide.review}
                   style={{ position: 'absolute', top: insets.top + 28, zIndex: 4 }}
+                  profileImage={slide.profileImage}
                 />
-
                 <View style={styles.treeWrapper}>
-                  <Image source={require('../assets/extree.png')} style={styles.treeImg} resizeMode="contain" />
+                  <Image source={require('../assets/real_tree0_0.png')} style={styles.treeImg} resizeMode="contain" />
                   <View style={styles.panelGroup}>
                     <Image
                       source={require('../assets/wood_panel.png')}
@@ -221,8 +219,6 @@ export default function CafeDetailScreen() {
             ))}
           </ScrollView>
         </View>
-
-        {/* 시트 */}
         <View style={[styles.sheet, sheetDynamicStyle]}>
           <View style={styles.pagerOnCard}>
             {treeSlides.map((_, idx) => (
@@ -234,12 +230,8 @@ export default function CafeDetailScreen() {
               />
             ))}
           </View>
-
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{restaurant.name}</Text>
-          </View>
-          <Text style={styles.address}>{restaurant.address}</Text>
-
+          <View style={styles.titleRow}><Text style={styles.title}>{name}</Text></View>
+          <Text style={styles.address}>{address}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -259,24 +251,24 @@ export default function CafeDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* 하단 버튼 */}
       <View style={[styles.actionWrapper, { bottom: insets.bottom + BUTTON_GAP }]}>
-        <PrimaryButton label="물주기" onPress={() => onPressWater(restaurant.treeId)} />
+        <PrimaryButton label="물주기" onPress={() => onPressWater(restaurantList[page]?.id ?? restaurant.treeId)} />
       </View>
-
-      {/* 물주기 토스트 */}
+      
       {toastVisible && (
         <Animated.View
           pointerEvents="none"
           style={[styles.waterToast, { bottom: insets.bottom + BUTTON_GAP, opacity: toastOpacity }]}
         >
           <Text style={styles.waterToastText} numberOfLines={1}>
-            {`‘${restaurant.name}’에 물을 주었어요!`}
+            {toastMessage}
           </Text>
-          <View style={styles.waterToastRight}>
-            <WateredIcon width={20} height={20} />
-            <Text style={styles.waterToastCount}>{toastCount}</Text>
-          </View>
+          {toastType === 'success' && (
+            <View style={styles.waterToastRight}>
+              <WateredIcon width={20} height={20} />
+              <Text style={styles.waterToastCount}>{toastCount}</Text>
+            </View>
+          )}
         </Animated.View>
       )}
     </SafeAreaView>
@@ -290,7 +282,7 @@ const styles = StyleSheet.create({
   hero: { height: HERO_HEIGHT, justifyContent: 'flex-end', overflow: 'visible' },
   heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', zIndex: 0 },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 1 },
-  treeWrapper: { position: 'absolute', top: 96, left: 0, right: 0, alignItems: 'center', zIndex: 3 },
+  treeWrapper: { position: 'absolute', top: 150, left: 0, right: 0, alignItems: 'center', zIndex: 3 },
   treeImg: { width: TREE_WIDTH, height: TREE_HEIGHT },
   panelGroup: { position: 'absolute', width: PANEL_W, height: PANEL_H, bottom: PANEL_BOTTOM, marginLeft: PANEL_SHIFT_X, zIndex: 5 },
   woodPanelImg: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' },
@@ -328,11 +320,12 @@ const styles = StyleSheet.create({
   // Toast
   waterToast: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    // ▼▼▼ [수정] 좌우 여백을 줄여서 토스트를 더 넓게 만듭니다. ▼▼▼
+    left: 8,
+    right: 8,
     backgroundColor: '#000',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 17,
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
