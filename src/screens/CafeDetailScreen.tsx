@@ -112,7 +112,7 @@ export default function CafeDetailScreen() {
   };
 
   useEffect(() => {
-    console.log('imgData', imgData); // 3. 상태가 업데이트된 후 이 코드가 실행되어 imgData의 새 값이 출력됩니다.
+    console.log('treeSlides', treeSlides); // 3. 상태가 업데이트된 후 이 코드가 실행되어 imgData의 새 값이 출력됩니다.
   }, [imgData]); // 의존성 배열에 imgData를 추가
 
   useEffect(() => {
@@ -141,7 +141,7 @@ export default function CafeDetailScreen() {
             nickname: item.nickname,
           }));
           setTreeSlides(slides);
-          console.log('treeSlide', treeSlides);
+          console.log('treeSlide', slides);
           
 
           const allImages = data.flatMap(r => r.images);

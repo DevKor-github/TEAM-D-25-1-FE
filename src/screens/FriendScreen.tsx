@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Chip from '../components/Chip';
 import { getAuth } from '@react-native-firebase/auth';
+import { CLOUDFRONT_URL } from '@env';
+
 
 // API
 import {
@@ -32,7 +34,7 @@ const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
 /** ---------- 이미지 오리진 후보 (환경에 맞게 필요시 수정) ---------- */
 const API_ORIGIN       = 'https://api.groo.space';
 const WEB_ORIGIN       = 'https://groo.space';
-const CDN_ORIGIN       = 'https://d16lnvwz2az818.cloudfront.net';
+const CDN_ORIGIN       = 'https://d16invwz2az818.cloudfront.net';
 
 type TreeItemT = { id: string; name: string; meta: string };
 
@@ -350,10 +352,12 @@ export default function FollowerScreen({ navigation, route }: any) {
   const avatarSrc =
     currentAvatar
       ? {
-          uri: currentAvatar + (currentAvatar.includes('?') ? '&' : '?') + 'v=' + cacheVer,
+          uri: currentAvatar,
           headers: imgHeaders, // 인증 필요한 경우 자동 전송
         }
-      : undefined;
+      : null;
+
+  console.log('avatar',avatarSrc)
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>

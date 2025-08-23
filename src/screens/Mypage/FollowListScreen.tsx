@@ -4,9 +4,10 @@ import {
   SafeAreaView, View, Text, StyleSheet, Image,
   TouchableOpacity, FlatList, ActivityIndicator,
 } from 'react-native';
-import { getUser, getFollowingList, getFollwerList, type UserSummary } from '../../apis/api/user';
+import { getUser, getFollowingList, getFollwerList, type UserSummary, getFollower, getFollwingList } from '../../apis/api/user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { CLOUDFRONT_URL } from '@env';
 
 // ▼▼▼ 1. SVG 아이콘을 import하고, 기존 PNG import는 제거합니다. ▼▼▼
 import BasicProfileIcon from '../../assets/basic_profile.svg'; 
@@ -83,9 +84,57 @@ export default function FollowListScreen({ navigation, route }: any) {
             getFollowingList(userId),
           ]);
 
-          if (!mounted) return;
           setFollowers(mapToPersons(followersRes?.items ?? followersRes));
           setFollowing(mapToPersons(followingRes ?? []));
+          console.log('rawfollowers', followers);
+          console.log('rawfollowing', following);
+
+          const enrichedFollowers = [];
+          for (const f of followers) {
+            
+            try {
+              const detail = await getFollower(f.id);
+              console.log('detail',detail)
+              enrichedFollowers.push({
+                ...f,
+                profileImageUrl: detail?.profileImage
+                ? CLOUDFRONT_URL+detail.profileImage
+                : undefined,
+              });
+            } catch (e) {
+              console.warn(`getFollower(${f.id}) 실패:`, e);
+              enrichedFollowers.push(f); // 실패하면 원본 유지
+            }
+          }
+          // const enrichedFollowing = [];
+          // for (const f of following) {
+            
+          //   try {
+          //     const detail = await getFollower(f.id);
+          //     console.log('detail',detail)
+          //     enrichedFollowing.push({
+          //       ...f,
+          //       profileImageUrl: detail?.profileImage
+          //       ? CLOUDFRONT_URL+detail.profileImage
+          //       : undefined,
+          //     });
+          //   } catch (e) {
+          //     console.warn(`getFollowing(${f.id}) 실패:`, e);
+          //     enrichedFollowing.push(f); // 실패하면 원본 유지
+          //   }
+          // }
+
+          setFollowers(enrichedFollowers);
+          //setFollowing(enrichedFollowing);
+          
+
+          if (!mounted) return;
+          
+
+          
+
+          console.log('followers', followers);
+          console.log('following', following);
         } catch (e) {
           console.error('팔로우 목록 로드 에러:', e);
         } finally {
@@ -96,6 +145,8 @@ export default function FollowListScreen({ navigation, route }: any) {
       return () => { mounted = false; };
     }, [route?.params?.userId])
   );
+
+
 
   const data = tab === 'followers' ? followers : following;
 
