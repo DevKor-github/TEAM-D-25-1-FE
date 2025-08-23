@@ -8,25 +8,33 @@ import { getUser, getFollowingList, getFollwerList, type UserSummary } from '../
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
+// ▼▼▼ 1. SVG 아이콘을 import하고, 기존 PNG import는 제거합니다. ▼▼▼
+import BasicProfileIcon from '../../assets/basic_profile.svg'; 
 const backIcon = require('../../assets/arrow.png');
-const profilePng = require('../../assets/image/profile.png');
 
-type Person = { id: string; name: string };
+type Person = {
+  id: string;
+  name: string;
+  profileImageUrl?: string | null; // 프로필 이미지 URL을 저장할 필드 추가
+};
 type TabKey = 'followers' | 'following';
 const GREEN = '#6CDF44';
-
-// ❗️프로젝트에서 등록한 FollowerScreen 라우트명으로 맞춰주세요.
 const ROUTE_FRIEND = 'Friend';
 
-// id/userId 중 존재하는 값으로 매핑 + id 없는 항목 제거
+// id, name, profileImageUrl을 매핑하도록 수정
 const mapToPersons = (arr?: UserSummary[] | any[]): Person[] =>
   (arr ?? [])
     .map((u: any) => ({
       id: u?.id ?? u?.userId,
       name: u?.nickname || u?.username || '이름',
+      profileImageUrl: u?.profileImageUrl || u?.profileImage, // 프로필 이미지 URL 매핑
     }))
     .filter((p: any) => p.id != null)
-    .map((p: any) => ({ id: String(p.id), name: p.name }));
+    .map((p: any) => ({
+      id: String(p.id),
+      name: p.name,
+      profileImageUrl: p.profileImageUrl,
+    }));
 
 export default function FollowListScreen({ navigation, route }: any) {
   const initialTabParam = (route?.params?.initialTab as TabKey | undefined) ?? 'followers';
@@ -47,45 +55,35 @@ export default function FollowListScreen({ navigation, route }: any) {
     else (navigation.getParent?.() ?? navigation).navigate('Mypage');
   };
 
-  // ✅ 친구 프로필로 이동
   const openFriend = (id: string) => {
     navigation.navigate(ROUTE_FRIEND, { selectedUser: { id } });
   };
 
-  // ✅ 포커스될 때마다 로드
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
-
-      const coerceId = (v: any) =>
-        v == null ? undefined : typeof v === 'string' ? v : String(v);
+      const coerceId = (v: any) => (v == null ? undefined : String(v));
 
       (async () => {
         try {
           setLoading(true);
-
-          // 1) 라우트 파라미터에서 대상 userId 우선
           const paramId = coerceId(route?.params?.userId ?? route?.params?.user?.id);
-
-          // 2) 없으면 내 계정에서 (me.userId 사용)
           let userId = paramId;
           if (!userId) {
             const me = await getUser();
             userId = coerceId(me?.userId);
           }
-
           if (!userId) {
             console.warn('userId를 찾을 수 없습니다.');
             return;
           }
 
           const [followersRes, followingRes] = await Promise.all([
-            getFollwerList(),         // 내 팔로워 목록
-            getFollowingList(userId), // 대상 유저의 팔로잉 목록
+            getFollwerList(),
+            getFollowingList(userId),
           ]);
 
           if (!mounted) return;
-
           setFollowers(mapToPersons(followersRes?.items ?? followersRes));
           setFollowing(mapToPersons(followingRes ?? []));
         } catch (e) {
@@ -107,14 +105,20 @@ export default function FollowListScreen({ navigation, route }: any) {
       activeOpacity={0.85}
       style={styles.row}
     >
-      <Image source={profilePng} style={styles.avatar} />
+      {/* ▼▼▼ 2. 프로필 이미지 URL 유무에 따라 조건부 렌더링 ▼▼▼ */}
+      <View style={styles.avatarContainer}>
+        {item.profileImageUrl ? (
+          <Image source={{ uri: item.profileImageUrl }} style={styles.avatarImage} />
+        ) : (
+          <BasicProfileIcon width={27} height={27} />
+        )}
+      </View>
       <Text style={styles.name}>{item.name}</Text>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Image source={backIcon} style={styles.backIcon} />
@@ -123,14 +127,12 @@ export default function FollowListScreen({ navigation, route }: any) {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity style={[styles.tab, tab === 'followers' && styles.tabActive]} onPress={() => setTab('followers')}>
           <Text style={[styles.tabText, tab === 'followers' ? styles.tabTextActive : styles.tabTextInactive]}>
             팔로워 {followers.length}
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={[styles.tab, tab === 'following' && styles.tabActive]} onPress={() => setTab('following')}>
           <Text style={[styles.tabText, tab === 'following' ? styles.tabTextActive : styles.tabTextInactive]}>
             팔로잉 {following.length}
@@ -167,16 +169,28 @@ const styles = StyleSheet.create({
   backIcon: { width: 22, height: 22, resizeMode: 'contain' },
   headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '600', color: '#111' },
   headerSpacer: { width: 40 },
-
   tabs: { flexDirection: 'row', paddingHorizontal: 20, marginTop: 8 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 3, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: GREEN },
   tabText: { fontSize: 17, fontWeight: '500' },
   tabTextActive: { color: '#111' },
   tabTextInactive: { color: '#999999' },
-
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 6 },
-  avatar: { width: 50, height: 48, borderRadius: 24, marginRight: 12 },
-  name: { fontSize: 16, color: '#111', paddingTop: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8 },
+  // ▼▼▼ 3. 아바타 관련 스타일 수정 및 추가 ▼▼▼
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 24,
+    marginRight: 12,
+    backgroundColor: '#EFEFEF', // 기본 배경색
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden', // 이미지가 밖으로 나가지 않도록
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  name: { fontSize: 16, color: '#111' },
   separator: { height: 1, backgroundColor: '#EFEFEF', marginLeft: 80 },
 });

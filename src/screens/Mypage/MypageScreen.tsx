@@ -18,16 +18,16 @@ import BasicProfileIcon from '../../assets/basic_profile.svg';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import {
   getMyTree,
-  getUser,         // /users/me/mypage (집계: mbti, styleTags, foodTags 등)
+  getUser,
   getFollwerList,
   getFollowingList,
-  getMe,           // /users/me (코어: description, profileImageUrl 등)
-  getTag,          // ✅ 태그 옵션(키/값) 불러오기
+  getMe,
+  getTag,
 } from '../../apis/api/user';
 import { CLOUDFRONT_URL } from '@env';
 
 // PNG 리소스
-const treeImg = require('../../assets/image/mytree.png'); // 폴백 이미지
+const treeImg = require('../../assets/image/mytree.png');
 const treeicon = require('../../assets/real_tree0_0.png');
 const grooNameIcon = require('../../assets/groo_name_icon.png');
 const grooPictureIcon = require('../../assets/groo_picture_icon.png');
@@ -68,7 +68,6 @@ const buildTagMaps = (settings: any): TagMaps => {
     if (Array.isArray(src)) {
       src.forEach((it: any) => {
         if (typeof it === 'string') {
-          // 값만 있는 배열일 수도 있음
           out.push({ key: it, value: it });
         } else if (it && typeof it === 'object') {
           const key = String(coalesce(it.key, it.code, it.id, it.value, it.label));
@@ -102,7 +101,6 @@ const buildTagMaps = (settings: any): TagMaps => {
   return { styleKeyToValue, foodKeyToValue, styleValueSet, foodValueSet };
 };
 
-/** 서버 응답(코드/객체/값 뒤섞임)을 “항상 value(한글)” 배열로 정규화 */
 const toValueList = (src: any, keyToValue: Map<string, string>, valueSet: Set<string>): string[] => {
   if (!Array.isArray(src)) return [];
   const out: string[] = [];
@@ -110,9 +108,9 @@ const toValueList = (src: any, keyToValue: Map<string, string>, valueSet: Set<st
     if (typeof it === 'string') {
       const s = it.trim();
       if (!s) continue;
-      if (valueSet.has(s)) out.push(s);                          // 이미 value(한글)
-      else if (keyToValue.has(s)) out.push(keyToValue.get(s)!);  // 코드→value 매핑
-      else out.push(s);                                          // 모르는 값은 그대로
+      if (valueSet.has(s)) out.push(s);
+      else if (keyToValue.has(s)) out.push(keyToValue.get(s)!);
+      else out.push(s);
     } else if (it && typeof it === 'object') {
       const v = it.value ?? it.label ?? it.name ?? it.title ?? it.text ?? '';
       const k = it.key ?? it.code ?? it.id ?? '';
@@ -120,7 +118,6 @@ const toValueList = (src: any, keyToValue: Map<string, string>, valueSet: Set<st
       else if (typeof k === 'string' && keyToValue.has(k)) out.push(keyToValue.get(k)!);
     }
   }
-  // 중복 제거(표시 순서 유지)
   return Array.from(new Set(out));
 };
 
@@ -143,15 +140,13 @@ export default function MyPageScreen({ navigation }: any) {
     { messageEm: '', messageRest: '' }
   );
 
-  // ✅ 한줄소개 + MBTI/스타일/음식은 “value(한글)”로 저장/표시
   const [profile, setProfile] = useState({
     intro: '',
     mbti: null as string | null,
-    styles: [] as string[],   // value[]
-    foods: [] as string[],    // value[]
+    styles: [] as string[],
+    foods: [] as string[],
   });
 
-  // 태그 매핑 (키→값, 값 집합)
   const [tagMaps, setTagMaps] = useState<TagMaps>({
     styleKeyToValue: new Map(),
     foodKeyToValue: new Map(),
@@ -159,7 +154,6 @@ export default function MyPageScreen({ navigation }: any) {
     foodValueSet: new Set(),
   });
 
-  // 리스트들
   const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
   const [plantedVisible, setPlantedVisible] = useState(2);
   const [wateredList, setWateredList] = useState<TreeItemT[]>([]);
@@ -167,9 +161,9 @@ export default function MyPageScreen({ navigation }: any) {
 
   const openProfileEdit = () => {
     navigation.navigate('ProfileEdit', {
-      mbti: profile.mbti,          // value
-      styles: profile.styles,      // value[]
-      foods: profile.foods,        // value[]
+      mbti: profile.mbti,
+      styles: profile.styles,
+      foods: profile.foods,
       intro: profile.intro,
       avatarUri: profileImageUrl,
       onSave: (data: {
@@ -189,7 +183,6 @@ export default function MyPageScreen({ navigation }: any) {
     });
   };
 
-  // trees → 카드 아이템
   const mapTreesToItems = (trees: MyTree[] = []): TreeItemT[] => {
     const withIdx = trees.map((t, i) => ({ ...t, __i: i }));
     withIdx.sort((a: any, b: any) => {
@@ -226,9 +219,8 @@ export default function MyPageScreen({ navigation }: any) {
     const em = tokens.slice(0, 2).join(' ');
     const rest = raw.slice(em.length).trim();
     return { em, rest };
-  };
+  }
 
-  // ✅ 데이터 로드: 태그 옵션 + me + mypage
   const loadProfileAndCounts = useCallback(async () => {
     try {
       const [settings, meCore, me]: any[] = await Promise.all([getTag(), getMe(), getUser()]);
@@ -237,14 +229,10 @@ export default function MyPageScreen({ navigation }: any) {
 
       if (meCore?.nickname || me?.nickname) setNickname(meCore?.nickname ?? me?.nickname);
 
-      // 한줄소개
       const desc = (typeof meCore?.description === 'string' ? meCore.description : me?.description) ?? '';
       setProfile(prev => ({ ...prev, intro: desc }));
 
-      // 프로필 이미지
-      const rawImg =
-        (meCore?.profileImageUrl ?? meCore?.profileImage ??
-         me?.profileImageUrl ?? me?.profileImage ?? '');
+      const rawImg = (meCore?.profileImageUrl ?? meCore?.profileImage ?? me?.profileImageUrl ?? me?.profileImage ?? '');
       const img = (typeof rawImg === 'string' ? rawImg.trim() : '');
       setProfileImageUrl(img.length ? img : null);
       setAvatarVer(v => v + 1);
@@ -258,24 +246,19 @@ export default function MyPageScreen({ navigation }: any) {
         : (typeof meCore?.mbti === 'string' && meCore?.mbti.trim()) ? meCore.mbti.trim()
         : null;
 
+
       const stylesVal = toValueList(me?.styleTags, maps.styleKeyToValue, maps.styleValueSet);
       const foodsVal  = toValueList(me?.foodTags,  maps.foodKeyToValue,  maps.foodValueSet);
-
       setProfile(prev => ({ ...prev, mbti: mbtiValue, styles: stylesVal, foods: foodsVal }));
 
-      // 카운트류
       const uFollower = typeof me?.followerCount === 'number' ? me.followerCount : undefined;
       const uFollowing = typeof me?.followingCount === 'number' ? me.followingCount : undefined;
-      const uTreeCount =
-        typeof me?.treeCount === 'number'
-          ? me.treeCount
-          : Array.isArray(me?.myTrees) ? me.myTrees.length : undefined;
+      const uTreeCount = typeof me?.treeCount === 'number' ? me.treeCount : Array.isArray(me?.myTrees) ? me.myTrees.length : undefined;
 
       if (uFollower != null) setFollowerCount(uFollower);
       if (uFollowing != null) setFollowingCount(uFollowing);
       if (uTreeCount != null) setTreeCount(uTreeCount);
 
-      // 리스트
       if (Array.isArray(me?.myTrees)) {
         const items = mapTreesToItems(me.myTrees as MyTree[]);
         setPlantedList(items);
@@ -292,14 +275,12 @@ export default function MyPageScreen({ navigation }: any) {
         setWateredList([]); setWateredVisible(0);
       }
 
-      // 하이라이트
       if (Array.isArray(me?.myTrees) && me.myTrees.length > 0) {
         setTopTree(pickTopTree(me.myTrees as MyTree[]));
       } else {
         setTopTree(null);
       }
 
-      // 리캡
       if (typeof me?.recapMessage === 'string') {
         const { em, rest } = splitRecapMessage(me.recapMessage);
         setRecap(prev => ({ ...prev, messageEm: em, messageRest: rest }));
@@ -340,7 +321,6 @@ export default function MyPageScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
-      {/* 헤더 */}
       <View style={styles.header}>
         <View style={styles.brandWrap}>
           <Image source={grooPictureIcon} style={styles.brandPic} />
@@ -357,7 +337,6 @@ export default function MyPageScreen({ navigation }: any) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
-        {/* 프로필 카드 */}
         <View style={styles.card}>
           <TouchableOpacity onPress={openProfileEdit} style={styles.editFab} accessibilityLabel="프로필 수정" activeOpacity={0.8}>
             <PencilIcon width={23} height={23} />
@@ -386,7 +365,6 @@ export default function MyPageScreen({ navigation }: any) {
 
               <View style={styles.divider} />
 
-              {/* 통계줄 */}
               <View style={styles.statsRowSimple}>
                 <View style={styles.statCol}>
                   <Text style={styles.statValText}>{treeCount}</Text>
@@ -406,7 +384,6 @@ export default function MyPageScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* ✅ 저장된 태그들을 “value(한글)”로 칩 표시 */}
           <View style={styles.chipsRow}>
             {profile.styles.map(s => <Chip key={`style-${s}`} label={s} variant="style" selected />)}
             {profile.foods.map(f => <Chip key={`food-${f}`} label={f} variant="food" selected />)}
@@ -414,9 +391,7 @@ export default function MyPageScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* 하이라이트 카드들 */}
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
-          {/* 1) 추천수 Top 나무 카드 */}
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#BDEABC']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
             <View style={styles.topOverlay}>
@@ -436,7 +411,6 @@ export default function MyPageScreen({ navigation }: any) {
             <Image source={treeImg} style={styles.highlightTree} />
           </View>
 
-          {/* 2) 리캡 카드 */}
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#F6D4E3']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
             <View style={styles.recapTopOverlay}>
@@ -462,7 +436,6 @@ export default function MyPageScreen({ navigation }: any) {
           </View>
         </ScrollView>
 
-        {/* 리스트들 */}
         <Section
           title="내가 심은 나무"
           data={plantedList.slice(0, plantedVisible)}
@@ -598,7 +571,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%' },
+  // ▼▼▼ [수정] zIndex를 추가하여 글씨가 이미지 위에 오도록 합니다. ▼▼▼
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%', zIndex: 1 },
 
   titleWrap: { gap: 6 },
   highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
