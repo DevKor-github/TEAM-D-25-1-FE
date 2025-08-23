@@ -24,6 +24,7 @@ import {
   getMe,
   getTag,
 } from '../../apis/api/user';
+import { CLOUDFRONT_URL } from '@env';
 
 // PNG 리소스
 const treeImg = require('../../assets/image/mytree.png');
@@ -129,7 +130,7 @@ export default function MyPageScreen({ navigation }: any) {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
 
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | undefined>(undefined);
   const [avatarVer, setAvatarVer] = useState(0);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -174,7 +175,7 @@ export default function MyPageScreen({ navigation }: any) {
       }) => {
         setProfile(prev => ({ ...prev, intro: data.intro, mbti: data.mbti, styles: data.styles, foods: data.foods }));
         if (typeof data.avatarUri !== 'undefined') {
-          setProfileImageUrl(data.avatarUri || null);
+          setProfileImageUrl(data.avatarUri?.toString());
           setAvatarVer(v => v + 1);
           setAvatarFailed(false);
         }
@@ -237,7 +238,15 @@ export default function MyPageScreen({ navigation }: any) {
       setAvatarVer(v => v + 1);
       setAvatarFailed(false);
 
-      const mbtiValue = (typeof me?.mbti === 'string' && me?.mbti.trim()) ? me.mbti.trim() : (typeof meCore?.mbti === 'string' && meCore?.mbti.trim()) ? meCore.mbti.trim() : null;
+      console.log(profileImageUrl)
+
+      // ✅ MBTI/스타일/음식 → “항상 value(한글)”로 맞춤
+      const mbtiValue =
+        (typeof me?.mbti === 'string' && me?.mbti.trim()) ? me.mbti.trim()
+        : (typeof meCore?.mbti === 'string' && meCore?.mbti.trim()) ? meCore.mbti.trim()
+        : null;
+
+
       const stylesVal = toValueList(me?.styleTags, maps.styleKeyToValue, maps.styleValueSet);
       const foodsVal  = toValueList(me?.foodTags,  maps.foodKeyToValue,  maps.foodValueSet);
       setProfile(prev => ({ ...prev, mbti: mbtiValue, styles: stylesVal, foods: foodsVal }));
@@ -307,7 +316,7 @@ export default function MyPageScreen({ navigation }: any) {
   const recapImgSource = recap.imageUrl ? { uri: recap.imageUrl } : treeImg;
 
   const avatarSrc = profileImageUrl
-    ? { uri: profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
+    ? { uri: CLOUDFRONT_URL + profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
     : null;
 
   return (
@@ -337,7 +346,7 @@ export default function MyPageScreen({ navigation }: any) {
             <View style={styles.avatar}>
               {avatarSrc && !avatarFailed ? (
                 <Image
-                  source={avatarSrc}
+                  source={{uri:profileImageUrl}}
                   style={styles.avatarImg}
                   onError={() => setAvatarFailed(true)}
                 />

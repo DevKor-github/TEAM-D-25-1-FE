@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'; // For sto
 // Import the token retrieval function from your auth service
 import { getCustomApplicationToken, logoutAndClearToken } from '../api/login'; // Adjust path if needed, also import logoutAndClearToken for 401 handling
 
-const BASE_URL = 'https://api.groo.space';
+import {BASE_URL} from '@env';
 
 // 1. Create the default Axios instance
 // This instance is created once when your app starts.

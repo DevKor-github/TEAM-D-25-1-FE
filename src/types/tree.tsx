@@ -11,7 +11,6 @@ export interface Tree {
   updatedAt: string;
   recommendationCount: number;
   images: string[];
-  
 }
 
 export interface Restaurant {
