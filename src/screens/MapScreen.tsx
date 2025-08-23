@@ -219,6 +219,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
       const userDetails = await getFollower(userId);
       setUser(userDetails.nickname);
       setProfileImgURL(userDetails.profileImage); // 서버 키명에 맞게 유지
+      console.log(CLOUDFRONT_URL+profileImgURL)
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }

@@ -78,7 +78,7 @@ export default function PhotoDetailScreen() {
           setProfileImage(res.profileImage);
           setNickname(res.nickname);
 
-          console.log('profileImage', profileImage);
+          console.log('profileImage', CLOUDFRONT_URL+profileImage);
           console.log('nickname', nickname);
         }
       } catch (e) {

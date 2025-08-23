@@ -147,6 +147,17 @@ export const getFollwerList = async () => {
     return error;
   }
 };
+export const getFollwingList = async () => {
+  try {
+    const {data} = await defaultInstance.get('/users/me/following');
+    console.log("팔로잉 가져오기");
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
+};
 
 export const patchNickname = async (nickname: string) => {
   try {
