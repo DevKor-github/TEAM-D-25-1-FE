@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'stretch', position: 'relative',
   },
 
-  topOverlay: { position: 'absolute', top: 22, left: 30, width: '95%' },
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '95%', zIndex: 1,},
   recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%' },
 
   titleWrap: { gap: 6 },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   recapImage: {
     position: 'absolute', right: -200, bottom: -30, width: '180%', height: '100%', resizeMode: 'contain',
   },
-  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
+  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 , },
   recapFallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapSubtitle: { marginTop: 8, fontSize: 18, color: '#6B6B6B', fontWeight: '600' },
 

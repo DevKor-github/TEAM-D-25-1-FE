@@ -130,7 +130,7 @@ export default function MyPageScreen({ navigation }: any) {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
 
-  const [profileImageUrl, setProfileImageUrl] = useState<string | undefined>(undefined);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [avatarVer, setAvatarVer] = useState(0);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -175,7 +175,7 @@ export default function MyPageScreen({ navigation }: any) {
       }) => {
         setProfile(prev => ({ ...prev, intro: data.intro, mbti: data.mbti, styles: data.styles, foods: data.foods }));
         if (typeof data.avatarUri !== 'undefined') {
-          setProfileImageUrl(data.avatarUri?.toString());
+          setProfileImageUrl(data.avatarUri || null);
           setAvatarVer(v => v + 1);
           setAvatarFailed(false);
         }
@@ -238,9 +238,6 @@ export default function MyPageScreen({ navigation }: any) {
       setAvatarVer(v => v + 1);
       setAvatarFailed(false);
 
-      console.log(profileImageUrl)
-
-      // ✅ MBTI/스타일/음식 → “항상 value(한글)”로 맞춤
       const mbtiValue =
         (typeof me?.mbti === 'string' && me?.mbti.trim()) ? me.mbti.trim()
         : (typeof meCore?.mbti === 'string' && meCore?.mbti.trim()) ? meCore.mbti.trim()
@@ -315,9 +312,12 @@ export default function MyPageScreen({ navigation }: any) {
   const recapHasText = Boolean((recap.messageEm || '').trim() || (recap.messageRest || '').trim());
   const recapImgSource = recap.imageUrl ? { uri: recap.imageUrl } : treeImg;
 
-  const avatarSrc = profileImageUrl
-    ? { uri: CLOUDFRONT_URL + profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
-    : null;
+  const avatarSrc = (() => {
+    if (!profileImageUrl) return null;
+    const isAbsolute = profileImageUrl.startsWith('http');
+    const finalUrl = isAbsolute ? profileImageUrl : CLOUDFRONT_URL + profileImageUrl;
+    return { uri: finalUrl + (finalUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer };
+  })();
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -346,7 +346,7 @@ export default function MyPageScreen({ navigation }: any) {
             <View style={styles.avatar}>
               {avatarSrc && !avatarFailed ? (
                 <Image
-                  source={{uri:profileImageUrl}}
+                  source={avatarSrc}
                   style={styles.avatarImg}
                   onError={() => setAvatarFailed(true)}
                 />
@@ -432,7 +432,7 @@ export default function MyPageScreen({ navigation }: any) {
                 </>
               )}
             </View>
-            <Image source={treeImg} style={styles.recapImage} />
+            <Image source={recapImgSource} style={styles.recapImage} />
           </View>
         </ScrollView>
 
@@ -571,13 +571,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  // ▼▼▼ [수정] zIndex를 추가하여 글씨가 이미지 위에 오도록 합니다. ▼▼▼
   topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%', zIndex: 1 },
 
   titleWrap: { gap: 6 },
-  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
+  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28,  },
   highlightEm: { color: '#0DBC65' },
-  highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain' },
+  highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain', },
 
   fallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
 
@@ -608,7 +607,7 @@ const styles = StyleSheet.create({
 
   moreBtn: {
     marginTop: 4, marginBottom: 6, alignSelf: 'stretch', height: 42, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F6',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F1',
     alignItems: 'center', justifyContent: 'center',
   },
   moreBtnText: { fontSize: 14, color: '#555' },
