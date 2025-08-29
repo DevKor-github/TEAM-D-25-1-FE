@@ -113,7 +113,7 @@ export default function CafeDetailScreen() {
 
   useEffect(() => {
     console.log('treeSlides', treeSlides); // 3. 상태가 업데이트된 후 이 코드가 실행되어 imgData의 새 값이 출력됩니다.
-  }, [imgData]); // 의존성 배열에 imgData를 추가
+  }, [treeSlides]); // 의존성 배열에 imgData를 추가
 
   useEffect(() => {
     const fetchRestaurantData = async () => {
