@@ -1,5 +1,5 @@
-// src/screens/FollowerScreen.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+// file: src/screens/FollowerScreen.tsx
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, Image, ScrollView,
   TouchableOpacity, StyleSheet as RNStyleSheet, Dimensions, ActivityIndicator,
@@ -36,7 +36,7 @@ const API_ORIGIN       = 'https://api.groo.space';
 const WEB_ORIGIN       = 'https://groo.space';
 const CDN_ORIGIN       = 'https://d16invwz2az818.cloudfront.net';
 
-type TreeItemT = { id: string; name: string; meta: string };
+type TreeItemT = { id: string; name: string; meta: string; count: number };
 
 /** =================== 프로필 이미지 유틸 =================== */
 const isAbs = (s: string) => /^https?:\/\//i.test(s);
@@ -108,7 +108,11 @@ export default function FollowerScreen({ navigation, route }: any) {
 
   // 나무 리스트
   const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
-  const [plantedVisible, setPlantedVisible] = useState(0);
+  const [plantedVisible, setPlantedVisible] = useState(2);
+  
+  type SortByType = 'height' | 'name';
+  const [plantedSortBy, setPlantedSortBy] = useState<SortByType>('height');
+
 
   // 태그 맵 (키→값)
   const [tagMaps, setTagMaps] = useState<{
@@ -180,6 +184,20 @@ export default function FollowerScreen({ navigation, route }: any) {
 
   /** ---- 데이터 로드 ---- */
   const [userDataCache, setUserDataCache] = useState<any>(null);
+  
+  const mapTreesToItems = (trees: any[] = []): TreeItemT[] => {
+    return (trees ?? []).map((t: any, i: number) => {
+        const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
+        const name = t.restaurantName ?? t.name ?? t.title ?? '이름없음';
+        const metaParts = [Number.isFinite(count) ? `${count}M` : '', t.location || ''].filter(Boolean);
+        return {
+          id: t.restaurantId ?? t.id ?? `tree-${i}`,
+          name,
+          meta: metaParts.join('  '),
+          count: isNaN(count) ? 0 : count,
+        };
+      });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -187,7 +205,6 @@ export default function FollowerScreen({ navigation, route }: any) {
       try {
         setLoading(true);
 
-        // 이미지가 인증 필요하면 Authorization 헤더 세팅(파이어베이스 토큰)
         const fbUser = getAuth().currentUser;
         if (fbUser) {
           const token = await fbUser.getIdToken();
@@ -202,7 +219,6 @@ export default function FollowerScreen({ navigation, route }: any) {
           getUserFollowStatus(friendId),
         ]);
 
-        // 태그 맵
         const maps = buildTagMaps(settings);
         setTagMaps(maps);
 
@@ -214,42 +230,24 @@ export default function FollowerScreen({ navigation, route }: any) {
           : (typeof data?.intro === 'string' ? data.intro : '');
         setIntro(desc ?? '');
 
-        /** ✅ 프로필 이미지 후보 계산 */
-        const raw = pickProfileRaw(data);                  // 예: "/images/review/xxxx.jpg"
+        const raw = pickProfileRaw(data);
         const cands = raw ? buildAvatarCandidates(raw) : [];
         setAvatarCands(cands);
         setAvatarIdx(0);
         setAvatarFailed(!cands.length);
-        setCacheVer(v => v + 1);                           // 캐시버스터
+        setCacheVer(v => v + 1);
 
-        // 태그(value)
         setMbti((typeof data?.mbti === 'string' && data.mbti.trim()) ? data.mbti.trim() : null);
         setStylesVal(toValueList(data?.styleTags, maps.styleKeyToValue, maps.styleValueSet));
         setFoodsVal(toValueList(data?.foodTags,  maps.foodKeyToValue,  maps.foodValueSet));
 
-        // 리스트
         if (Array.isArray(data?.myTrees)) {
-          const withIdx = data.myTrees
-            .map((t: any, i: number) => ({ ...t, __i: i }))
-            .sort((a: any, b: any) => {
-              const ca = Number(a.recommendationCount ?? a.recommandationCount ?? 0);
-              const cb = Number(b.recommendationCount ?? b.recommandationCount ?? 0);
-              if (cb !== ca) return cb - ca;
-              return a.__i - b.__i;
-            })
-            .map((t: any) => {
-              const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
-              const name = t.restaurantName ?? t.name ?? t.title ?? '이름없음';
-              const metaParts = [Number.isFinite(count) ? `${count}M` : '', t.location || ''].filter(Boolean);
-              return { id: t.restaurantId ?? t.id ?? `tree-${t.__i}`, name, meta: metaParts.join('  ') };
-            });
-          setPlantedList(withIdx);
-          setPlantedVisible(Math.min(2, withIdx.length));
+          const items = mapTreesToItems(data.myTrees);
+          setPlantedList(items);
+          setPlantedVisible(Math.min(2, items.length));
         } else {
           setPlantedList([]); setPlantedVisible(0);
         }
-
-        // 팔로우 상태
         setIsFollowing(followStatus?.hasRequestedFollow ?? false);
       } catch (e) {
         console.error('친구 데이터 로드 실패:', e);
@@ -284,12 +282,7 @@ export default function FollowerScreen({ navigation, route }: any) {
       setFoodsVal(toValueList(data?.foodTags,  tagMaps.foodKeyToValue,  tagMaps.foodValueSet));
 
       if (Array.isArray(data?.myTrees)) {
-        const items = data.myTrees.map((t: any, i: number) => ({
-          id: t.restaurantId ?? t.id ?? `tree-${i}`,
-          name: t.restaurantName ?? t.name ?? t.title ?? '이름없음',
-          meta: [Number(t.recommendationCount ?? t.recommandationCount ?? 0) + 'M', t.location || '']
-            .filter(Boolean).join('  '),
-        }));
+        const items = mapTreesToItems(data.myTrees);
         setPlantedList(items);
         setPlantedVisible(Math.min(2, items.length));
       } else {
@@ -353,15 +346,22 @@ export default function FollowerScreen({ navigation, route }: any) {
     currentAvatar
       ? {
           uri: currentAvatar,
-          headers: imgHeaders, // 인증 필요한 경우 자동 전송
+          headers: imgHeaders,
         }
       : null;
 
-  console.log('avatar',avatarSrc)
+  const sortedPlantedList = useMemo(() => {
+    const sorted = [...plantedList];
+    if (plantedSortBy === 'height') {
+      sorted.sort((a, b) => b.count - a.count);
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [plantedList, plantedSortBy]);
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
-      {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
@@ -379,7 +379,6 @@ export default function FollowerScreen({ navigation, route }: any) {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
-          {/* 프로필 카드 */}
           <View style={styles.card}>
             <View style={styles.profileRow}>
               <View style={styles.avatar}>
@@ -388,7 +387,6 @@ export default function FollowerScreen({ navigation, route }: any) {
                     source={avatarSrc}
                     style={styles.avatarImg}
                     onError={() => {
-                      // 실패하면 다음 후보 URL로 폴백
                       if (avatarIdx + 1 < avatarCands.length) {
                         setAvatarIdx(i => i + 1);
                       } else {
@@ -402,35 +400,28 @@ export default function FollowerScreen({ navigation, route }: any) {
               </View>
 
               <View style={styles.profileRight}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name}>{nickname || '닉네임'}</Text>
-                </View>
-
+                <Text style={styles.name}>{nickname || '닉네임'}</Text>
                 <Text style={styles.bio}>
-                  {intro?.trim?.() ? intro : '한줄소개로 나를 설명해보세요!'}
+                  {intro?.trim?.() ? intro : '한줄소개가 없습니다.'}
                 </Text>
-
                 <View style={styles.divider} />
-
-                {/* 통계줄 */}
                 <View style={styles.statsRowSimple}>
                   <View style={styles.statCol}>
                     <Text style={styles.statValText}>{plantedCount}</Text>
                     <Text style={styles.statKeyText}>심은 나무</Text>
                   </View>
-                  <View style={styles.statCol}>
+                  <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={() => navigation.navigate('FollowList', { initialTab: 'followers', userId: friendId })}>
                     <Text style={styles.statValText}>{userDataCache?.followerCount ?? 0}</Text>
                     <Text style={styles.statKeyText}>팔로워</Text>
-                  </View>
-                  <View style={styles.statCol}>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={() => navigation.navigate('FollowList', { initialTab: 'following', userId: friendId })}>
                     <Text style={styles.statValText}>{userDataCache?.followingCount ?? 0}</Text>
                     <Text style={styles.statKeyText}>팔로잉</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
 
-            {/* 칩 블록(마이페이지와 동일 위치) */}
             <View style={styles.chipsRow}>
               {stylesVal.map(s => <Chip key={`style-${s}`} label={s} variant="style" selected />)}
               {foodsVal.map(f => <Chip key={`food-${f}`} label={f} variant="food" selected />)}
@@ -438,12 +429,10 @@ export default function FollowerScreen({ navigation, route }: any) {
             </View>
           </View>
 
-          {/* 팔로우 버튼 */}
           <View style={styles.followBar}>
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={toggleFollow}
-              accessibilityState={{ selected: isFollowing }}
               style={[styles.followBtn, isFollowing ? styles.following : styles.follow]}>
               <Text style={[styles.followTxt, !isFollowing && styles.followTxtActive]}>
                 {isFollowing ? '팔로잉' : '팔로우'}
@@ -451,15 +440,14 @@ export default function FollowerScreen({ navigation, route }: any) {
             </TouchableOpacity>
           </View>
 
-          {/* 하이라이트 카드들 */}
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
-            {/* 1) 가장 큰 나무 */}
             <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
               <LinearGradient
                 colors={['#F4F4F4', '#BDEABC']}
                 start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
+              <Image source={treeImg} style={styles.highlightTree} />
               <View style={styles.topOverlay}>
                 {hasPlanted && topTree ? (
                   <View style={styles.titleWrap}>
@@ -474,16 +462,15 @@ export default function FollowerScreen({ navigation, route }: any) {
                   <Text style={styles.fallbackTitle}>아직 심은 나무가 없어요ㅜ.ㅜ</Text>
                 )}
               </View>
-              <Image source={treeImg} style={styles.highlightTree} />
             </View>
 
-            {/* 2) 리캡 */}
             <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
               <LinearGradient
                 colors={['#F4F4F4', '#F6D4E3']}
                 start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
+               <Image source={userDataCache?.recapImageUrl ? { uri: userDataCache.recapImageUrl } : treeImg} style={styles.recapImage} />
               <View style={styles.recapTopOverlay}>
                 {(recapEm || recapRest) ? (
                   <>
@@ -500,22 +487,17 @@ export default function FollowerScreen({ navigation, route }: any) {
                   </>
                 )}
               </View>
-
-              {userDataCache?.recapImageUrl ? (
-                <Image source={{ uri: userDataCache.recapImageUrl }} style={styles.recapImage} />
-              ) : (
-                <Image source={treeImg} style={styles.highlightTree} />
-              )}
             </View>
           </ScrollView>
 
-          {/* 친구가 심은 나무 */}
           <Section
             title="친구가 심은 나무"
-            data={plantedList.slice(0, plantedVisible)}
+            data={sortedPlantedList.slice(0, plantedVisible)}
             hasMore={plantedVisible < plantedList.length}
             onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
             emptyText="아직 내역이 없어요."
+            sortBy={plantedSortBy}
+            onSortChange={() => setPlantedSortBy(s => s === 'height' ? 'name' : 'height')}
           />
         </ScrollView>
       )}
@@ -523,7 +505,6 @@ export default function FollowerScreen({ navigation, route }: any) {
   );
 }
 
-/** 개별 나무 카드 */
 function TreeCard({ item }: { item: TreeItemT }) {
   return (
     <View style={styles.treeCard}>
@@ -537,15 +518,16 @@ function TreeCard({ item }: { item: TreeItemT }) {
   );
 }
 
-/** 섹션 (빈 목록 메시지 지원) */
 function Section({
-  title, data, onMore, hasMore = false, emptyText,
+  title, data, onMore, hasMore = false, emptyText, sortBy, onSortChange
 }: {
   title: string;
   data: TreeItemT[];
   onMore: () => void;
   hasMore?: boolean;
   emptyText?: string;
+  sortBy: 'height' | 'name';
+  onSortChange: () => void;
 }) {
   const isEmpty = data.length === 0;
 
@@ -553,10 +535,14 @@ function Section({
     <>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7}>
-          <Text style={styles.sortText}>높이순</Text>
-          <Text style={styles.sortChevron}>▾</Text>
-        </TouchableOpacity>
+        {!isEmpty && (
+          <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7} onPress={onSortChange}>
+            <Text style={styles.sortText}>
+              {sortBy === 'height' ? '높이순' : '가나다순'}
+            </Text>
+            <Text style={styles.sortChevron}>▾</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.sectionBody}>
@@ -582,7 +568,6 @@ function Section({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFF' },
 
-  /* 헤더 */
   header: {
     height: 48, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, marginBottom: 8, justifyContent: 'space-between',
@@ -591,7 +576,6 @@ const styles = StyleSheet.create({
   headerBackIcon: { width: 22, height: 22, resizeMode: 'contain' },
   headerTitle: { fontSize: 17, fontWeight: '600', color: '#111' },
 
-  /* 프로필 카드 */
   card: {
     marginHorizontal: H_MARGIN, backgroundColor: '#F6F6F8', borderRadius: CARD_RADIUS,
     padding: 16, elevation: 3, position: 'relative', marginBottom: 10,
@@ -609,65 +593,56 @@ const styles = StyleSheet.create({
   bio: { marginTop: 8, color: '#4B4B4B', fontSize: 16 },
   divider: { height: RNStyleSheet.hairlineWidth, backgroundColor: '#D4D4D4', marginTop: 10, marginBottom: 10 },
 
-  /* 칩 줄 — 마이페이지와 동일 포지션 */
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, marginTop: 14, },
 
-  /* 통계줄 */
   statsRowSimple: { flexDirection: 'row', justifyContent: 'space-between' },
   statCol: { flex: 1, alignItems: 'center' },
   statValText: { fontSize: 15, fontWeight: '600', color: '#111' },
   statKeyText: { fontSize: 14, color: '#111', marginTop: 3 },
 
-  /* 팔로우 바 */
-  followBar: { alignItems: 'center', marginTop: 4, marginBottom: 10 },
+  followBar: { marginHorizontal: H_MARGIN, alignItems: 'center', marginTop: 4, marginBottom: 8 },
   followBtn: {
-    borderRadius: 10, height: 50, paddingHorizontal: 2, width: 368,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 12, marginTop: 10,
+    alignSelf: 'stretch',
+    borderRadius: 10,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 10,
   },
   following: { backgroundColor: '#F6F6F8' },
   follow: { backgroundColor: '#6CDF44' },
   followTxt: { fontSize: 16, fontWeight: '500', color: '#111' },
   followTxtActive: { color: '#111' },
 
-  /* 하이라이트 컨테이너 */
   highlightTray: { paddingHorizontal: H_MARGIN, gap: 14 },
-
-  /* 공통 하이라이트 카드 */
   highlightItem: {
     aspectRatio: 1.1, borderRadius: CARD_RADIUS, overflow: 'hidden',
     paddingLeft: 16, paddingRight: 16, paddingVertical: 18,
     flexDirection: 'row', alignItems: 'stretch', position: 'relative',
   },
-
-  topOverlay: { position: 'absolute', top: 22, left: 30, width: '95%', zIndex: 1,},
-  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%' },
-
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '95%'},
+  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%', zIndex: 1 },
   titleWrap: { gap: 6 },
   highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 30 },
   highlightEm: { color: '#0DBC65' },
   fallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
-
   highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain' },
-
   recapImage: {
     position: 'absolute', right: -200, bottom: -30, width: '180%', height: '100%', resizeMode: 'contain',
   },
-  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 , },
+  recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapFallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapSubtitle: { marginTop: 8, fontSize: 18, color: '#6B6B6B', fontWeight: '600' },
 
-  /* 섹션 */
   sectionHeader: { marginTop: 16, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
   sectionTitle: { fontSize: 19, fontWeight: '600', color: '#0E0F11', marginLeft: 7 },
   sortBtn: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', padding: 4 },
   sortText: { color: '#737373', fontSize: 15, marginRight: 3 },
   sortChevron: { color: '#737373', fontSize: 15 },
-
   sectionBody: { marginTop: 15, marginHorizontal: 14 },
   emptyWrap: { paddingVertical: 20, alignItems: 'center' },
   emptyText: { color: '#777' },
 
-  /* 카드 */
   treeCard: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14,
     backgroundColor: '#F6F6F8', borderRadius: 15, marginBottom: 5,
@@ -677,10 +652,9 @@ const styles = StyleSheet.create({
   treeMeta: { fontSize: 14, color: '#A0A0A0', marginTop: 4 },
   dotMenu: { marginLeft: 13, fontSize: 25, color: '#949494' },
 
-  /* 더보기 버튼 */
   moreBtn: {
     marginTop: 4, marginBottom: 6, alignSelf: 'stretch', height: 42, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F6',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F1',
     alignItems: 'center', justifyContent: 'center',
   },
   moreBtnText: { fontSize: 14, color: '#555' },

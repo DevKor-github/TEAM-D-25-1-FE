@@ -1,5 +1,5 @@
 // file: src/screens/MyPageScreen.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, Image, ScrollView,
   TouchableOpacity, StyleSheet as RNStyleSheet, Dimensions,
@@ -42,7 +42,7 @@ const FALLBACKS = {
   recap:   { message: '나만의 정원을 꾸며보아요!' },
 };
 
-type TreeItemT = { id: string; name: string; meta: string };
+type TreeItemT = { id: string; name: string; meta: string; count: number };
 type MyTree = {
   restaurantId?: string;
   restaurantName?: string;
@@ -158,6 +158,10 @@ export default function MyPageScreen({ navigation }: any) {
   const [plantedVisible, setPlantedVisible] = useState(2);
   const [wateredList, setWateredList] = useState<TreeItemT[]>([]);
   const [wateredVisible, setWateredVisible] = useState(2);
+  
+  type SortByType = 'height' | 'name';
+  const [plantedSortBy, setPlantedSortBy] = useState<SortByType>('height');
+  const [wateredSortBy, setWateredSortBy] = useState<SortByType>('height');
 
   const openProfileEdit = () => {
     navigation.navigate('ProfileEdit', {
@@ -184,17 +188,15 @@ export default function MyPageScreen({ navigation }: any) {
   };
 
   const mapTreesToItems = (trees: MyTree[] = []): TreeItemT[] => {
-    const withIdx = trees.map((t, i) => ({ ...t, __i: i }));
-    withIdx.sort((a: any, b: any) => {
-      const ca = Number(a.recommendationCount ?? a.recommandationCount ?? 0);
-      const cb = Number(b.recommendationCount ?? b.recommandationCount ?? 0);
-      if (cb !== ca) return cb - ca;
-      return a.__i - b.__i;
-    });
-    return withIdx.map((t: any) => {
+    return (trees ?? []).map((t, i) => {
       const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
-      const metaParts = [isNaN(count) ? '' : `${count}M`, t.location || ''].filter(Boolean);
-      return { id: t.restaurantId ?? `tree-${t.__i}`, name: t.restaurantName ?? '이름없음', meta: metaParts.join('  ') };
+      const metaParts = [!isNaN(count) ? `${count}M` : '', t.location || ''].filter(Boolean);
+      return {
+        id: t.restaurantId ?? `tree-${i}`,
+        name: t.restaurantName ?? '이름없음',
+        meta: metaParts.join('  '),
+        count: isNaN(count) ? 0 : count,
+      };
     });
   };
 
@@ -319,6 +321,26 @@ export default function MyPageScreen({ navigation }: any) {
     return { uri: finalUrl + (finalUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer };
   })();
 
+  const sortedPlantedList = useMemo(() => {
+    const sorted = [...plantedList];
+    if (plantedSortBy === 'height') {
+      sorted.sort((a, b) => b.count - a.count);
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [plantedList, plantedSortBy]);
+
+  const sortedWateredList = useMemo(() => {
+    const sorted = [...wateredList];
+    if (wateredSortBy === 'height') {
+      sorted.sort((a, b) => b.count - a.count);
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [wateredList, wateredSortBy]);
+
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -394,6 +416,7 @@ export default function MyPageScreen({ navigation }: any) {
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#BDEABC']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            <Image source={treeImg} style={styles.highlightTree} />
             <View style={styles.topOverlay}>
               {topTree ? (
                 <View style={styles.titleWrap}>
@@ -408,11 +431,11 @@ export default function MyPageScreen({ navigation }: any) {
                 <Text style={styles.fallbackTitle}>{FALLBACKS.topCard.message}</Text>
               )}
             </View>
-            <Image source={treeImg} style={styles.highlightTree} />
           </View>
 
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#F6D4E3']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            <Image source={recapImgSource} style={styles.recapImage} />
             <View style={styles.recapTopOverlay}>
               {recapHasText ? (
                 <>
@@ -432,23 +455,26 @@ export default function MyPageScreen({ navigation }: any) {
                 </>
               )}
             </View>
-            <Image source={recapImgSource} style={styles.recapImage} />
           </View>
         </ScrollView>
 
         <Section
           title="내가 심은 나무"
-          data={plantedList.slice(0, plantedVisible)}
+          data={sortedPlantedList.slice(0, plantedVisible)}
           onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
           hasMore={plantedVisible < plantedList.length}
+          sortBy={plantedSortBy}
+          onSortChange={() => setPlantedSortBy(s => s === 'height' ? 'name' : 'height')}
         />
 
         <Section
           title="내가 물 준 나무"
-          data={wateredList.slice(0, wateredVisible)}
+          data={sortedWateredList.slice(0, wateredVisible)}
           onMore={() => setWateredVisible(v => Math.min(v + 2, wateredList.length))}
           hasMore={wateredVisible < wateredList.length}
           emptyText="아직 내역이 없어요."
+          sortBy={wateredSortBy}
+          onSortChange={() => setWateredSortBy(s => s === 'height' ? 'name' : 'height')}
         />
       </ScrollView>
     </SafeAreaView>
@@ -469,13 +495,15 @@ function TreeCard({ item }: { item: TreeItemT }) {
 }
 
 function Section({
-  title, data, onMore, hasMore = false, emptyText,
+  title, data, onMore, hasMore = false, emptyText, sortBy, onSortChange
 }: {
   title: string;
   data: TreeItemT[];
   onMore: () => void;
   hasMore?: boolean;
   emptyText?: string;
+  sortBy: 'height' | 'name';
+  onSortChange: () => void;
 }) {
   const isEmpty = data.length === 0;
 
@@ -483,10 +511,14 @@ function Section({
     <>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7}>
-          <Text style={styles.sortText}>높이순</Text>
-          <Text style={styles.sortChevron}>▾</Text>
-        </TouchableOpacity>
+        {!isEmpty && (
+          <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7} onPress={onSortChange}>
+            <Text style={styles.sortText}>
+              {sortBy === 'height' ? '높이순' : '가나다순'}
+            </Text>
+            <Text style={styles.sortChevron}>▾</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.sectionBody}>
@@ -555,7 +587,7 @@ const styles = StyleSheet.create({
   statValText: { fontSize: 15, fontWeight: '600', color: '#111' },
   statKeyText: { fontSize: 14, color: '#111', marginTop: 3 },
 
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, marginTop: 14 },
 
   highlightTray: { paddingHorizontal: H_MARGIN, gap: 14 },
 
@@ -571,16 +603,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%', zIndex: 1 },
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%' },
 
   titleWrap: { gap: 6 },
-  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28,  },
+  highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
   highlightEm: { color: '#0DBC65' },
-  highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain', },
+  highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain' },
 
   fallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
 
-  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%' },
+  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%', zIndex: 1 },
   recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapFallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapSubtitle: { marginTop: 8, fontSize: 18, color: '#6B6B6B', fontWeight: '600' },
