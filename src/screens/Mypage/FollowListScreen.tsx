@@ -4,38 +4,34 @@ import {
   SafeAreaView, View, Text, StyleSheet, Image,
   TouchableOpacity, FlatList, ActivityIndicator,
 } from 'react-native';
-import { getUser, getFollowingList, getFollwerList, type UserSummary, getFollower, getFollwingList } from '../../apis/api/user';
+import { getUser, getFollowingList, getFollwerList, getFollower, type UserSummary } from '../../apis/api/user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CLOUDFRONT_URL } from '@env';
 
-// ▼▼▼ 1. SVG 아이콘을 import하고, 기존 PNG import는 제거합니다. ▼▼▼
 import BasicProfileIcon from '../../assets/basic_profile.svg'; 
 const backIcon = require('../../assets/arrow.png');
 
 type Person = {
   id: string;
   name: string;
-  profileImageUrl?: string | null; // 프로필 이미지 URL을 저장할 필드 추가
+  profileImageUrl?: string | null;
 };
 type TabKey = 'followers' | 'following';
 const GREEN = '#6CDF44';
 const ROUTE_FRIEND = 'Friend';
 
-// id, name, profileImageUrl을 매핑하도록 수정
-const mapToPersons = (arr?: UserSummary[] | any[]): Person[] =>
+// ▼▼▼ [수정 1] filter 부분에 `p is Person` 타입 가드를 추가하여 빨간 줄을 해결합니다. ▼▼▼
+const mapToPersons = (arr?: any[]): Person[] =>
   (arr ?? [])
     .map((u: any) => ({
       id: u?.id ?? u?.userId,
-      name: u?.nickname || u?.username || '이름',
-      profileImageUrl: u?.profileImageUrl || u?.profileImage, // 프로필 이미지 URL 매핑
+      name: u?.nickname ?? u?.username ?? u?.name ?? '이름',
+      profileImageUrl: u?.profileImage ?? u?.profileImageUrl ?? null,
     }))
-    .filter((p: any) => p.id != null)
-    .map((p: any) => ({
-      id: String(p.id),
-      name: p.name,
-      profileImageUrl: p.profileImageUrl,
-    }));
+    // 이 필터를 통과한 객체 p는 Person 타입임을 TypeScript에 명확히 알려줍니다.
+    .filter((p): p is Person => p.id != null) 
+    .map((p) => ({ ...p, id: String(p.id) }));
 
 export default function FollowListScreen({ navigation, route }: any) {
   const initialTabParam = (route?.params?.initialTab as TabKey | undefined) ?? 'followers';
@@ -59,23 +55,21 @@ export default function FollowListScreen({ navigation, route }: any) {
   const openFriend = (id: string) => {
     navigation.navigate(ROUTE_FRIEND, { selectedUser: { id } });
   };
-
+  
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
-      const coerceId = (v: any) => (v == null ? undefined : String(v));
 
-      (async () => {
+      const fetchData = async () => {
         try {
           setLoading(true);
-          const paramId = coerceId(route?.params?.userId ?? route?.params?.user?.id);
-          let userId = paramId;
-          if (!userId) {
-            const me = await getUser();
-            userId = coerceId(me?.userId);
-          }
+          const me = await getUser();
+          // me?.userId가 없을 경우를 대비하여 확실하게 문자열로 변환합니다.
+          const userId = String(me?.userId ?? '');
+
           if (!userId) {
             console.warn('userId를 찾을 수 없습니다.');
+            setLoading(false);
             return;
           }
 
@@ -83,70 +77,55 @@ export default function FollowListScreen({ navigation, route }: any) {
             getFollwerList(),
             getFollowingList(userId),
           ]);
-
-          setFollowers(mapToPersons(followersRes?.items ?? followersRes));
-          setFollowing(mapToPersons(followingRes ?? []));
-          console.log('rawfollowers', followers);
-          console.log('rawfollowing', following);
-
-          const enrichedFollowers = [];
-          for (const f of followers) {
-            
-            try {
-              const detail = await getFollower(f.id);
-              console.log('detail',detail)
-              enrichedFollowers.push({
-                ...f,
-                profileImageUrl: detail?.profileImage
-                ? CLOUDFRONT_URL+detail.profileImage
-                : undefined,
-              });
-            } catch (e) {
-              console.warn(`getFollower(${f.id}) 실패:`, e);
-              enrichedFollowers.push(f); // 실패하면 원본 유지
-            }
-          }
-          // const enrichedFollowing = [];
-          // for (const f of following) {
-            
-          //   try {
-          //     const detail = await getFollower(f.id);
-          //     console.log('detail',detail)
-          //     enrichedFollowing.push({
-          //       ...f,
-          //       profileImageUrl: detail?.profileImage
-          //       ? CLOUDFRONT_URL+detail.profileImage
-          //       : undefined,
-          //     });
-          //   } catch (e) {
-          //     console.warn(`getFollowing(${f.id}) 실패:`, e);
-          //     enrichedFollowing.push(f); // 실패하면 원본 유지
-          //   }
-          // }
-
-          setFollowers(enrichedFollowers);
-          //setFollowing(enrichedFollowing);
           
+          // ▼▼▼ [수정 2] state 업데이트 시점 문제를 해결하는 로직입니다. ▼▼▼
+          // 1. API 응답을 state가 아닌 임시 로컬 변수에 먼저 저장합니다.
+          const initialFollowers = mapToPersons(followersRes?.items ?? []);
+          const initialFollowing = mapToPersons(followingRes ?? []);
+
+          // 2. 각 사용자의 상세 정보를 병렬(Promise.all)로 효율적으로 가져옵니다.
+          const enrichUsers = async (users: Person[]): Promise<Person[]> => {
+            const detailPromises = users.map(user => 
+              getFollower(user.id).catch(e => {
+                console.warn(`getFollower(${user.id}) 실패:`, e);
+                return user; // 실패 시 원본 사용자 정보 반환
+              })
+            );
+            const detailedUsers = await Promise.all(detailPromises);
+            
+            return users.map((originalUser, index) => {
+              const detail = detailedUsers[index];
+              const profileImage = detail?.profileImage ?? detail?.profileImageUrl;
+              return {
+                ...originalUser,
+                profileImageUrl: profileImage ? `${CLOUDFRONT_URL}${profileImage}` : null,
+              };
+            });
+          };
+
+          const [enrichedFollowers, enrichedFollowing] = await Promise.all([
+            enrichUsers(initialFollowers),
+            enrichUsers(initialFollowing)
+          ]);
 
           if (!mounted) return;
-          
 
-          
+          // 3. 모든 정보가 합쳐진 최종 배열로 state를 "한 번에" 업데이트합니다.
+          setFollowers(enrichedFollowers);
+          setFollowing(enrichedFollowing);
 
-          console.log('followers', followers);
-          console.log('following', following);
         } catch (e) {
           console.error('팔로우 목록 로드 에러:', e);
         } finally {
           if (mounted) setLoading(false);
         }
-      })();
+      };
+
+      fetchData();
 
       return () => { mounted = false; };
     }, [route?.params?.userId])
   );
-
-
 
   const data = tab === 'followers' ? followers : following;
 
@@ -156,7 +135,6 @@ export default function FollowListScreen({ navigation, route }: any) {
       activeOpacity={0.85}
       style={styles.row}
     >
-      {/* ▼▼▼ 2. 프로필 이미지 URL 유무에 따라 조건부 렌더링 ▼▼▼ */}
       <View style={styles.avatarContainer}>
         {item.profileImageUrl ? (
           <Image source={{ uri: item.profileImageUrl }} style={styles.avatarImage} />
@@ -227,7 +205,6 @@ const styles = StyleSheet.create({
   tabTextActive: { color: '#111' },
   tabTextInactive: { color: '#999999' },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8 },
-  // ▼▼▼ 3. 아바타 관련 스타일 수정 및 추가 ▼▼▼
   avatarContainer: {
     width: 40,
     height: 40,

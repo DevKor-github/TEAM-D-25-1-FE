@@ -1,5 +1,5 @@
 // file: src/screens/MyPageScreen.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, Image, ScrollView,
   TouchableOpacity, StyleSheet as RNStyleSheet, Dimensions,
@@ -36,13 +36,14 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const H_MARGIN = 14;
 const CARD_RADIUS = 16;
 const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
+const DEFAULT_VISIBLE = 2; // ← 기본 노출 개수
 
 const FALLBACKS = {
   topCard: { message: '나만의 나무를 심어보아요' },
   recap:   { message: '나만의 정원을 꾸며보아요!' },
 };
 
-type TreeItemT = { id: string; name: string; meta: string };
+type TreeItemT = { id: string; name: string; meta: string; count: number };
 type MyTree = {
   restaurantId?: string;
   restaurantName?: string;
@@ -130,7 +131,7 @@ export default function MyPageScreen({ navigation }: any) {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [treeCount, setTreeCount] = useState<number>(0);
 
-  const [profileImageUrl, setProfileImageUrl] = useState<string | undefined>(undefined);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [avatarVer, setAvatarVer] = useState(0);
   const [avatarFailed, setAvatarFailed] = useState(false);
 
@@ -155,9 +156,13 @@ export default function MyPageScreen({ navigation }: any) {
   });
 
   const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
-  const [plantedVisible, setPlantedVisible] = useState(2);
+  const [plantedVisible, setPlantedVisible] = useState(DEFAULT_VISIBLE);
   const [wateredList, setWateredList] = useState<TreeItemT[]>([]);
-  const [wateredVisible, setWateredVisible] = useState(2);
+  const [wateredVisible, setWateredVisible] = useState(DEFAULT_VISIBLE);
+  
+  type SortByType = 'height' | 'name';
+  const [plantedSortBy, setPlantedSortBy] = useState<SortByType>('height');
+  const [wateredSortBy, setWateredSortBy] = useState<SortByType>('height');
 
   const openProfileEdit = () => {
     navigation.navigate('ProfileEdit', {
@@ -175,7 +180,7 @@ export default function MyPageScreen({ navigation }: any) {
       }) => {
         setProfile(prev => ({ ...prev, intro: data.intro, mbti: data.mbti, styles: data.styles, foods: data.foods }));
         if (typeof data.avatarUri !== 'undefined') {
-          setProfileImageUrl(data.avatarUri?.toString());
+          setProfileImageUrl(data.avatarUri || null);
           setAvatarVer(v => v + 1);
           setAvatarFailed(false);
         }
@@ -184,17 +189,15 @@ export default function MyPageScreen({ navigation }: any) {
   };
 
   const mapTreesToItems = (trees: MyTree[] = []): TreeItemT[] => {
-    const withIdx = trees.map((t, i) => ({ ...t, __i: i }));
-    withIdx.sort((a: any, b: any) => {
-      const ca = Number(a.recommendationCount ?? a.recommandationCount ?? 0);
-      const cb = Number(b.recommendationCount ?? b.recommandationCount ?? 0);
-      if (cb !== ca) return cb - ca;
-      return a.__i - b.__i;
-    });
-    return withIdx.map((t: any) => {
+    return (trees ?? []).map((t, i) => {
       const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
-      const metaParts = [isNaN(count) ? '' : `${count}M`, t.location || ''].filter(Boolean);
-      return { id: t.restaurantId ?? `tree-${t.__i}`, name: t.restaurantName ?? '이름없음', meta: metaParts.join('  ') };
+      const metaParts = [!isNaN(count) ? `${count}M` : '', t.location || ''].filter(Boolean);
+      return {
+        id: t.restaurantId ?? `tree-${i}`,
+        name: t.restaurantName ?? '이름없음',
+        meta: metaParts.join('  '),
+        count: isNaN(count) ? 0 : count,
+      };
     });
   };
 
@@ -238,14 +241,10 @@ export default function MyPageScreen({ navigation }: any) {
       setAvatarVer(v => v + 1);
       setAvatarFailed(false);
 
-      console.log(profileImageUrl)
-
-      // ✅ MBTI/스타일/음식 → “항상 value(한글)”로 맞춤
       const mbtiValue =
         (typeof me?.mbti === 'string' && me?.mbti.trim()) ? me.mbti.trim()
         : (typeof meCore?.mbti === 'string' && meCore?.mbti.trim()) ? meCore.mbti.trim()
         : null;
-
 
       const stylesVal = toValueList(me?.styleTags, maps.styleKeyToValue, maps.styleValueSet);
       const foodsVal  = toValueList(me?.foodTags,  maps.foodKeyToValue,  maps.foodValueSet);
@@ -262,7 +261,7 @@ export default function MyPageScreen({ navigation }: any) {
       if (Array.isArray(me?.myTrees)) {
         const items = mapTreesToItems(me.myTrees as MyTree[]);
         setPlantedList(items);
-        setPlantedVisible(Math.min(2, items.length));
+        setPlantedVisible(Math.min(DEFAULT_VISIBLE, items.length));
       } else {
         setPlantedList([]); setPlantedVisible(0);
       }
@@ -270,7 +269,7 @@ export default function MyPageScreen({ navigation }: any) {
       if (Array.isArray(me?.wateredTrees)) {
         const wItems = mapTreesToItems(me.wateredTrees as MyTree[]);
         setWateredList(wItems);
-        setWateredVisible(Math.min(2, wItems.length));
+        setWateredVisible(Math.min(DEFAULT_VISIBLE, wItems.length));
       } else {
         setWateredList([]); setWateredVisible(0);
       }
@@ -315,9 +314,50 @@ export default function MyPageScreen({ navigation }: any) {
   const recapHasText = Boolean((recap.messageEm || '').trim() || (recap.messageRest || '').trim());
   const recapImgSource = recap.imageUrl ? { uri: recap.imageUrl } : treeImg;
 
-  const avatarSrc = profileImageUrl
-    ? { uri: CLOUDFRONT_URL + profileImageUrl + (profileImageUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer }
-    : null;
+  const avatarSrc = (() => {
+    if (!profileImageUrl) return null;
+    const isAbsolute = profileImageUrl.startsWith('http');
+    const finalUrl = isAbsolute ? profileImageUrl : CLOUDFRONT_URL + profileImageUrl;
+    return { uri: finalUrl + (finalUrl.includes('?') ? '&' : '?') + 'v=' + avatarVer };
+  })();
+
+  const sortedPlantedList = useMemo(() => {
+    const sorted = [...plantedList];
+    if (plantedSortBy === 'height') {
+      sorted.sort((a, b) => b.count - a.count);
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [plantedList, plantedSortBy]);
+
+  const sortedWateredList = useMemo(() => {
+    const sorted = [...wateredList];
+    if (wateredSortBy === 'height') {
+      sorted.sort((a, b) => b.count - a.count);
+    } else {
+      sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [wateredList, wateredSortBy]);
+
+  // --- 토글 상태 계산 ---
+  const plantedExpanded = plantedList.length > DEFAULT_VISIBLE && plantedVisible >= plantedList.length;
+  const wateredExpanded = wateredList.length > DEFAULT_VISIBLE && wateredVisible >= wateredList.length;
+
+  const canTogglePlanted = plantedList.length > DEFAULT_VISIBLE;
+  const canToggleWatered = wateredList.length > DEFAULT_VISIBLE;
+
+  const togglePlanted = () => {
+    setPlantedVisible(v =>
+      plantedExpanded ? Math.min(DEFAULT_VISIBLE, plantedList.length) : plantedList.length
+    );
+  };
+  const toggleWatered = () => {
+    setWateredVisible(v =>
+      wateredExpanded ? Math.min(DEFAULT_VISIBLE, wateredList.length) : wateredList.length
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -346,7 +386,7 @@ export default function MyPageScreen({ navigation }: any) {
             <View style={styles.avatar}>
               {avatarSrc && !avatarFailed ? (
                 <Image
-                  source={{uri:profileImageUrl}}
+                  source={avatarSrc}
                   style={styles.avatarImg}
                   onError={() => setAvatarFailed(true)}
                 />
@@ -394,6 +434,7 @@ export default function MyPageScreen({ navigation }: any) {
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#BDEABC']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            <Image source={treeImg} style={styles.highlightTree} />
             <View style={styles.topOverlay}>
               {topTree ? (
                 <View style={styles.titleWrap}>
@@ -408,11 +449,11 @@ export default function MyPageScreen({ navigation }: any) {
                 <Text style={styles.fallbackTitle}>{FALLBACKS.topCard.message}</Text>
               )}
             </View>
-            <Image source={treeImg} style={styles.highlightTree} />
           </View>
 
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#F6D4E3']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
+            <Image source={recapImgSource} style={styles.recapImage} />
             <View style={styles.recapTopOverlay}>
               {recapHasText ? (
                 <>
@@ -432,23 +473,28 @@ export default function MyPageScreen({ navigation }: any) {
                 </>
               )}
             </View>
-            <Image source={treeImg} style={styles.recapImage} />
           </View>
         </ScrollView>
 
         <Section
           title="내가 심은 나무"
-          data={plantedList.slice(0, plantedVisible)}
-          onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
-          hasMore={plantedVisible < plantedList.length}
+          data={sortedPlantedList.slice(0, plantedVisible)}
+          onToggle={togglePlanted}
+          canToggle={canTogglePlanted}
+          toggleLabel={plantedExpanded ? '내역 접기' : '내역 더보기'}
+          sortBy={plantedSortBy}
+          onSortChange={() => setPlantedSortBy(s => s === 'height' ? 'name' : 'height')}
         />
 
         <Section
           title="내가 물 준 나무"
-          data={wateredList.slice(0, wateredVisible)}
-          onMore={() => setWateredVisible(v => Math.min(v + 2, wateredList.length))}
-          hasMore={wateredVisible < wateredList.length}
+          data={sortedWateredList.slice(0, wateredVisible)}
+          onToggle={toggleWatered}
+          canToggle={canToggleWatered}
+          toggleLabel={wateredExpanded ? '내역 접기' : '내역 더보기'}
           emptyText="아직 내역이 없어요."
+          sortBy={wateredSortBy}
+          onSortChange={() => setWateredSortBy(s => s === 'height' ? 'name' : 'height')}
         />
       </ScrollView>
     </SafeAreaView>
@@ -468,14 +514,18 @@ function TreeCard({ item }: { item: TreeItemT }) {
   );
 }
 
+// ▼ Section: 토글형 "내역 더보기/접기"
 function Section({
-  title, data, onMore, hasMore = false, emptyText,
+  title, data, onToggle, canToggle, toggleLabel, emptyText, sortBy, onSortChange
 }: {
   title: string;
   data: TreeItemT[];
-  onMore: () => void;
-  hasMore?: boolean;
+  onToggle: () => void;
+  canToggle: boolean;
+  toggleLabel: string;
   emptyText?: string;
+  sortBy: 'height' | 'name';
+  onSortChange: () => void;
 }) {
   const isEmpty = data.length === 0;
 
@@ -483,10 +533,14 @@ function Section({
     <>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7}>
-          <Text style={styles.sortText}>높이순</Text>
-          <Text style={styles.sortChevron}>▾</Text>
-        </TouchableOpacity>
+        {!isEmpty && (
+          <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7} onPress={onSortChange}>
+            <Text style={styles.sortText}>
+              {sortBy === 'height' ? '높이순' : '가나다순'}
+            </Text>
+            <Text style={styles.sortChevron}>▾</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.sectionBody}>
@@ -497,9 +551,11 @@ function Section({
         ) : (
           <>
             {data.map(it => <TreeCard key={it.id} item={it} />)}
-            {hasMore && (
-              <TouchableOpacity style={styles.moreBtn} onPress={onMore} activeOpacity={0.85}>
-                <Text style={styles.moreBtnText}>내역 더보기</Text>
+
+            {/* 목록이 2개 초과일 때만 토글 버튼 노출 */}
+            {canToggle && (
+              <TouchableOpacity style={styles.moreBtn} onPress={onToggle} activeOpacity={0.85}>
+                <Text style={styles.moreBtnText}>{toggleLabel}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -555,7 +611,7 @@ const styles = StyleSheet.create({
   statValText: { fontSize: 15, fontWeight: '600', color: '#111' },
   statKeyText: { fontSize: 14, color: '#111', marginTop: 3 },
 
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0, marginTop: 14 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0.7, marginTop: 14 },
 
   highlightTray: { paddingHorizontal: H_MARGIN, gap: 14 },
 
@@ -571,8 +627,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  // ▼▼▼ [수정] zIndex를 추가하여 글씨가 이미지 위에 오도록 합니다. ▼▼▼
-  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%', zIndex: 1 },
+  topOverlay: { position: 'absolute', top: 22, left: 30, width: '90%' },
 
   titleWrap: { gap: 6 },
   highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
@@ -581,7 +636,7 @@ const styles = StyleSheet.create({
 
   fallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
 
-  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%' },
+  recapTopOverlay: { position: 'absolute', top: 22, left: 30, width: '100%', zIndex: 1 },
   recapTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapFallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 40 },
   recapSubtitle: { marginTop: 8, fontSize: 18, color: '#6B6B6B', fontWeight: '600' },
@@ -608,7 +663,7 @@ const styles = StyleSheet.create({
 
   moreBtn: {
     marginTop: 4, marginBottom: 6, alignSelf: 'stretch', height: 42, borderRadius: 12,
-    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F6',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F1F1F1',
     alignItems: 'center', justifyContent: 'center',
   },
   moreBtnText: { fontSize: 14, color: '#555' },
