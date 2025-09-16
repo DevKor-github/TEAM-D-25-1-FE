@@ -36,6 +36,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const H_MARGIN = 14;
 const CARD_RADIUS = 16;
 const HIGHLIGHT_CARD_SIZE = SCREEN_W - H_MARGIN * 2;
+const DEFAULT_VISIBLE = 2; // ← 기본 노출 개수
 
 const FALLBACKS = {
   topCard: { message: '나만의 나무를 심어보아요' },
@@ -155,9 +156,9 @@ export default function MyPageScreen({ navigation }: any) {
   });
 
   const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
-  const [plantedVisible, setPlantedVisible] = useState(2);
+  const [plantedVisible, setPlantedVisible] = useState(DEFAULT_VISIBLE);
   const [wateredList, setWateredList] = useState<TreeItemT[]>([]);
-  const [wateredVisible, setWateredVisible] = useState(2);
+  const [wateredVisible, setWateredVisible] = useState(DEFAULT_VISIBLE);
   
   type SortByType = 'height' | 'name';
   const [plantedSortBy, setPlantedSortBy] = useState<SortByType>('height');
@@ -245,7 +246,6 @@ export default function MyPageScreen({ navigation }: any) {
         : (typeof meCore?.mbti === 'string' && meCore?.mbti.trim()) ? meCore.mbti.trim()
         : null;
 
-
       const stylesVal = toValueList(me?.styleTags, maps.styleKeyToValue, maps.styleValueSet);
       const foodsVal  = toValueList(me?.foodTags,  maps.foodKeyToValue,  maps.foodValueSet);
       setProfile(prev => ({ ...prev, mbti: mbtiValue, styles: stylesVal, foods: foodsVal }));
@@ -261,7 +261,7 @@ export default function MyPageScreen({ navigation }: any) {
       if (Array.isArray(me?.myTrees)) {
         const items = mapTreesToItems(me.myTrees as MyTree[]);
         setPlantedList(items);
-        setPlantedVisible(Math.min(2, items.length));
+        setPlantedVisible(Math.min(DEFAULT_VISIBLE, items.length));
       } else {
         setPlantedList([]); setPlantedVisible(0);
       }
@@ -269,7 +269,7 @@ export default function MyPageScreen({ navigation }: any) {
       if (Array.isArray(me?.wateredTrees)) {
         const wItems = mapTreesToItems(me.wateredTrees as MyTree[]);
         setWateredList(wItems);
-        setWateredVisible(Math.min(2, wItems.length));
+        setWateredVisible(Math.min(DEFAULT_VISIBLE, wItems.length));
       } else {
         setWateredList([]); setWateredVisible(0);
       }
@@ -340,6 +340,24 @@ export default function MyPageScreen({ navigation }: any) {
     }
     return sorted;
   }, [wateredList, wateredSortBy]);
+
+  // --- 토글 상태 계산 ---
+  const plantedExpanded = plantedList.length > DEFAULT_VISIBLE && plantedVisible >= plantedList.length;
+  const wateredExpanded = wateredList.length > DEFAULT_VISIBLE && wateredVisible >= wateredList.length;
+
+  const canTogglePlanted = plantedList.length > DEFAULT_VISIBLE;
+  const canToggleWatered = wateredList.length > DEFAULT_VISIBLE;
+
+  const togglePlanted = () => {
+    setPlantedVisible(v =>
+      plantedExpanded ? Math.min(DEFAULT_VISIBLE, plantedList.length) : plantedList.length
+    );
+  };
+  const toggleWatered = () => {
+    setWateredVisible(v =>
+      wateredExpanded ? Math.min(DEFAULT_VISIBLE, wateredList.length) : wateredList.length
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -461,8 +479,9 @@ export default function MyPageScreen({ navigation }: any) {
         <Section
           title="내가 심은 나무"
           data={sortedPlantedList.slice(0, plantedVisible)}
-          onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
-          hasMore={plantedVisible < plantedList.length}
+          onToggle={togglePlanted}
+          canToggle={canTogglePlanted}
+          toggleLabel={plantedExpanded ? '내역 접기' : '내역 더보기'}
           sortBy={plantedSortBy}
           onSortChange={() => setPlantedSortBy(s => s === 'height' ? 'name' : 'height')}
         />
@@ -470,8 +489,9 @@ export default function MyPageScreen({ navigation }: any) {
         <Section
           title="내가 물 준 나무"
           data={sortedWateredList.slice(0, wateredVisible)}
-          onMore={() => setWateredVisible(v => Math.min(v + 2, wateredList.length))}
-          hasMore={wateredVisible < wateredList.length}
+          onToggle={toggleWatered}
+          canToggle={canToggleWatered}
+          toggleLabel={wateredExpanded ? '내역 접기' : '내역 더보기'}
           emptyText="아직 내역이 없어요."
           sortBy={wateredSortBy}
           onSortChange={() => setWateredSortBy(s => s === 'height' ? 'name' : 'height')}
@@ -494,13 +514,15 @@ function TreeCard({ item }: { item: TreeItemT }) {
   );
 }
 
+// ▼ Section: 토글형 "내역 더보기/접기"
 function Section({
-  title, data, onMore, hasMore = false, emptyText, sortBy, onSortChange
+  title, data, onToggle, canToggle, toggleLabel, emptyText, sortBy, onSortChange
 }: {
   title: string;
   data: TreeItemT[];
-  onMore: () => void;
-  hasMore?: boolean;
+  onToggle: () => void;
+  canToggle: boolean;
+  toggleLabel: string;
   emptyText?: string;
   sortBy: 'height' | 'name';
   onSortChange: () => void;
@@ -529,9 +551,11 @@ function Section({
         ) : (
           <>
             {data.map(it => <TreeCard key={it.id} item={it} />)}
-            {hasMore && (
-              <TouchableOpacity style={styles.moreBtn} onPress={onMore} activeOpacity={0.85}>
-                <Text style={styles.moreBtnText}>내역 더보기</Text>
+
+            {/* 목록이 2개 초과일 때만 토글 버튼 노출 */}
+            {canToggle && (
+              <TouchableOpacity style={styles.moreBtn} onPress={onToggle} activeOpacity={0.85}>
+                <Text style={styles.moreBtnText}>{toggleLabel}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -587,7 +611,7 @@ const styles = StyleSheet.create({
   statValText: { fontSize: 15, fontWeight: '600', color: '#111' },
   statKeyText: { fontSize: 14, color: '#111', marginTop: 3 },
 
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 1, marginTop: 14 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 0.7, marginTop: 14 },
 
   highlightTray: { paddingHorizontal: H_MARGIN, gap: 14 },
 
