@@ -12,7 +12,7 @@ import Chip from '../../components/Chip';
 // SVG 아이콘
 import SettingsIcon from '../../assets/icons/setting.svg';
 import PencilIcon from '../../assets/icons/edit-pen.svg';
-import BookmarkIcon from '../../assets/icons/bookmark.svg';
+//import BookmarkIcon from '../../assets/icons/bookmark.svg';
 import BasicProfileIcon from '../../assets/basic_profile.svg';
 
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
@@ -367,11 +367,8 @@ export default function MyPageScreen({ navigation }: any) {
           <Image source={grooNameIcon} style={styles.brandName} />
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => {}} accessibilityLabel="북마크">
-            <BookmarkIcon width={30} height={30} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => {}} accessibilityLabel="설정">
-            <SettingsIcon width={30} height={30} />
+            <SettingsIcon width={30} height={30}  />
           </TouchableOpacity>
         </View>
       </View>
