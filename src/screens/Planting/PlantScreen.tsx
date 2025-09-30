@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
   SafeAreaView,
+  BackHandler,             // ✅ 추가: HW 뒤로가기
 } from 'react-native';
 
 import { useSelector, useDispatch } from 'react-redux';
@@ -32,6 +33,7 @@ import { postImageReview } from '../../apis/api/images';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getTag } from '../../apis/api/user';
+import { useFocusEffect } from '@react-navigation/native';  // ✅ 추가: 포커스 시 HW 뒤로 처리
 
 const backIcon = require('../../assets/arrow.png');
 const plusPng = require('../../assets/plus_icon.png');
@@ -71,11 +73,38 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
     fetchTagMap();
   }, []);
 
-  const goToMapTab = () => {
-    const parent = navigation.getParent?.();
-    if (parent) parent.navigate('Map');
-    else navigation.navigate('Map');
-  };
+  // ✅ “스마트 뒤로가기”: 직전 화면으로 자연스럽게
+  const goBackSmart = useCallback(() => {
+    // 1) 현재 네비게이터(Planting 스택)에서 pop 가능하면 pop
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    // 2) 부모 체인을 타고 올라가며 뒤로갈 수 있는 네비게이터 찾기 (탭 → 루트 스택)
+    let parent: any = navigation;
+    while (parent?.getParent?.()) {
+      parent = parent.getParent();
+      if (parent?.canGoBack?.()) {
+        parent.goBack();
+        return;
+      }
+    }
+
+    // 3) 마지막 안전망: 홈 탭으로 이동
+    navigation.navigate('Map');
+  }, [navigation]);
+
+  // ✅ 안드로이드 HW 뒤로키도 동일 동작
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        goBackSmart();
+        return true; // 우리가 처리
+      });
+      return () => sub.remove();
+    }, [goBackSmart])
+  );
 
   const handlePlantSeed = async () => {
     if (!savedSeed || !savedRestaurant) return;
@@ -93,9 +122,8 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         uploadedUrls,
       );
       
-      // ▼▼▼ [수정] 성공 시 Alert 대신 CompleteScreen으로 이동합니다. ▼▼▼
+      // 성공 시 완료 화면으로 교체 이동
       dispatch(resetSeedPlanting());
-      // `replace`를 사용하면 뒤로가기로 이 화면에 다시 돌아오는 것을 방지할 수 있습니다.
       navigation.replace('Complete'); 
       
     } catch (error) {
@@ -104,6 +132,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  // ✅ 헤더 커스텀: 뒤로가기 버튼에 goBackSmart 연결
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackVisible: false,
@@ -112,7 +141,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       headerTitleStyle: { fontSize: 18, fontWeight: '600', color: '#111' },
       headerLeft: () => (
         <TouchableOpacity
-          onPress={goToMapTab}
+          onPress={goBackSmart}                // ✅ 변경: 항상 Map으로 X → 스마트 뒤로
           style={{ marginLeft: 12, padding: 6 }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Image
@@ -140,7 +169,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, isConfirmEnabled, savedRestaurant, savedSeed, reviewText, savedTags]);
+  }, [navigation, isConfirmEnabled, savedRestaurant, savedSeed, reviewText, savedTags, goBackSmart]);
 
   const handleAddPhoto = useCallback(() => {
     const options: ImagePicker.ImageLibraryOptions = {

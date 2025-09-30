@@ -53,7 +53,10 @@ type ImgData = {
 };
 
 type CafeDetailRouteParams = { restaurant: Restaurant };
-type CafeDetailScreenRouteProp = RouteProp<{ CafeDetail: CafeDetailRouteParams }, 'CafeDetail'>;
+type CafeDetailScreenRouteProp = RouteProp<
+  { CafeDetail: CafeDetailRouteParams },
+  'CafeDetail'
+>;
 
 export default function CafeDetailScreen() {
   const navigation = useNavigation<any>();
@@ -62,7 +65,6 @@ export default function CafeDetailScreen() {
 
   const { restaurant } = route.params;
 
-  const [bookmarked, setBookmarked] = useState(false);
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
   const [treeSlides, setTreeSlides] = useState<TreeSlide[]>([]);
   const [imgData, setImgData] = useState<ImgData[]>([]);
@@ -72,26 +74,39 @@ export default function CafeDetailScreen() {
   const [page, setPage] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
 
-  // 토스트 state 확장
+  // 토스트
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [toastCount, setToastCount] = useState<number>(0);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
-  // 성공/에러를 모두 처리하는 커스텀 토스트 함수
-  const showCustomToast = (message: string, type: 'success' | 'error', count?: number) => {
+  // ▶ TopBar "씨앗심기" → 하단 탭의 'Plant'로 이동
+  const goToPlantTab = () => {
+    navigation.navigate('Map' as never, { screen: 'Plant' } as never);
+  };
+
+  // 성공/에러 토스트
+  const showCustomToast = (
+    message: string,
+    type: 'success' | 'error',
+    count?: number,
+  ) => {
     setToastMessage(message);
     setToastType(type);
-    if (type === 'success' && count !== undefined) {
-      setToastCount(count);
-    }
+    if (type === 'success' && count !== undefined) setToastCount(count);
     setToastVisible(true);
-    Animated.timing(toastOpacity, { toValue: 1, duration: 180, useNativeDriver: true }).start(() => {
+    Animated.timing(toastOpacity, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
       setTimeout(() => {
-        Animated.timing(toastOpacity, { toValue: 0, duration: 180, useNativeDriver: true }).start(
-          () => setToastVisible(false),
-        );
+        Animated.timing(toastOpacity, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }).start(() => setToastVisible(false));
       }, 2000);
     });
   };
@@ -129,8 +144,9 @@ export default function CafeDetailScreen() {
             levelText: `나무 ${item.treeType + 1}단계`,
             infoText: `참나무 · ${item.recommendationCount} M`,
             img: { uri: item.images[0] || '' },
-            profileImageURl:
-              item.profileImageUrl ? CLOUDFRONT_URL + item.profileImageUrl : null,
+            profileImageURl: item.profileImageUrl
+              ? CLOUDFRONT_URL + item.profileImageUrl
+              : null,
             review: item.review || '한줄평이 없습니다.',
             nickname: item.nickname,
           }));
@@ -138,7 +154,7 @@ export default function CafeDetailScreen() {
 
           const imagesWithUser = data.flatMap(r =>
             r.images.map((imageUri: any) => ({
-              imageUri: imageUri,
+              imageUri,
               userId: r.userId,
               treeId: r.treeId,
             })),
@@ -183,7 +199,7 @@ export default function CafeDetailScreen() {
     });
   };
 
-  // ▼▼▼ [수정된 부분] 물주기 버튼 클릭 핸들러 ▼▼▼
+  // 물주기
   const onPressWater = async (treeId: string) => {
     try {
       await postTreeWater(treeId);
@@ -191,14 +207,16 @@ export default function CafeDetailScreen() {
       const count = Number(current?.recommendationCount ?? 0) + 1;
       showCustomToast(`‘${name}’에 물을 주었어요!`, 'success', count);
     } catch (error: any) {
-      // 4xx 상태 코드(400, 409 등) 에러를 모두 토스트로 처리
       if (error.response && error.response.status >= 400 && error.response.status < 500) {
-        const errorMessage = error.response.data?.message || "요청을 처리할 수 없습니다.";
+        const errorMessage =
+          error.response.data?.message || '요청을 처리할 수 없습니다.';
         showCustomToast(errorMessage, 'error');
       } else {
-        // 그 외 네트워크 오류나 5xx 서버 오류 등
-        console.error("물주기 실패:", error);
-        Alert.alert('오류', '물 주기에 실패했습니다. 네트워크 상태를 확인하거나 다시 시도해주세요.');
+        console.error('물주기 실패:', error);
+        Alert.alert(
+          '오류',
+          '물 주기에 실패했습니다. 네트워크 상태를 확인하거나 다시 시도해주세요.',
+        );
       }
     }
   };
@@ -207,9 +225,8 @@ export default function CafeDetailScreen() {
     <SafeAreaView style={[styles.root]}>
       <TopBar
         onPressBack={() => navigation.goBack()}
-        onPressBookmark={() => setBookmarked(b => !b)}
-        bookmarked={bookmarked}
-        iconSize={30}
+        rightText="씨앗심기"
+        onPressRight={goToPlantTab}
       />
 
       <ScrollView
@@ -298,31 +315,28 @@ export default function CafeDetailScreen() {
             <Text style={styles.title}>{restaurant.name}</Text>
           </View>
           <Text style={styles.address}>{restaurant.address}</Text>
+
           <View style={styles.photoView}>
             {imgData.length === 0 ? (
-              <>
+              <Image
+                source={require('../assets/dummypic.png')}
+                style={styles.Image0_1}
+                resizeMode="cover"
+              />
+            ) : allImages.length === 1 ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => goPhotoDetail(0)}>
                 <Image
-                  source={require('../assets/dummypic.png')}
+                  source={
+                    imgData[0].imageUri
+                      ? { uri: imgData[0].imageUri }
+                      : require('../assets/dummypic.png')
+                  }
                   style={styles.Image0_1}
                   resizeMode="cover"
                 />
-              </>
-            ) : allImages.length === 1 ? (
-              <>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => goPhotoDetail(0)}>
-                  <Image
-                    source={
-                      imgData[0].imageUri
-                        ? { uri: imgData[0].imageUri }
-                        : require('../assets/dummypic.png')
-                    }
-                    style={styles.Image0_1}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              </>
+              </TouchableOpacity>
             ) : allImages.length === 2 ? (
               <>
                 <TouchableOpacity
