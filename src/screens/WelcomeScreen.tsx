@@ -35,7 +35,8 @@ export default function WelcomeScreen({
           />
           <Text style={styles.title}>{nickname}님, 반가워요!</Text>
           <Text style={styles.subtitle}>
-            회원가입이 완료되었어요. 로그인해서 첫 씨앗을 심어보세요.
+            회원가입이 완료되었어요. 
+            로그인해서 첫 씨앗을 심어보세요.
           </Text>
         </View>
 

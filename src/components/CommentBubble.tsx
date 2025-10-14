@@ -1,35 +1,43 @@
+// src/components/CommentBubble.tsx
 import React from 'react';
 import { View, Text, Image, StyleSheet, ViewStyle, ImageSourcePropType } from 'react-native';
+import BasicProfileIcon from '../assets/basic_profile.svg';
 
 type Props = {
   name: string;
   text: string;
   style?: ViewStyle; 
-  avatar?: ImageSourcePropType;
+  avatar?: string;
 };
 
-const defaultAvatar = require('../assets/basic_profile.svg'); //일단 프로필 사진 하나루..몽땅
 
-export default function CommentBubble({ name, text, style, avatar = defaultAvatar }: Props) {
+export default function CommentBubble({ name, text, style, avatar }: Props) {
+  
+  console.log(avatar);
   return (
     <View style={[styles.container, style]} pointerEvents="none">
-      <Image source={avatar} style={styles.avatar} />
-
-      <View style={styles.right}>
-        {/* 이름 배지 */}
-        <View style={styles.namePill}>
-          <Text style={styles.nameText}>{name}</Text>
-        </View>
-
-        {/* 말풍선 + 꼬리 */}
-        <View style={styles.bubbleWrap}>
-          <View style={styles.bubble}>
-            <Text style={styles.bubbleText} numberOfLines={2}>
-              {text}
-            </Text>
+      {/* ▼▼▼ 이 View가 실제 콘텐츠를 감싸고, 부모인 container에 의해 중앙 정렬됩니다. ▼▼▼ */}
+      <View style={styles.contentWrapper}>
+        {avatar ? (
+          <Image source={{uri: avatar}} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatar}>
+            <BasicProfileIcon width={35} height={35} />
           </View>
-          {/* 꼬리 (border trick) */}
-          <View style={styles.tail} />
+        )}
+        {/* <Image source={{uri: avatar}} style={styles.avatar} /> */}
+        <View style={styles.right}>
+          <View style={styles.namePill}>
+            <Text style={styles.nameText}>{name}</Text>
+          </View>
+          <View style={styles.bubbleWrap}>
+            <View style={styles.bubble}>
+              <Text style={styles.bubbleText} numberOfLines={2}>
+                {text}
+              </Text>
+            </View>
+            <View style={styles.tail} />
+          </View>
         </View>
       </View>
     </View>
@@ -37,25 +45,36 @@ export default function CommentBubble({ name, text, style, avatar = defaultAvata
 }
 
 const styles = StyleSheet.create({
+  // ▼▼▼ [수정] container를 화면 전체 너비를 차지하는 중앙 정렬 컨테이너로 변경 ▼▼▼
   container: {
     position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center', // 자식 요소를 가로 중앙에 배치
+    zIndex: 15,
+  },
+  // ▼▼▼ [추가] 실제 콘텐츠(아바타+말풍선)를 감싸는 래퍼 추가 ▼▼▼
+  contentWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    zIndex: 15,
+    // 이 View의 자식인 'right'(말풍선 부분)을 기준으로 중앙 정렬됩니다.
+    // 아바타는 말풍선 왼쪽에 위치하므로, 전체적으로 말풍선이 중앙에 가깝게 보입니다.
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 50,
     backgroundColor: '#ddd',
-    marginLeft: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   right: {
     marginLeft: 9,
   },
   namePill: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EAF7EF', 
+    backgroundColor: '#EAF7EF',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -93,6 +112,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 8,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
-    borderRightColor: '#fff', // 말풍선 배경과 동일
+    borderRightColor: '#fff',
   },
 });

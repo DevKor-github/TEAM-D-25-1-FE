@@ -1,5 +1,5 @@
 // src/screens/Planting/PlantScreen.tsx
-import React, { useCallback, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useState, useEffect } from 'react';
 import {
   Alert,
   Image,
@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
   SafeAreaView,
+  BackHandler,             // ✅ 추가: HW 뒤로가기
 } from 'react-native';
 
 import { useSelector, useDispatch } from 'react-redux';
@@ -31,6 +32,9 @@ import { postTree } from '../../apis/api/tree';
 import { postImageReview } from '../../apis/api/images';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { getTag } from '../../apis/api/user';
+import { useFocusEffect } from '@react-navigation/native';  // ✅ 추가: 포커스 시 HW 뒤로 처리
+
 const backIcon = require('../../assets/arrow.png');
 const plusPng = require('../../assets/plus_icon.png');
 
@@ -43,14 +47,64 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
   const { savedRestaurant, savedSeed, savedTags, savedPhotos, reviewText } =
     useSelector((state: RootState) => state.seedPlanting);
 
+  const [tagMap, setTagMap] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
   const isConfirmEnabled = savedRestaurant !== null && savedSeed !== null;
 
-  const goToMapTab = () => {
-    const parent = navigation.getParent?.();
-    if (parent) parent.navigate('Map');
-    else navigation.navigate('Map');
-  };
+  useEffect(() => {
+    const fetchTagMap = async () => {
+      try {
+        const res = await getTag();
+        const settings = res?.settings ?? res;
+        const apiTags = settings?.tags || [];
+
+        const newTagMap = (Array.isArray(apiTags) ? apiTags : []).reduce((map, tag) => {
+          if (tag?.key && tag?.value) {
+            map[tag.key] = tag.value;
+          }
+          return map;
+        }, {} as Record<string, string>);
+
+        setTagMap(newTagMap);
+      } catch (error) {
+        console.error('태그 맵 정보를 가져오는 데 실패했습니다:', error);
+      }
+    };
+    fetchTagMap();
+  }, []);
+
+  // ✅ “스마트 뒤로가기”: 직전 화면으로 자연스럽게
+  const goBackSmart = useCallback(() => {
+    // 1) 현재 네비게이터(Planting 스택)에서 pop 가능하면 pop
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    // 2) 부모 체인을 타고 올라가며 뒤로갈 수 있는 네비게이터 찾기 (탭 → 루트 스택)
+    let parent: any = navigation;
+    while (parent?.getParent?.()) {
+      parent = parent.getParent();
+      if (parent?.canGoBack?.()) {
+        parent.goBack();
+        return;
+      }
+    }
+
+    // 3) 마지막 안전망: 홈 탭으로 이동
+    navigation.navigate('Map');
+  }, [navigation]);
+
+  // ✅ 안드로이드 HW 뒤로키도 동일 동작
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        goBackSmart();
+        return true; // 우리가 처리
+      });
+      return () => sub.remove();
+    }, [goBackSmart])
+  );
 
   const handlePlantSeed = async () => {
     if (!savedSeed || !savedRestaurant) return;
@@ -67,15 +121,18 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         savedTags,
         uploadedUrls,
       );
-      Alert.alert('성공', '씨앗이 성공적으로 심어졌습니다!');
+      
+      // 성공 시 완료 화면으로 교체 이동
       dispatch(resetSeedPlanting());
-      goToMapTab();
+      navigation.replace('Complete'); 
+      
     } catch (error) {
       Alert.alert('실패', '씨앗 심기에 실패했습니다. 다시 시도해주세요.');
       console.error(error);
     }
   };
 
+  // ✅ 헤더 커스텀: 뒤로가기 버튼에 goBackSmart 연결
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackVisible: false,
@@ -84,7 +141,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       headerTitleStyle: { fontSize: 18, fontWeight: '600', color: '#111' },
       headerLeft: () => (
         <TouchableOpacity
-          onPress={goToMapTab}
+          onPress={goBackSmart}                // ✅ 변경: 항상 Map으로 X → 스마트 뒤로
           style={{ marginLeft: 12, padding: 6 }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Image
@@ -112,7 +169,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, isConfirmEnabled, savedRestaurant, savedSeed, reviewText, savedTags]);
+  }, [navigation, isConfirmEnabled, savedRestaurant, savedSeed, reviewText, savedTags, goBackSmart]);
 
   const handleAddPhoto = useCallback(() => {
     const options: ImagePicker.ImageLibraryOptions = {
@@ -203,9 +260,9 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
             </View>
 
             <View style={styles.tagContainer}>
-              {savedTags.map((tag, idx) => (
-                <View key={`${tag}-${idx}`} style={styles.tagBadge}>
-                  <Text style={styles.tagText}>{FOOD_TAG_KOREAN_MAP[tag] || tag}</Text>
+              {savedTags.map((tagKey, idx) => (
+                <View key={`${tagKey}-${idx}`} style={styles.tagBadge}>
+                  <Text style={styles.tagText}>{tagMap[tagKey] || tagKey}</Text>
                 </View>
               ))}
               <TouchableOpacity
@@ -214,13 +271,13 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
                 activeOpacity={0.8}
                 style={styles.addTagSpacer}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Image source={plusPng} style={{ width: 35, height: 35, resizeMode: 'contain' }} />
+                <Image source={plusPng} style={{ width: 34, height: 34, resizeMode: 'contain' }} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* 구분선 */}
-          <View style={{ height: 1, backgroundColor: '#ECECEC', marginVertical: 12 }} />
+          <View style={{ height: 1, backgroundColor: '#EFECEC', marginVertical: 10 }} />
 
           {/* 사진 (선택) */}
           <View style={styles.section}>
@@ -257,7 +314,6 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
               value={reviewText}
               onChangeText={(t: string) => dispatch(setReviewText(t))}
             />
-            {/* ▼▼▼ [수정] 글자 수 표시 부분 ▼▼▼ */}
             <Text style={styles.charCount}>
               <Text style={styles.charCountHighlight}>{reviewText.length}</Text>
               {' / 80'}
@@ -272,7 +328,6 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#FFFFFF' },
 
-  // 스크롤(전체)
   scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
@@ -282,7 +337,6 @@ const styles = StyleSheet.create({
 
   section: { marginBottom: 20 },
 
-  // 헤더(제목 + 필수표시)
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,7 +346,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '400', color: '#111111' },
   required: { fontSize: 12, color: '#008F47', fontWeight: '400' },
 
-  // 선택 필드
   selectField: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -305,7 +358,6 @@ const styles = StyleSheet.create({
   selectFieldText: { fontSize: 15, color: '#333' },
   selectFieldPlaceholder: { fontSize: 15, color: '#888' },
 
-  // 태그
   tagContainer: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   tagBadge: {
     backgroundColor: '#6CDF44',
@@ -313,12 +365,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 19,
     borderRadius: 20,
     marginRight: 1,
-    marginBottom: 10,
+    marginBottom: 2,
   },
-  tagText: { color: '#111', fontSize: 14, fontWeight: '500' },
-  addTagSpacer: { marginRight: 4, marginBottom: 8 },
+  tagText: { color: '#111', fontSize: 14, fontWeight: '400' },
+  addTagSpacer: { marginRight: 4, marginBottom: 14, },
 
-  // 사진
   imageScrollContainer: { flexDirection: 'row', alignItems: 'center' },
   addPhotoButton: {
     width: 100,
@@ -334,7 +385,6 @@ const styles = StyleSheet.create({
   addPhotoText: { fontSize: 12, color: '#B0B0B0', marginTop: 5 },
   addedImage: { width: 100, height: 100, borderRadius: 1, marginRight: 10, flexShrink: 0 },
 
-  // 한줄평
   reviewInput: {
     backgroundColor: '#F6F6F8',
     borderRadius: 1,
@@ -347,7 +397,6 @@ const styles = StyleSheet.create({
   },
   charCount: { fontSize: 12, color: '#868686', textAlign: 'right', marginTop: 5 },
   
-  // ▼▼▼ [추가] 글자 수 강조 스타일 ▼▼▼
   charCountHighlight: {
     color: '#008F47',
     fontWeight: '600',
@@ -355,8 +404,3 @@ const styles = StyleSheet.create({
 });
 
 export default PlantScreen;
-
-// (필요시) 태그 한글 매핑 상수
-const FOOD_TAG_KOREAN_MAP: Record<string, string> = {
-  // 예) spicy: '매운맛'
-};

@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Image,
@@ -13,69 +12,65 @@ import {useDispatch, useSelector} from 'react-redux';
 import {setSavedTags} from '../../redux/seedPlantingSlice';
 import {RootState} from '../../types/types';
 
+import { getTag } from '../../apis/api/user';
+
 const backIcon = require('../../assets/arrow.png');
 
-const recommendedTags = [
-  'DRINKER',
-  'VEGAN_OR_VEGETARIAN',
-  'SPICY_FOOD_LOVER',
-  'PICKY_EATER',
-  'DESSERT_LOVER',
-  'DIETER',
-  'LATE_NIGHT_EATER',
-  'SWEET_TOOTH',
-  'HEALTH_CONSCIOUS',
-  'VALUE_SEEKER',
-  'MEAT_LOVER',
-  'DIET_PLANNER',
-  'CAFFEINE_ADDICT',
-  'CLASSIC_TASTE',
-  'STREET_FOOD_FAN',
-  'TTEOKBOKKI_LOVER',
-  'SMALL_EATER',
-  'BIG_EATER',
-  'SOLO_DINER',
-  'SEAFOOD_LOVER',
-  'HEARTY_EATER',
-];
-
-const FOOD_TAG_KOREAN_MAP: {[key: string]: string} = {
-  DRINKER: '애주가',
-  VEGAN_OR_VEGETARIAN: '비건/채식',
-  SPICY_FOOD_LOVER: '맵부심',
-  PICKY_EATER: '편식쟁이',
-  DESSERT_LOVER: '디저트 러버',
-  DIETER: '다이어터',
-  LATE_NIGHT_EATER: '야식',
-  SWEET_TOOTH: '혈당 스파이크',
-  HEALTH_CONSCIOUS: '건강식',
-  VALUE_SEEKER: '가성비',
-  MEAT_LOVER: '육식파',
-  DIET_PLANNER: '식단',
-  CAFFEINE_ADDICT: '카페인 중독',
-  CLASSIC_TASTE: '클래식',
-  STREET_FOOD_FAN: '길거리 음식',
-  TTEOKBOKKI_LOVER: '떡볶이',
-  SMALL_EATER: '소식좌',
-  BIG_EATER: '대식가',
-  SOLO_DINER: '혼밥러',
-  SEAFOOD_LOVER: '해산물파',
-  HEARTY_EATER: '든든파',
+// ▼▼▼ 1. API로부터 받아올 태그 객체의 타입을 명확히 정의합니다. ▼▼▼
+type TagObject = {
+  key: string;  // 서버와 통신할 영문 Key (예: 'DRINKER')
+  label: string; // 화면에 보여줄 한글 Label (예: '애주가')
 };
-
 
 const TagSelectionScreen = ({navigation}: {navigation: any}) => {
   const dispatch = useDispatch();
   const {savedTags} = useSelector((state: RootState) => state.seedPlanting);
 
+  // ▼▼▼ 2. displayTags state가 이제 TagObject의 배열을 저장합니다. ▼▼▼
+  const [displayTags, setDisplayTags] = useState<TagObject[]>([]);
+  // selectedTags는 서버로 보낼 영문 key(string)의 배열이므로 그대로 둡니다.
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [inputTag, setInputTag] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await getTag();
+        if (!mounted) return;
+        
+        const settings = res?.settings ?? res;
+        const apiTagsArray = settings?.tags;
+
+        // API 응답을 {key, label} 형태의 객체 배열로 정규화합니다.
+        const normalizeApiTags = (arr: any[]): TagObject[] =>
+          (Array.isArray(arr) ? arr : [])
+            .map((tag: any) => {
+              // API 응답의 key와 value를 우리 앱의 key와 label에 매핑합니다.
+              if (tag?.key && tag?.value) {
+                return { key: tag.key, label: tag.value };
+              }
+              return null;
+            })
+            .filter((item): item is TagObject => !!item); // null인 항목은 제거합니다.
+        
+        const tagObjectsFromApi = normalizeApiTags(apiTagsArray);
+
+        if (tagObjectsFromApi.length > 0) {
+          setDisplayTags(tagObjectsFromApi);
+        }
+      } catch (e) {
+        console.log('[TagSelection] getTag error:', e);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     setSelectedTags(savedTags || []);
   }, [savedTags]);
 
   const handleSave = () => {
+    // selectedTags에는 'DRINKER'와 같은 영문 key들이 저장되어 있습니다.
     dispatch(setSavedTags(selectedTags));
     navigation.goBack();
   };
@@ -102,55 +97,32 @@ const TagSelectionScreen = ({navigation}: {navigation: any}) => {
     });
   }, [navigation, selectedTags]);
 
-  const toggleTag = (tag: string) => {
+  const toggleTag = (tagKey: string) => {
     setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag],
+      prev.includes(tagKey) ? prev.filter(t => t !== tagKey) : [...prev, tagKey],
     );
-  };
-
-  const addInputTag = () => {
-    const trimmed = inputTag.trim();
-    if (trimmed && !selectedTags.includes(trimmed)) {
-      setSelectedTags(prev => [...prev, trimmed]);
-    }
-    setInputTag('');
   };
 
   return (
     <View style={styles.container}>
-      {/* 필요 시 직접 입력 UI
-      <Text style={styles.description}>이 맛집을 설명하는 태그를 입력하세요.</Text>
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          value={inputTag}
-          onChangeText={setInputTag}
-          placeholder="한식, 가성비, 혼밥 등"
-          placeholderTextColor="#aaa"
-        />
-        <TouchableOpacity style={styles.inputAddBtn} onPress={addInputTag}>
-          <Text style={styles.inputAddText}>＋</Text>
-        </TouchableOpacity>
-      </View>
-      */}
-
       <View style={styles.listcontainer}>
         <Text style={styles.recommendTitle}>추천 태그</Text>
 
         <ScrollView contentContainerStyle={styles.chipContainer}>
-          {recommendedTags.map(tag => {
-            const isSelected = selectedTags.includes(tag);
+          {/* ▼▼▼ 3. displayTags 배열의 객체를 순회하며 칩을 렌더링합니다. ▼▼▼ */}
+          {displayTags.map(tag => { // 이제 tag는 {key: '...', label: '...'} 형태의 객체입니다.
+            const isSelected = selectedTags.includes(tag.key);
             return (
               <TouchableOpacity
-                key={tag}
-                onPress={() => toggleTag(tag)}
+                key={tag.key} // key prop에는 영문 key를 사용
+                onPress={() => toggleTag(tag.key)} // 선택 시에도 영문 key를 전달
                 style={[styles.chip, isSelected && styles.chipSelected]}>
                 <Text
                   style={[
                     styles.chipText,
                     isSelected && styles.chipTextSelected,
                   ]}>
-                  {FOOD_TAG_KOREAN_MAP[tag]}
+                  {tag.label} {/* 화면에는 한글 label을 표시 */}
                 </Text>
               </TouchableOpacity>
             );
@@ -165,33 +137,13 @@ export default TagSelectionScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF', padding: 20 },
-
-  // (옵션) 입력줄
-  description: { fontSize: 14, color: '#444', marginBottom: 8 },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1, borderColor: '#DDD', borderRadius: 8,
-    marginBottom: 16,
-  },
-  input: { flex: 1, height: 44, paddingHorizontal: 12, color: '#111' },
-  inputAddBtn: {
-    width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
-    borderLeftWidth: 1, borderLeftColor: '#DDD',
-  },
-  inputAddText: { fontSize: 20, color: '#888' },
-
   listcontainer: { flex: 1 },
   recommendTitle: { fontSize: 16, fontWeight: '500', color: '#333', marginBottom: 8 },
-
-  // ✅ 요청하신 칩 스타일
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 4 },
   chip: {
     paddingHorizontal: 17, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: '#B9B9B9', margin: 4, backgroundColor: '#FFF'
   },
-  chipText: { fontSize: 15, color: '#333' },
-
-  // 선택 상태(강조)
+  chipText: { fontSize: 15, color: '#111111', fontWeight: '400' },
   chipSelected: {
     backgroundColor: '#6CDF44',
     borderColor: '#6CDF44',

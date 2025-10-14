@@ -128,5 +128,7 @@ dependencies {
     implementation project(':react-native-config')
     apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
 
+    implementation platform('com.google.firebase:firebase-bom:33.1.2') // 최신 BOM
+  implementation ('com.google.firebase:firebase-messaging')
     
 }

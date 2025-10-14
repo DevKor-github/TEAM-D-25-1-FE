@@ -11,10 +11,9 @@ export interface Tree {
   updatedAt: string;
   recommendationCount: number;
   images: string[];
-  
 }
 
-export interface Restaruant {
+export interface Restaurant {
   treeId: string;
   name: string;
   address: string;

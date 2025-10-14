@@ -9,6 +9,7 @@ import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import SignUpScreen from './src/screens/SignUpScreen';
 import BottomNavigationBar from './src/navigations/bottomNavigationBar';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import ProfileEditScreen from './src/screens/Mypage/ProfileEditScreen';
@@ -23,6 +24,16 @@ import FriendScreen from './src/screens/FriendScreen';
 import auth from '@react-native-firebase/auth';
 import {exchangeFirebaseTokenWithBackend} from './src/apis/api/login';
 import {setCredentials, logout, setLoading} from './src/redux/authSlice';
+import CompleteScreen from './src/screens/Planting/CompleteScreen';
+
+// ✅ RNFirebase 코어: 앱 초기화 보장
+import { getApps, initializeApp } from '@react-native-firebase/app';
+// (구식 네임스페이스 import 제거) import auth from '@react-native-firebase/auth';
+
+// 앱 시작 시 기본 앱([DEFAULT])이 없으면 초기화
+if (!getApps().length) {
+  initializeApp(); // iOS의 GoogleService-Info.plist / Android의 google-services.json을 자동 사용
+}
 
 const Stack = createStackNavigator();
 
