@@ -49,8 +49,11 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
 
       // Firebase ID 토큰 → 백엔드 교환
       const firebaseIdToken = await user.getIdToken();
-      const customApplicationToken = await exchangeFirebaseTokenWithBackend(firebaseIdToken);
-      console.log('커스텀 애플리케이션 토큰:', customApplicationToken);
+      console.log('Firebase ID Token:', firebaseIdToken);
+
+      const payload = await exchangeFirebaseTokenWithBackend(firebaseIdToken);
+      const customApplicationToken = payload.accessToken
+      console.log('로그인 성공! 커스텀 애플리케이션 토큰:', customApplicationToken);
 
       // 실제 화면으로 이동
       navigation.navigate('Map');
