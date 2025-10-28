@@ -224,10 +224,17 @@ export default function CafeDetailScreen() {
   return (
     <SafeAreaView style={[styles.root]}>
       <TopBar
-        onPressBack={() => navigation.goBack()}
-        rightText="씨앗심기"
-        onPressRight={goToPlantTab}
-      />
+        onPressBack={() => {
+        if (navigation.canGoBack()) {
+         navigation.goBack();
+        } else {
+        navigation.navigate('Map'); // 스택이 없으면 fallback
+        }
+      }}
+      rightText="씨앗심기"
+      onPressRight={goToPlantTab}
+    />
+
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -588,9 +595,9 @@ const styles = StyleSheet.create({
   },
   activeDot: { backgroundColor: '#3C3C3C' },
   titleRow: { flexDirection: 'row', alignItems: 'baseline' },
-  title: { fontSize: 20, fontWeight: '600' },
-  address: { fontSize: 14, color: '#767676', fontWeight: '400', marginTop: 6 },
-  photoScrollView: { marginTop: 14 },
+  title: { fontSize: 20, fontWeight: '600', marginLeft: 10, },
+  address: { fontSize: 14, color: '#767676', fontWeight: '400', marginTop: 7 ,marginLeft: 10,},
+  photoScrollView: { marginTop: 12 },
   photoScrollContainer: { flexDirection: 'row', gap: 8 },
   scrollImage: { width: 150, height: 150, borderRadius: 4 },
   actionWrapper: { position: 'absolute', left: 16, right: 16 },
