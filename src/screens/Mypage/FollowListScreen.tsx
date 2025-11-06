@@ -4,12 +4,18 @@ import {
   SafeAreaView, View, Text, StyleSheet, Image,
   TouchableOpacity, FlatList, ActivityIndicator,
 } from 'react-native';
-import { getUser, getFollowingList, getFollwerList, getFollower, type UserSummary } from '../../apis/api/user';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { CLOUDFRONT_URL } from '@env';
 
-import BasicProfileIcon from '../../assets/basic_profile.svg'; 
+import {
+  getUser,
+  getFollowingList,
+  getFollwerList, // 기존 SDK (오타지만 그대로 둠)
+  getFollower,    // 개별 유저 상세
+} from '../../apis/api/user';
+
+import BasicProfileIcon from '../../assets/basic_profile.svg';
 const backIcon = require('../../assets/arrow.png');
 
 type Person = {
@@ -21,26 +27,88 @@ type TabKey = 'followers' | 'following';
 const GREEN = '#6CDF44';
 const ROUTE_FRIEND = 'Friend';
 
-// ▼▼▼ [수정 1] filter 부분에 `p is Person` 타입 가드를 추가하여 빨간 줄을 해결합니다. ▼▼▼
-const mapToPersons = (arr?: any[]): Person[] =>
+const isAbs = (s?: string | null) => !!s && /^https?:\/\//i.test(s || '');
+
+// ★★ followers 응답 스키마 보정: followerId/ followingId / fromUserId / toUserId 까지 체크
+const pickUserIdFromRow = (u: any): string | undefined => {
+  // 서버에 따라 팔로워 리스트는 "나를 팔로우한 사람"의 ID가 들어있음
+  // 보통 followerId, fromUserId 등에 들어옴
+  const cands = [
+    u?.id,
+    u?.userId,
+    u?.followerId,
+    u?.followingId,
+    u?.fromUserId,
+    u?.toUserId,
+    u?.follower?.id,
+    u?.follower?.userId,
+    u?.user?.id,
+    u?.user?.userId,
+  ];
+  const found = cands.find((v) => v != null && `${v}`.trim() !== '');
+  return found != null ? String(found) : undefined;
+};
+
+const pickNameFromRow = (u: any): string => {
+  const cands = [
+    u?.nickname,
+    u?.username,
+    u?.name,
+    u?.follower?.nickname,
+    u?.follower?.name,
+    u?.user?.nickname,
+    u?.user?.name,
+  ];
+  const found = cands.find((v) => typeof v === 'string' && v.trim());
+  return (found as string) ?? '이름';
+};
+
+const pickProfileFromRow = (u: any): string | null => {
+  const cands = [
+    u?.profileImage,
+    u?.profileImageUrl,
+    u?.avatarUrl,
+    u?.follower?.profileImage,
+    u?.follower?.profileImageUrl,
+    u?.user?.profileImage,
+    u?.user?.profileImageUrl,
+  ];
+  const found = cands.find((v) => typeof v === 'string' && v.trim());
+  return found ? String(found) : null;
+};
+
+const mapToPersonsFollowers = (arr?: any[]): Person[] =>
+  (arr ?? [])
+    .map((u: any) => {
+      const id = pickUserIdFromRow(u);
+      const name = pickNameFromRow(u);
+      const profileImageUrl = pickProfileFromRow(u);
+      return { id, name, profileImageUrl };
+    })
+    .filter((p): p is Person => !!p.id)
+    .map((p) => ({ ...p, id: String(p.id) }));
+
+const mapToPersonsFollowing = (arr?: any[]): Person[] =>
   (arr ?? [])
     .map((u: any) => ({
-      id: u?.id ?? u?.userId,
-      name: u?.nickname ?? u?.username ?? u?.name ?? '이름',
-      profileImageUrl: u?.profileImage ?? u?.profileImageUrl ?? null,
+      id: pickUserIdFromRow(u),
+      name: pickNameFromRow(u),
+      profileImageUrl: pickProfileFromRow(u),
     }))
-    // 이 필터를 통과한 객체 p는 Person 타입임을 TypeScript에 명확히 알려줍니다.
-    .filter((p): p is Person => p.id != null) 
+    .filter((p): p is Person => !!p.id)
     .map((p) => ({ ...p, id: String(p.id) }));
 
 export default function FollowListScreen({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const initialTabParam = (route?.params?.initialTab as TabKey | undefined) ?? 'followers';
   const [tab, setTab] = useState<TabKey>(initialTabParam);
+
+  // 친구 프로필에서 넘어온 userId (그 친구)
+  const routeUserId = route?.params?.userId ? String(route.params.userId) : null;
 
   const [followers, setFollowers] = useState<Person[]>([]);
   const [following, setFollowing] = useState<Person[]>([]);
   const [loading, setLoading] = useState(false);
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const next = route?.params?.initialTab as TabKey | undefined;
@@ -55,7 +123,7 @@ export default function FollowListScreen({ navigation, route }: any) {
   const openFriend = (id: string) => {
     navigation.navigate(ROUTE_FRIEND, { selectedUser: { id } });
   };
-  
+
   useFocusEffect(
     useCallback(() => {
       let mounted = true;
@@ -63,68 +131,94 @@ export default function FollowListScreen({ navigation, route }: any) {
       const fetchData = async () => {
         try {
           setLoading(true);
-          const me = await getUser();
-          // me?.userId가 없을 경우를 대비하여 확실하게 문자열로 변환합니다.
-          const userId = String(me?.userId ?? '');
 
-          if (!userId) {
-            console.warn('userId를 찾을 수 없습니다.');
-            setLoading(false);
+          // 1) 타깃 유저 결정: route → me
+          let targetUserId = routeUserId;
+          if (!targetUserId) {
+            const me = await getUser();
+            targetUserId = String(me?.userId ?? '');
+          }
+          if (!targetUserId) {
+            console.warn('targetUserId를 찾을 수 없습니다.');
+            setFollowers([]); setFollowing([]);
             return;
           }
 
-          const [followersRes, followingRes] = await Promise.all([
-            getFollwerList(),
-            getFollowingList(userId),
-          ]);
-          
-          // ▼▼▼ [수정 2] state 업데이트 시점 문제를 해결하는 로직입니다. ▼▼▼
-          // 1. API 응답을 state가 아닌 임시 로컬 변수에 먼저 저장합니다.
-          const initialFollowers = mapToPersons(followersRes?.items ?? []);
-          const initialFollowing = mapToPersons(followingRes ?? []);
+          // 2) API가 userId 파라미터를 받지 않는 경우를 대비, 다양한 방식으로 강제 시도
+          const tryGetFollowers = async (uid: string) => {
+            // a) SDK가 userId를 받는 버전
+            try {
+              const res = await (getFollwerList as any)(uid);
+              return res?.items ?? res ?? [];
+            } catch (_) {}
 
-          // 2. 각 사용자의 상세 정보를 병렬(Promise.all)로 효율적으로 가져옵니다.
+            // b) SDK가 파라미터 없는 버전(내 팔로워만) → 이 경우엔 routeUserId와 me가 다르면 “틀린 결과”가 됨
+            //    그러니 이 경로는 마지막 폴백으로만 사용
+            try {
+              const res = await getFollwerList();
+              return res?.items ?? res ?? [];
+            } catch (_) {}
+
+            return [];
+          };
+
+          const tryGetFollowing = async (uid: string) => {
+            try {
+              const res = await getFollowingList(uid);
+              return res?.items ?? res ?? [];
+            } catch (e) {
+              // 혹시 파라미터 없는 사양이면
+              try {
+                const res = await (getFollowingList as any)(undefined);
+                return res?.items ?? res ?? [];
+              } catch (_) {
+                return [];
+              }
+            }
+          };
+
+          const [followersRaw, followingRaw] = await Promise.all([
+            tryGetFollowers(targetUserId),
+            tryGetFollowing(targetUserId),
+          ]);
+
+          // 3) 매핑(팔로워/팔로잉 각각 스키마 다름 대비)
+          const initialFollowers = mapToPersonsFollowers(followersRaw);
+          const initialFollowing = mapToPersonsFollowing(followingRaw);
+
+          // 4) 상세 보강(프로필 이미지 절대/상대 경로 처리)
           const enrichUsers = async (users: Person[]): Promise<Person[]> => {
-            const detailPromises = users.map(user => 
-              getFollower(user.id).catch(e => {
-                console.warn(`getFollower(${user.id}) 실패:`, e);
-                return user; // 실패 시 원본 사용자 정보 반환
-              })
+            const detail = await Promise.all(
+              users.map(u => getFollower(u.id).catch(() => null))
             );
-            const detailedUsers = await Promise.all(detailPromises);
-            
-            return users.map((originalUser, index) => {
-              const detail = detailedUsers[index];
-              const profileImage = detail?.profileImage ?? detail?.profileImageUrl;
-              return {
-                ...originalUser,
-                profileImageUrl: profileImage ? `${CLOUDFRONT_URL}${profileImage}` : null,
-              };
+            return users.map((u, i) => {
+              const d = detail[i] as any;
+              const raw = d?.profileImage ?? d?.profileImageUrl ?? u.profileImageUrl ?? null;
+              const finalUrl = isAbs(raw) ? raw : (raw ? `${CLOUDFRONT_URL}${raw}` : null);
+              const name = d?.nickname || d?.username || d?.name || u.name;
+              return { ...u, name, profileImageUrl: finalUrl };
             });
           };
 
           const [enrichedFollowers, enrichedFollowing] = await Promise.all([
             enrichUsers(initialFollowers),
-            enrichUsers(initialFollowing)
+            enrichUsers(initialFollowing),
           ]);
 
           if (!mounted) return;
-
-          // 3. 모든 정보가 합쳐진 최종 배열로 state를 "한 번에" 업데이트합니다.
           setFollowers(enrichedFollowers);
           setFollowing(enrichedFollowing);
-
         } catch (e) {
           console.error('팔로우 목록 로드 에러:', e);
+          if (mounted) { setFollowers([]); setFollowing([]); }
         } finally {
           if (mounted) setLoading(false);
         }
       };
 
       fetchData();
-
       return () => { mounted = false; };
-    }, [route?.params?.userId])
+    }, [routeUserId])
   );
 
   const data = tab === 'followers' ? followers : following;
@@ -206,19 +300,10 @@ const styles = StyleSheet.create({
   tabTextInactive: { color: '#999999' },
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8 },
   avatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 24,
-    marginRight: 12,
-    backgroundColor: '#EFEFEF', // 기본 배경색
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden', // 이미지가 밖으로 나가지 않도록
+    width: 40, height: 40, borderRadius: 24, marginRight: 12,
+    backgroundColor: '#EFEFEF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
+  avatarImage: { width: '100%', height: '100%' },
   name: { fontSize: 16, color: '#111' },
   separator: { height: 1, backgroundColor: '#EFEFEF', marginLeft: 80 },
 });

@@ -242,7 +242,7 @@ const MapScreen = ({ navigation, route }: { navigation: any, route:any;}) => {
             <HamburgerIcon />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={handleSearchClick} style={{flex: 1}}>
+          <TouchableOpacity onPress={handleSearchClick} style={{flex: 1, height: '100%', justifyContent: 'center'}} hitSlop={{ top: 20, bottom: 20, left: 10, right: 10 }}>
             <TextInput
               style={styles.searchInput}
               placeholder="장소, 음식, 가게를 검색해보세요!"
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  searchLeftRow: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 },
+  searchLeftRow: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6,height: '100%', },
   searchInput: { fontSize: 16, color: '#999999', textAlign: 'left', paddingVertical: 0 },
 
   /* 하단 카드 */
