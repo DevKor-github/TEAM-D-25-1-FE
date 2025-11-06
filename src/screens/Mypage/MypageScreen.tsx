@@ -2,10 +2,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView, Image, ScrollView,
-  TouchableOpacity, StyleSheet as RNStyleSheet, Dimensions,
+  TouchableOpacity, StyleSheet as RNStyleSheet, Dimensions, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import Chip from '../../components/Chip';
 
@@ -17,10 +17,7 @@ import BasicProfileIcon from '../../assets/basic_profile.svg';
 
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import {
-  getMyTree,
   getUser,
-  getFollwerList,
-  getFollowingList,
   getMe,
   getTag,
 } from '../../apis/api/user';
@@ -43,13 +40,13 @@ const FALLBACKS = {
   recap:   { message: '나만의 정원을 꾸며보아요!' },
 };
 
-type TreeItemT = { id: string; name: string; meta: string; count: number };
+type TreeItemT = { id: string; name: string; meta: string; count: number; address?: string };
 type MyTree = {
   restaurantId?: string;
   restaurantName?: string;
   recommendationCount?: number;
   recommandationCount?: number;
-  location?: string;
+  location?: string; // ← 백엔드에서 주소가 여기로 온다고 가정
 };
 
 // ---------- 태그 유틸 ----------
@@ -125,6 +122,12 @@ const toValueList = (src: any, keyToValue: Map<string, string>, valueSet: Set<st
 // ---------- 컴포넌트 ----------
 export default function MyPageScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+  const route = useRoute<any>();
+
+  // (옵션) 라우트 파라미터에서 biggestTrees를 받는 경우 사용
+  const biggestTrees = route?.params?.biggestTrees as
+    | Array<{ restaurantId: string }>
+    | undefined;
 
   const [nickname, setNickname] = useState<string>('');
   const [followerCount, setFollowerCount] = useState<number>(0);
@@ -193,10 +196,11 @@ export default function MyPageScreen({ navigation }: any) {
       const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
       const metaParts = [!isNaN(count) ? `${count}M` : '', t.location || ''].filter(Boolean);
       return {
-        id: t.restaurantId ?? `tree-${i}`,
+        id: t.restaurantId ?? `tree-${i}`, // ← restaurantId를 그대로 id로 씀
         name: t.restaurantName ?? '이름없음',
         meta: metaParts.join('  '),
         count: isNaN(count) ? 0 : count,
+        address: t.location || '', // ← 주소 보존
       };
     });
   };
@@ -208,6 +212,7 @@ export default function MyPageScreen({ navigation }: any) {
     for (let i = 1; i < trees.length; i++) {
       const c = Number(trees[i]?.recommendationCount ?? trees[i]?.recommandationCount ?? 0);
       if (c > bestCount) { bestCount = c; bestIdx = i; }
+      // tie-breaker가 필요하면 여기서 name 비교 등 추가 가능
     }
     const name = trees[bestIdx]?.restaurantName ?? '이름없음';
     return { name, count: bestCount };
@@ -359,6 +364,57 @@ export default function MyPageScreen({ navigation }: any) {
     );
   };
 
+  // 🔗 하이라이트 버튼 → CafeDetail 이동 (주소 포함)
+  const goToCafeDetailByTopTree = useCallback(() => {
+    // 1) 우선 biggestTrees[0].restaurantId 사용 (라우트 파라미터로 들어온 경우)
+    let rid: string | undefined = biggestTrees?.[0]?.restaurantId;
+    let matched: TreeItemT | undefined;
+
+    // 2) topTree / plantedList로 보조 매칭
+    if (!rid && topTree) {
+      matched = plantedList.find(
+        (it) => it.name === topTree.name && it.count === topTree.count
+      );
+      rid = matched?.id;
+    }
+
+    // 3) 그래도 없으면 첫 번째 심은 나무로 이동
+    if (!rid && plantedList.length > 0) {
+      matched = plantedList[0];
+      rid = matched.id;
+    }
+
+    if (!rid) {
+      Alert.alert('알림', '이동할 카페 정보를 찾지 못했어요.');
+      return;
+    }
+
+    if (!matched) matched = plantedList.find(it => it.id === rid);
+
+    // CafeDetail은 route.params.restaurant.treeId를 split('_')[1]로 파싱하므로 tree_${rid} 형태로 전달
+    navigation.navigate('Detail', {
+      restaurant: {
+        treeId: `tree_${rid}`,
+        name: matched?.name ?? topTree?.name ?? '',
+        address: matched?.address ?? '', // ← 주소 같이 전달
+      },
+    });
+  }, [biggestTrees, topTree, plantedList, navigation]);
+
+  // ✅ 리스트 아이템 눌렀을 때 Detail 스크린으로 이동
+  const onPressTreeItem = useCallback((it: TreeItemT) => {
+    const hasPrefix = String(it.id).startsWith('tree_');
+    const treeId = hasPrefix ? it.id : `tree_${it.id}`;
+
+    navigation.navigate('Detail', {
+      restaurant: {
+        treeId,
+        name: it.name ?? '',
+        address: it.address ?? '',
+      },
+    });
+  }, [navigation]);
+
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -429,6 +485,7 @@ export default function MyPageScreen({ navigation }: any) {
         </View>
 
         <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
+          {/* 하이라이트 카드 1 */}
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#BDEABC']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
             <Image source={treeImg} style={styles.highlightTree} />
@@ -446,8 +503,14 @@ export default function MyPageScreen({ navigation }: any) {
                 <Text style={styles.fallbackTitle}>{FALLBACKS.topCard.message}</Text>
               )}
             </View>
-          </View>
 
+            {/* 왼하단 타원 버튼 */}
+            <TouchableOpacity style={styles.highlightBtn} activeOpacity={0.85} onPress={goToCafeDetailByTopTree}>
+              <Text style={styles.highlightBtnText}>보러가기 &gt;</Text>
+            </TouchableOpacity>
+          </View> 
+
+          {/* 하이라이트 카드 2 */}
           <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
             <LinearGradient colors={['#F4F4F4', '#F6D4E3']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFillObject} />
             <Image source={recapImgSource} style={styles.recapImage} />
@@ -481,6 +544,8 @@ export default function MyPageScreen({ navigation }: any) {
           toggleLabel={plantedExpanded ? '내역 접기' : '내역 더보기'}
           sortBy={plantedSortBy}
           onSortChange={() => setPlantedSortBy(s => s === 'height' ? 'name' : 'height')}
+          // ✅ 아이템 탭 이동
+          onItemPress={onPressTreeItem}
         />
 
         <Section
@@ -492,6 +557,8 @@ export default function MyPageScreen({ navigation }: any) {
           emptyText="아직 내역이 없어요."
           sortBy={wateredSortBy}
           onSortChange={() => setWateredSortBy(s => s === 'height' ? 'name' : 'height')}
+          // ✅ 아이템 탭 이동
+          onItemPress={onPressTreeItem}
         />
       </ScrollView>
     </SafeAreaView>
@@ -513,7 +580,7 @@ function TreeCard({ item }: { item: TreeItemT }) {
 
 // ▼ Section: 토글형 "내역 더보기/접기"
 function Section({
-  title, data, onToggle, canToggle, toggleLabel, emptyText, sortBy, onSortChange
+  title, data, onToggle, canToggle, toggleLabel, emptyText, sortBy, onSortChange, onItemPress,
 }: {
   title: string;
   data: TreeItemT[];
@@ -523,6 +590,7 @@ function Section({
   emptyText?: string;
   sortBy: 'height' | 'name';
   onSortChange: () => void;
+  onItemPress?: (item: TreeItemT) => void; // ✅ 추가
 }) {
   const isEmpty = data.length === 0;
 
@@ -547,7 +615,15 @@ function Section({
           </View>
         ) : (
           <>
-            {data.map(it => <TreeCard key={it.id} item={it} />)}
+            {data.map(it => (
+              <TouchableOpacity
+                key={it.id}
+                activeOpacity={0.85}
+                onPress={() => onItemPress?.(it)} // ✅ 터치 시 Detail로
+              >
+                <TreeCard item={it} />
+              </TouchableOpacity>
+            ))}
 
             {/* 목록이 2개 초과일 때만 토글 버튼 노출 */}
             {canToggle && (
@@ -629,7 +705,7 @@ const styles = StyleSheet.create({
   titleWrap: { gap: 6 },
   highlightTitleLine: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
   highlightEm: { color: '#0DBC65' },
-  highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 300, height: 300, resizeMode: 'contain' },
+  highlightTree: { position: 'absolute', right: -8, bottom: -6, width: 330, height: 320, resizeMode: 'contain' },
 
   fallbackTitle: { fontSize: 24, fontWeight: '700', color: '#111', lineHeight: 28 },
 
@@ -670,4 +746,20 @@ const styles = StyleSheet.create({
   treeRowDivider: { display: 'none' },
   treeThumb: { width: 40, height: 40, borderRadius: 8, resizeMode: 'contain' },
   rowChevron: { fontSize: 22, color: '#C2C6CE', paddingHorizontal: 4 },
+
+  // 하이라이트 버튼 (왼하단 타원)
+  highlightBtn: {
+    position: 'absolute',
+    left: 30,
+    bottom: 23,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 70,
+  },
+  highlightBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111',
+  },
 });

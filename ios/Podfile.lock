@@ -1465,7 +1465,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-safe-area-context (5.6.1):
+  - react-native-safe-area-context (5.6.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1480,8 +1480,8 @@ PODS:
     - React-hermes
     - React-ImageManager
     - React-jsi
-    - react-native-safe-area-context/common (= 5.6.1)
-    - react-native-safe-area-context/fabric (= 5.6.1)
+    - react-native-safe-area-context/common (= 5.6.2)
+    - react-native-safe-area-context/fabric (= 5.6.2)
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -1491,7 +1491,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-safe-area-context/common (5.6.1):
+  - react-native-safe-area-context/common (5.6.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1515,7 +1515,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-safe-area-context/fabric (5.6.1):
+  - react-native-safe-area-context/fabric (5.6.2):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1897,7 +1897,7 @@ PODS:
     - Firebase/Auth (= 12.1.0)
     - React-Core
     - RNFBApp
-  - RNFBMessaging (23.1.0):
+  - RNFBMessaging (23.5.0):
     - Firebase/Messaging (= 12.1.0)
     - FirebaseCoreExtension
     - React-Core
@@ -1927,6 +1927,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - RNNotifee (9.1.8):
+    - React-Core
+    - RNNotifee/NotifeeCore (= 9.1.8)
+  - RNNotifee/NotifeeCore (9.1.8):
+    - React-Core
   - RNReanimated (3.18.0):
     - DoubleConversion
     - glog
@@ -2051,7 +2056,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNScreens (4.16.0):
+  - RNScreens (4.18.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2075,9 +2080,9 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNScreens/common (= 4.16.0)
+    - RNScreens/common (= 4.18.0)
     - Yoga
-  - RNScreens/common (4.16.0):
+  - RNScreens/common (4.18.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2263,6 +2268,7 @@ DEPENDENCIES:
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
+  - "RNNotifee (from `../node_modules/@notifee/react-native`)"
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
@@ -2454,6 +2460,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-firebase/messaging"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
+  RNNotifee:
+    :path: "../node_modules/@notifee/react-native"
   RNReanimated:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
@@ -2524,7 +2532,7 @@ SPEC CHECKSUMS:
   React-microtasksnativemodule: 2e853f993ae655b9dcf26c99ebfcd1134822b77a
   react-native-config: 3367df9c1f25bb96197007ec531c7087ed4554c3
   react-native-image-picker: 6ccf4bb98d38facc22db35fc2ee59a574fca4d16
-  react-native-safe-area-context: 77ac71c6c8c9529a8ba894f5a3a226e621b44649
+  react-native-safe-area-context: 52ff5621a01995b6984f4be90dcd216abf44e710
   react-native-vector-icons-ionicons: 8b6dafd994b32061eb47e8746c96a7b5a6619bdb
   React-NativeModulesApple: cd7f5dc29186ff04fd1b3a074a6cd77a1d0415fd
   React-oscompat: 74eb4badd12e93899f37a5dbb03d8a638011a292
@@ -2562,10 +2570,11 @@ SPEC CHECKSUMS:
   RNCAsyncStorage: 5affb373b519f7887143d2ce6f4e049b74aaf2ee
   RNFBApp: be72fc5f7093f73016e73cbe9d8d5ae8d136bd92
   RNFBAuth: 149439538eca4955010eaae46d86ead054b3b119
-  RNFBMessaging: 4b2af16f999d0e196b8c74c252535d62965d55b6
+  RNFBMessaging: 06467864178271a230412d972c9d73d396b784b7
   RNGestureHandler: 2fa49aef8b58d35bcc61abe06ffecc4bcc5268a4
+  RNNotifee: 4a6ee5c7deaf00e005050052d73ee6315dff7ec9
   RNReanimated: 2b314b18e28adf1b300f606eb0f205a1a6a643e1
-  RNScreens: 6b99252790b00a6c4e5a1c9da82ed0210d9fb5a4
+  RNScreens: bcb241bdb1b74db58c88475bce6c25832d29c3ef
   RNSVG: 1fa61293cb54a97d8ee3b182d2fb60443edcdf69
   RNVectorIcons: 32cc786d5a3c2d8e20ee5c1c7c63c2609f411eb7
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748

@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
   SafeAreaView,
-  BackHandler,             // ✅ 추가: HW 뒤로가기
+  BackHandler,
 } from 'react-native';
 
 import { useSelector, useDispatch } from 'react-redux';
@@ -33,14 +33,14 @@ import { postImageReview } from '../../apis/api/images';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getTag } from '../../apis/api/user';
-import { useFocusEffect } from '@react-navigation/native';  // ✅ 추가: 포커스 시 HW 뒤로 처리
+import { useFocusEffect } from '@react-navigation/native';
 
 const backIcon = require('../../assets/arrow.png');
 const plusPng = require('../../assets/plus_icon.png');
 
 const REQUIRED_GREEN = '#0DBC65';
 
-const PlantScreen = ({ navigation }: { navigation: any }) => {
+const PlantScreen = ({ navigation, route }: { navigation: any; route: any }) => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
 
@@ -50,6 +50,67 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
   const [tagMap, setTagMap] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
   const isConfirmEnabled = savedRestaurant !== null && savedSeed !== null;
+
+  // ✅ 진입 시 이전 화면 정보 저장
+  const [returnScreen, setReturnScreen] = useState<string | null>(null);
+  const [returnParams, setReturnParams] = useState<any>(null);
+
+  useEffect(() => {
+    // 1) route.params로 명시적으로 전달된 경우
+    if (route.params?.returnTo) {
+      setReturnScreen(route.params.returnTo);
+      setReturnParams(route.params.returnParams || null);
+      return;
+    }
+
+    // 2) 네비게이션 히스토리에서 자동 추출
+    try {
+      const state = navigation.getState();
+      const routes = state?.routes || [];
+      const currentIndex = state?.index || 0;
+      
+      // 현재 PlantScreen의 인덱스 찾기
+      let plantScreenIndex = -1;
+      for (let i = routes.length - 1; i >= 0; i--) {
+        if (routes[i].name === 'PlantScreen') {
+          plantScreenIndex = i;
+          break;
+        }
+      }
+
+      // PlantScreen 바로 직전 화면 찾기
+      if (plantScreenIndex > 0) {
+        const previousRoute = routes[plantScreenIndex - 1];
+        if (previousRoute && previousRoute.name !== 'PlantScreen') {
+          console.log('🔍 자동 감지된 이전 화면:', previousRoute.name);
+          setReturnScreen(previousRoute.name);
+          setReturnParams(previousRoute.params || null);
+          return;
+        }
+      }
+
+      // 3) 부모 네비게이터까지 탐색
+      let parent = navigation.getParent();
+      while (parent) {
+        const parentState = parent.getState();
+        const parentRoutes = parentState?.routes || [];
+        const parentIndex = parentState?.index || 0;
+        
+        if (parentIndex > 0) {
+          const prevRoute = parentRoutes[parentIndex - 1];
+          if (prevRoute && prevRoute.name !== 'PlantScreen') {
+            console.log('🔍 부모에서 감지된 이전 화면:', prevRoute.name);
+            setReturnScreen(prevRoute.name);
+            setReturnParams(prevRoute.params || null);
+            return;
+          }
+        }
+        parent = parent.getParent();
+      }
+    } catch (error) {
+      console.error('이전 화면 감지 실패:', error);
+    }
+  }, [route.params, navigation]);
 
   useEffect(() => {
     const fetchTagMap = async () => {
@@ -73,34 +134,56 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
     fetchTagMap();
   }, []);
 
-  // ✅ “스마트 뒤로가기”: 직전 화면으로 자연스럽게
+  // ✅ 개선된 뒤로가기: 저장된 returnScreen 우선 사용
   const goBackSmart = useCallback(() => {
-    // 1) 현재 네비게이터(Planting 스택)에서 pop 가능하면 pop
+    console.log('🔙 뒤로가기 실행, returnScreen:', returnScreen);
+    
+    // 1) 명시적으로 저장된 복귀 화면이 있으면 그곳으로
+    if (returnScreen) {
+      try {
+        // 같은 탭 내의 화면인 경우
+        if (returnParams) {
+          navigation.navigate(returnScreen, returnParams);
+        } else {
+          navigation.navigate(returnScreen);
+        }
+        return;
+      } catch (error) {
+        console.error('복귀 화면 이동 실패:', error);
+      }
+    }
+
+    // 2) 현재 스택에서 뒤로 갈 수 있으면 pop
     if (navigation.canGoBack()) {
+      console.log('✅ navigation.goBack() 실행');
       navigation.goBack();
       return;
     }
 
-    // 2) 부모 체인을 타고 올라가며 뒤로갈 수 있는 네비게이터 찾기 (탭 → 루트 스택)
+    // 3) 부모 네비게이터를 타고 올라가며 뒤로갈 수 있는 곳 찾기
     let parent: any = navigation;
+    let depth = 0;
     while (parent?.getParent?.()) {
       parent = parent.getParent();
+      depth++;
       if (parent?.canGoBack?.()) {
+        console.log(`✅ 부모 네비게이터(깊이 ${depth})에서 goBack() 실행`);
         parent.goBack();
         return;
       }
     }
 
-    // 3) 마지막 안전망: 홈 탭으로 이동
+    // 4) 최종 안전망: Map 화면으로
+    console.log('⚠️ 안전망: Map으로 이동');
     navigation.navigate('Map');
-  }, [navigation]);
+  }, [navigation, returnScreen, returnParams]);
 
-  // ✅ 안드로이드 HW 뒤로키도 동일 동작
+  // ✅ 안드로이드 HW 뒤로키 처리
   useFocusEffect(
     useCallback(() => {
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         goBackSmart();
-        return true; // 우리가 처리
+        return true;
       });
       return () => sub.remove();
     }, [goBackSmart])
@@ -122,7 +205,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
         uploadedUrls,
       );
       
-      // 성공 시 완료 화면으로 교체 이동
+      // ✅ 성공 시: Complete 화면으로 이동 (replace로 유지 - 완료 후에는 다시 PlantScreen으로 못 오게)
       dispatch(resetSeedPlanting());
       navigation.replace('Complete'); 
       
@@ -132,7 +215,6 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  // ✅ 헤더 커스텀: 뒤로가기 버튼에 goBackSmart 연결
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackVisible: false,
@@ -141,7 +223,7 @@ const PlantScreen = ({ navigation }: { navigation: any }) => {
       headerTitleStyle: { fontSize: 18, fontWeight: '600', color: '#111' },
       headerLeft: () => (
         <TouchableOpacity
-          onPress={goBackSmart}                // ✅ 변경: 항상 Map으로 X → 스마트 뒤로
+          onPress={goBackSmart}
           style={{ marginLeft: 12, padding: 6 }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Image
