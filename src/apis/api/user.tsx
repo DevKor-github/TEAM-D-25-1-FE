@@ -43,7 +43,7 @@ export const getMyPage = async () => {
   }
 };
 
-// === 기존 함수들 (필요분 유지) ===
+// === 기존 함수들  ===
 
 export const getUser = async () => {
   try {
@@ -194,7 +194,7 @@ export const signUpUser = async (userData: { nickname: string; email: string; pa
   }
 };
 
-// ✅ 이미 위 대화에서 만들었던 것들(있다면 중복 선언 제거!)
+
 export const patchMyDescription = async (description: string) => {
   try {
     const { data } = await defaultInstance.patch('/users/me', { description });
@@ -217,6 +217,21 @@ export const patchMyProfileImageByUrl = async (profileImageUrl: string) => {
       status: error?.response?.status,
       data: error?.response?.data,
     });
+    throw error;
+  }
+};
+
+
+// userId 유저의 팔로워 리스트 가져오기
+export const getUserFollowerList = async (userId: string): Promise<UserListResponse> => {
+  try {
+    const { data } = await defaultInstance.get<UserListResponse>(
+      `/users/${userId}/followers`,
+    );
+    console.log('[getUserFollowerList] 특정 유저 팔로워 가져오기', userId, data);
+    return data;          // { items: UserSummary[] } 반환
+  } catch (error) {
+    console.log('[getUserFollowerList] error', error);
     throw error;
   }
 };

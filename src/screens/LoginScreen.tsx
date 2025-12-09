@@ -1,4 +1,4 @@
-// src/screens/LoginScreen.tsx
+// file: src/screens/LoginScreen.tsx
 import React, {useEffect, useState} from 'react';
 import {
   View,
@@ -9,6 +9,11 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import appleAuth from '@invertase/react-native-apple-authentication';
 import auth from '@react-native-firebase/auth';
@@ -44,7 +49,9 @@ const LoginScreen = ({navigation}: {navigation: any}) => {
         password,
       );
       const user = userCredential.user;
-      if (!user) throw new Error('Firebase user not found after login.');
+      if (!user) {
+        throw new Error('Firebase user not found after login.');
+      }
 
       // Firebase ID 토큰 → 백엔드 교환
       const firebaseIdToken = await user.getIdToken();
@@ -94,7 +101,9 @@ const LoginScreen = ({navigation}: {navigation: any}) => {
       // Firebase에 로그인
       const userCredential = await auth().signInWithCredential(appleCredential);
       const user = userCredential.user;
-      if (!user) throw new Error('Firebase user not found after Apple login.');
+      if (!user) {
+        throw new Error('Firebase user not found after Apple login.');
+      }
 
       // Firebase ID 토큰 → 백엔드 교환
       const firebaseIdToken = await user.getIdToken();
@@ -121,120 +130,138 @@ const LoginScreen = ({navigation}: {navigation: any}) => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* 상단 로고 */}
-      <View style={styles.logoRow}>
-        <Image
-          source={require('../assets/groo_name_icon.png')}
-          style={styles.logoName}
-        />
-        <Image
-          source={require('../assets/groo_picture_icon.png')}
-          style={styles.logoPic}
-        />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={{flex: 1}}>
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0} // 만약 상단에 헤더 있으면 헤더 높이만큼 조정
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            {/* 상단 로고 */}
+            <View style={styles.logoRow}>
+              <Image
+                source={require('../assets/groo_name_icon.png')}
+                style={styles.logoName}
+              />
+              <Image
+                source={require('../assets/groo_picture_icon.png')}
+                style={styles.logoPic}
+              />
+            </View>
+
+            {/* 이메일 입력 */}
+            <View style={styles.inputWrapper}>
+              <Image
+                source={require('../assets/email.png')}
+                style={styles.icon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="이메일 주소를 입력해주세요"
+                value={email}
+                onChangeText={setEmail}
+                placeholderTextColor="#999"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                returnKeyType="next"
+                editable={!isLoading}
+              />
+            </View>
+
+            {/* 비밀번호 입력 */}
+            <View style={styles.inputWrapper}>
+              <Image source={require('../assets/lock.png')} style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="비밀번호를 입력해주세요"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholderTextColor="#999"
+                returnKeyType="done"
+                onSubmitEditing={onPressLogin}
+                editable={!isLoading}
+              />
+            </View>
+
+            {/* 로그인 버튼 */}
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                {
+                  backgroundColor: isLoading
+                    ? 'rgba(193, 248, 174, 1)'
+                    : '#6CDF44',
+                  opacity: isLoading ? 0.9 : 1,
+                },
+              ]}
+              onPress={onPressLogin}
+              disabled={isLoading}
+              activeOpacity={0.85}>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#111111" />
+              ) : (
+                <Text style={styles.loginText}>로그인</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* 구분선 */}
+            <View style={styles.divider} />
+
+            {/* 소셜 로그인 */}
+            <View style={styles.socialRow}>
+              <TouchableOpacity
+                style={styles.socialItem}
+                onPress={handleAppleSignIn}
+                disabled={isLoading}
+                activeOpacity={0.85}>
+                <View style={styles.socialBox}>
+                  <Image
+                    source={require('../assets/apple_icon.png')}
+                    style={styles.socialIcon}
+                  />
+                </View>
+                <Text style={styles.socialLabel}>Apple</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.socialItem}
+                onPress={() => Alert.alert('Google 로그인', '구현 예정')}
+                disabled={isLoading}
+                activeOpacity={0.85}>
+                <View style={styles.socialBox}>
+                  <Image
+                    source={require('../assets/google_icon.png')}
+                    style={styles.socialIcon}
+                  />
+                </View>
+                <Text style={styles.socialLabel}>Google</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 회원가입 */}
+            <TouchableOpacity
+              style={styles.signupButton}
+              onPress={() => navigation.navigate('SignUp')}
+              disabled={isLoading}
+              activeOpacity={0.85}>
+              <Text style={styles.signupText}>회원가입</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* ✅ 전체 화면 로딩 오버레이 (초록색 스피너) - 필요하면 주석 해제 */}
+          {/* {isLoading && (
+            <View style={styles.loadingOverlay} pointerEvents="auto">
+              <ActivityIndicator size="large" color="#6CDF44" />
+            </View>
+          )} */}
+        </KeyboardAvoidingView>
       </View>
-
-      {/* 이메일 입력 */}
-      <View style={styles.inputWrapper}>
-        <Image source={require('../assets/email.png')} style={styles.icon} />
-        <TextInput
-          style={styles.input}
-          placeholder="이메일 주소를 입력해주세요"
-          value={email}
-          onChangeText={setEmail}
-          placeholderTextColor="#999"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          returnKeyType="next"
-          editable={!isLoading}
-        />
-      </View>
-
-      {/* 비밀번호 입력 */}
-      <View style={styles.inputWrapper}>
-        <Image source={require('../assets/lock.png')} style={styles.icon} />
-        <TextInput
-          style={styles.input}
-          placeholder="비밀번호를 입력해주세요"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholderTextColor="#999"
-          returnKeyType="done"
-          onSubmitEditing={onPressLogin}
-          editable={!isLoading}
-        />
-      </View>
-
-      {/* 로그인 버튼 */}
-      <TouchableOpacity
-        style={[
-          styles.loginButton,
-          {
-            backgroundColor: isLoading ? 'rgba(193, 248, 174, 1)' : '#6CDF44',
-            opacity: isLoading ? 0.9 : 1,
-          },
-        ]}
-        onPress={onPressLogin}
-        disabled={isLoading}
-        activeOpacity={0.85}>
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#111111" />
-        ) : (
-          <Text style={styles.loginText}>로그인</Text>
-        )}
-      </TouchableOpacity>
-
-      {/* 구분선 */}
-      <View style={styles.divider} />
-
-      {/* 소셜 로그인 */}
-      <View style={styles.socialRow}>
-        <TouchableOpacity
-          style={styles.socialItem}
-          onPress={handleAppleSignIn}
-          disabled={isLoading}
-          activeOpacity={0.85}>
-          <View style={styles.socialBox}>
-            <Image
-              source={require('../assets/apple_icon.png')}
-              style={styles.socialIcon}
-            />
-          </View>
-          <Text style={styles.socialLabel}>Apple</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.socialItem}
-          onPress={() => Alert.alert('Google 로그인', '구현 예정')}
-          disabled={isLoading}
-          activeOpacity={0.85}>
-          <View style={styles.socialBox}>
-            <Image
-              source={require('../assets/google_icon.png')}
-              style={styles.socialIcon}
-            />
-          </View>
-          <Text style={styles.socialLabel}>Google</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* 회원가입 */}
-      <TouchableOpacity
-        style={styles.signupButton}
-        onPress={() => navigation.navigate('SignUp')}
-        disabled={isLoading}
-        activeOpacity={0.85}>
-        <Text style={styles.signupText}>회원가입</Text>
-      </TouchableOpacity>
-
-      {/* ✅ 전체 화면 로딩 오버레이 (초록색 스피너) */}
-      {/* {isLoading && (
-        <View style={styles.loadingOverlay} pointerEvents="auto">
-          <ActivityIndicator size="large" color="#6CDF44" />
-        </View>
-      )} */}
-    </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -243,6 +270,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingHorizontal: 36,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
   },
 

@@ -235,7 +235,6 @@ export default function CafeDetailScreen() {
       onPressRight={goToPlantTab}
     />
 
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>

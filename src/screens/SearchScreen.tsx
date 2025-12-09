@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
-  SafeAreaView, // ◀ SafeAreaView로 변경하는 것을 권장합니다.
+  SafeAreaView, 
   KeyboardAvoidingView, // ◀ KeyboardAvoidingView 추가
   Platform,             // ◀ Platform 추가
 } from 'react-native';

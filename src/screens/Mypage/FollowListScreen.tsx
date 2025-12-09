@@ -11,8 +11,9 @@ import { CLOUDFRONT_URL } from '@env';
 import {
   getUser,
   getFollowingList,
-  getFollwerList, // 기존 SDK (오타지만 그대로 둠)
-  getFollower,    // 개별 유저 상세
+  getFollwerList,      // 나(me) 기준 followers
+  getFollower,         // 개별 유저 상세 - 팔로우하고있는지
+  getUserFollowerList, //  특정 userId 기준 followers
 } from '../../apis/api/user';
 
 import BasicProfileIcon from '../../assets/basic_profile.svg';
@@ -21,7 +22,7 @@ const backIcon = require('../../assets/arrow.png');
 type Person = {
   id: string;
   name: string;
-  profileImageUrl?: string | null;
+  profileImageUrl: string | null;
 };
 type TabKey = 'followers' | 'following';
 const GREEN = '#6CDF44';
@@ -31,8 +32,6 @@ const isAbs = (s?: string | null) => !!s && /^https?:\/\//i.test(s || '');
 
 // ★★ followers 응답 스키마 보정: followerId/ followingId / fromUserId / toUserId 까지 체크
 const pickUserIdFromRow = (u: any): string | undefined => {
-  // 서버에 따라 팔로워 리스트는 "나를 팔로우한 사람"의 ID가 들어있음
-  // 보통 followerId, fromUserId 등에 들어옴
   const cands = [
     u?.id,
     u?.userId,
@@ -144,28 +143,24 @@ export default function FollowListScreen({ navigation, route }: any) {
             return;
           }
 
-          // 2) API가 userId 파라미터를 받지 않는 경우를 대비, 다양한 방식으로 강제 시도
+          // 2) followers 가져오기
           const tryGetFollowers = async (uid: string) => {
-            // a) SDK가 userId를 받는 버전
-            try {
-              const res = await (getFollwerList as any)(uid);
+            // ✅ 친구 프로필에서 온 경우: /users/{userId}/followers
+            if (routeUserId) {
+              const res = await getUserFollowerList(uid);
               return res?.items ?? res ?? [];
-            } catch (_) {}
+            }
 
-            // b) SDK가 파라미터 없는 버전(내 팔로워만) → 이 경우엔 routeUserId와 me가 다르면 “틀린 결과”가 됨
-            //    그러니 이 경로는 마지막 폴백으로만 사용
-            try {
-              const res = await getFollwerList();
-              return res?.items ?? res ?? [];
-            } catch (_) {}
-
-            return [];
+            // ✅ 마이페이지(나)에서 온 경우: /users/me/followers
+            const res = await getFollwerList();
+            return res?.items ?? res ?? [];
           };
 
+          // 3) following 가져오기 (기존 로직 유지)
           const tryGetFollowing = async (uid: string) => {
             try {
               const res = await getFollowingList(uid);
-              return res?.items ?? res ?? [];
+              return (res as any)?.items ?? res ?? [];
             } catch (e) {
               // 혹시 파라미터 없는 사양이면
               try {
@@ -182,11 +177,11 @@ export default function FollowListScreen({ navigation, route }: any) {
             tryGetFollowing(targetUserId),
           ]);
 
-          // 3) 매핑(팔로워/팔로잉 각각 스키마 다름 대비)
+          // 4) 매핑(팔로워/팔로잉 각각 스키마 다름 대비)
           const initialFollowers = mapToPersonsFollowers(followersRaw);
           const initialFollowing = mapToPersonsFollowing(followingRaw);
 
-          // 4) 상세 보강(프로필 이미지 절대/상대 경로 처리)
+          // 5) 상세 보강(프로필 이미지 절대/상대 경로 처리) - 기존 그대로 유지
           const enrichUsers = async (users: Person[]): Promise<Person[]> => {
             const detail = await Promise.all(
               users.map(u => getFollower(u.id).catch(() => null))
@@ -251,13 +246,29 @@ export default function FollowListScreen({ navigation, route }: any) {
       </View>
 
       <View style={styles.tabs}>
-        <TouchableOpacity style={[styles.tab, tab === 'followers' && styles.tabActive]} onPress={() => setTab('followers')}>
-          <Text style={[styles.tabText, tab === 'followers' ? styles.tabTextActive : styles.tabTextInactive]}>
+        <TouchableOpacity
+          style={[styles.tab, tab === 'followers' && styles.tabActive]}
+          onPress={() => setTab('followers')}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              tab === 'followers' ? styles.tabTextActive : styles.tabTextInactive,
+            ]}
+          >
             팔로워 {followers.length}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, tab === 'following' && styles.tabActive]} onPress={() => setTab('following')}>
-          <Text style={[styles.tabText, tab === 'following' ? styles.tabTextActive : styles.tabTextInactive]}>
+        <TouchableOpacity
+          style={[styles.tab, tab === 'following' && styles.tabActive]}
+          onPress={() => setTab('following')}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              tab === 'following' ? styles.tabTextActive : styles.tabTextInactive,
+            ]}
+          >
             팔로잉 {following.length}
           </Text>
         </TouchableOpacity>

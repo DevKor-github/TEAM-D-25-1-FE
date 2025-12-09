@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
     borderRadius: 70,
   },
   highlightBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#111',
   },
