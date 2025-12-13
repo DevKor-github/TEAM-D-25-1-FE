@@ -1,5 +1,5 @@
 // src/screens/CafeDetailScreen.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -42,12 +42,12 @@ type TreeSlide = {
   review: string;
   levelText: string;
   infoText: string;
-  img: any;
-  profileImageURl: any;
+  img: { uri: string };
+  profileImageUrl: string | null;
 };
 
 type ImgData = {
-  imageUri: any;
+  imageUri: string;
   userId: string;
   treeId: string;
 };
@@ -66,7 +66,6 @@ export default function CafeDetailScreen() {
   const { restaurant } = route.params;
 
   const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
-  const [treeSlides, setTreeSlides] = useState<TreeSlide[]>([]);
   const [imgData, setImgData] = useState<ImgData[]>([]);
   const [remainPhotos, setRemainPhotos] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -139,21 +138,8 @@ export default function CafeDetailScreen() {
         if (Array.isArray(data) && data.length > 0) {
           setRestaurantList(data);
 
-          const slides = data.map(item => ({
-            id: item.treeId,
-            levelText: `나무 ${item.treeType + 1}단계`,
-            infoText: `참나무 · ${item.recommendationCount} M`,
-            img: { uri: item.images[0] || '' },
-            profileImageURl: item.profileImageUrl
-              ? CLOUDFRONT_URL + item.profileImageUrl
-              : null,
-            review: item.review || '한줄평이 없습니다.',
-            nickname: item.nickname,
-          }));
-          setTreeSlides(slides);
-
-          const imagesWithUser = data.flatMap(r =>
-            r.images.map((imageUri: any) => ({
+          const imagesWithUser: ImgData[] = data.flatMap(r =>
+            r.images.map((imageUri: string) => ({
               imageUri,
               userId: r.userId,
               treeId: r.treeId,
@@ -165,8 +151,8 @@ export default function CafeDetailScreen() {
           setRemainPhotos(Math.max(0, allImages.length - 3));
         } else {
           setRestaurantList([]);
-          setTreeSlides([]);
           setImgData([]);
+          setRemainPhotos(0);
         }
       } catch (error) {
         console.error('Failed to fetch restaurant data:', error);
@@ -178,6 +164,40 @@ export default function CafeDetailScreen() {
     if (restaurant) fetchRestaurantData();
   }, [restaurant]);
 
+  // ✅ restaurantList에서 슬라이드용 데이터 파생
+  // ✅ restaurantList에서 슬라이드용 데이터 파생
+    const treeSlides: TreeSlide[] = useMemo(
+    () =>
+      restaurantList.map(item => {
+      // review를 항상 string 하나로 normalize
+        let reviewText = '';
+
+        if (Array.isArray(item.review)) {
+          reviewText = item.review.join(' ').trim();
+        } else if (typeof item.review === 'string') {
+          reviewText = item.review.trim();
+        }
+
+        if (!reviewText) {
+          reviewText = '한줄평이 없습니다.';
+        }
+
+        return {
+          id: item.treeId,
+          levelText: `나무 ${item.treeType + 1}단계`,
+          infoText: `참나무 · ${item.recommendationCount} M`,
+          img: { uri: item.images[0] || '' },
+          profileImageUrl: item.profileImageUrl
+            ? CLOUDFRONT_URL + item.profileImageUrl
+            : null,
+          review: reviewText,          // ✅ 여기서는 무조건 string
+          nickname: item.nickname ?? '', // ✅ 없으면 빈 문자열
+      };
+     }),
+    [restaurantList],
+  );
+
+
   if (isLoading || restaurantList.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -187,7 +207,7 @@ export default function CafeDetailScreen() {
   }
 
   const mainRestaurantData = restaurantList[0];
-  const { name, address } = mainRestaurantData;
+  const { name } = mainRestaurantData;
   const allImages = restaurantList.flatMap(r => r.images);
 
   const goPhotoDetail = (startIndex: number) => {
@@ -199,15 +219,28 @@ export default function CafeDetailScreen() {
     });
   };
 
-  // 물주기
-  const onPressWater = async (treeId: string) => {
+  // ✅ 물주기: 현재 슬라이드(page)에 해당하는 나무 기준으로 연동
+  const onPressWater = async () => {
     try {
-      await postTreeWater(treeId);
       const current = restaurantList[page] ?? restaurantList[0];
-      const count = Number(current?.recommendationCount ?? 0) + 1;
-      showCustomToast(`‘${name}’에 물을 주었어요!`, 'success', count);
+      if (!current) return;
+
+      const treeId = current.treeId;
+
+      await postTreeWater(treeId);
+
+      const newCount = Number(current.recommendationCount ?? 0) + 1;
+
+      showCustomToast(`‘${current.name}’에 물을 주었어요!`, 'success', newCount);
+
+      // 추천수 상태도 업데이트 → 슬라이드/패널 숫자도 즉시 반영
+      setRestaurantList(prev =>
+        prev.map(r =>
+          r.treeId === treeId ? { ...r, recommendationCount: newCount } : r,
+        ),
+      );
     } catch (error: any) {
-      if (error.response && error.response.status >= 400 && error.response.status < 500) {
+      if (error?.response && error.response.status >= 400 && error.response.status < 500) {
         const errorMessage =
           error.response.data?.message || '요청을 처리할 수 없습니다.';
         showCustomToast(errorMessage, 'error');
@@ -225,15 +258,15 @@ export default function CafeDetailScreen() {
     <SafeAreaView style={[styles.root]}>
       <TopBar
         onPressBack={() => {
-        if (navigation.canGoBack()) {
-         navigation.goBack();
-        } else {
-        navigation.navigate('Map'); // 스택이 없으면 fallback
-        }
-      }}
-      rightText="씨앗심기"
-      onPressRight={goToPlantTab}
-    />
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('Map'); // 스택이 없으면 fallback
+          }
+        }}
+        rightText="씨앗심기"
+        onPressRight={goToPlantTab}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -278,7 +311,7 @@ export default function CafeDetailScreen() {
                     top: insets.top + 28,
                     zIndex: 4,
                   }}
-                  avatar={slide.profileImageURl}
+                  avatar={slide.profileImageUrl ?? undefined}
                 />
 
                 <View style={styles.treeWrapper}>
@@ -483,7 +516,7 @@ export default function CafeDetailScreen() {
         style={[styles.actionWrapper, { bottom: insets.bottom + BUTTON_GAP }]}>
         <PrimaryButton
           label="물주기"
-          onPress={() => onPressWater(restaurant.treeId)}
+          onPress={onPressWater}
         />
       </View>
 
@@ -594,8 +627,14 @@ const styles = StyleSheet.create({
   },
   activeDot: { backgroundColor: '#3C3C3C' },
   titleRow: { flexDirection: 'row', alignItems: 'baseline' },
-  title: { fontSize: 20, fontWeight: '600', marginLeft: 10, },
-  address: { fontSize: 14, color: '#767676', fontWeight: '400', marginTop: 7 ,marginLeft: 10,},
+  title: { fontSize: 20, fontWeight: '600', marginLeft: 10 },
+  address: {
+    fontSize: 14,
+    color: '#767676',
+    fontWeight: '400',
+    marginTop: 7,
+    marginLeft: 10,
+  },
   photoScrollView: { marginTop: 12 },
   photoScrollContainer: { flexDirection: 'row', gap: 8 },
   scrollImage: { width: 150, height: 150, borderRadius: 4 },

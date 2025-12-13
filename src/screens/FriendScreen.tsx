@@ -55,7 +55,7 @@ const pickProfileRaw = (u: any): string | null => {
   for (const c of cands) {
     if (typeof c === 'string' && c.trim()) return c.trim();
     if (c && typeof c === 'object') {
-      const inner = c.url || c.imageUrl || c.path;
+      const inner = (c as any).url || (c as any).imageUrl || (c as any).path;
       if (typeof inner === 'string' && inner.trim()) return inner.trim();
     }
   }
@@ -67,19 +67,17 @@ const buildAvatarCandidates = (raw: string): string[] => {
   if (!raw) return [];
   if (isAbs(raw)) return [raw];
 
-  // 안전하게 선행 슬래시 제거
   const path = raw.replace(/^\/+/, '');
 
   const list: string[] = [];
   // 1) API_ORIGIN
   list.push(joinUrl(API_ORIGIN, path));
-  list.push(joinUrl(API_ORIGIN, joinUrl('api', path))); // 일부 서버가 /api 프리픽스 사용
+  list.push(joinUrl(API_ORIGIN, joinUrl('api', path)));
   // 2) WEB_ORIGIN
   list.push(joinUrl(WEB_ORIGIN, path));
   // 3) CDN_ORIGIN
   list.push(joinUrl(CDN_ORIGIN, path));
 
-  // 중복 제거
   return Array.from(new Set(list));
 };
 
@@ -109,7 +107,6 @@ export default function FriendScreen({ navigation, route }: any) {
   // 나무 리스트
   const [plantedList, setPlantedList] = useState<TreeItemT[]>([]);
   const [plantedVisible, setPlantedVisible] = useState(2);
-  
   type SortByType = 'height' | 'name';
   const [plantedSortBy, setPlantedSortBy] = useState<SortByType>('height');
 
@@ -172,8 +169,8 @@ export default function FriendScreen({ navigation, route }: any) {
         else if (keyToValue.has(s)) out.push(keyToValue.get(s)!);
         else out.push(s);
       } else if (it && typeof it === 'object') {
-        const v = it.value ?? it.label ?? it.name ?? it.title ?? it.text ?? '';
-        const k = it.key ?? it.code ?? it.id ?? '';
+        const v = (it as any).value ?? (it as any).label ?? (it as any).name ?? (it as any).title ?? (it as any).text ?? '';
+        const k = (it as any).key ?? (it as any).code ?? (it as any).id ?? '';
         if (typeof v === 'string' && v.trim()) out.push(v.trim());
         else if (typeof k === 'string' && keyToValue.has(k)) out.push(keyToValue.get(k)!);
       }
@@ -183,7 +180,7 @@ export default function FriendScreen({ navigation, route }: any) {
 
   /** ---- 데이터 로드 ---- */
   const [userDataCache, setUserDataCache] = useState<any>(null);
-  
+
   const mapTreesToItems = (trees: any[] = []): TreeItemT[] => {
     return (trees ?? []).map((t: any, i: number) => {
       const count = Number(t.recommendationCount ?? t.recommandationCount ?? 0);
@@ -247,8 +244,10 @@ export default function FriendScreen({ navigation, route }: any) {
           setPlantedList(items);
           setPlantedVisible(Math.min(2, items.length));
         } else {
-          setPlantedList([]); setPlantedVisible(0);
+          setPlantedList([]);
+          setPlantedVisible(0);
         }
+
         setIsFollowing(followStatus?.hasRequestedFollow ?? false);
       } catch (e) {
         console.error('친구 데이터 로드 실패:', e);
@@ -287,7 +286,8 @@ export default function FriendScreen({ navigation, route }: any) {
         setPlantedList(items);
         setPlantedVisible(Math.min(2, items.length));
       } else {
-        setPlantedList([]); setPlantedVisible(0);
+        setPlantedList([]);
+        setPlantedVisible(0);
       }
     } catch (e) {
       console.error('유저 데이터 새로고침 실패:', e);
@@ -363,20 +363,17 @@ export default function FriendScreen({ navigation, route }: any) {
 
   /** ================== 보러가기: Detail로 이동 ================== */
   const goToCafeDetailByTopTree = useCallback(() => {
-    // 1) topTree 기준으로 plantedList에서 매칭 (name + count)
     let matched: TreeItemT | undefined;
     if (topTree) {
       matched = plantedList.find(
         it => it.name === topTree.name && it.count === topTree.count
       );
     }
-    // 2) 못 찾으면 첫 번째 아이템으로 대체
     if (!matched && plantedList.length > 0) {
       matched = plantedList[0];
     }
-    if (!matched) return; // 데이터 없으면 조용히 리턴
+    if (!matched) return;
 
-    // CafeDetail은 route.params.restaurant.treeId를 split('_')[1]로 파싱하므로 tree_${id} 형태로 전달
     const hasPrefix = String(matched.id).startsWith('tree_');
     const treeId = hasPrefix ? matched.id : `tree_${matched.id}`;
 
@@ -384,7 +381,7 @@ export default function FriendScreen({ navigation, route }: any) {
       restaurant: {
         treeId,
         name: matched.name ?? '',
-        address: matched.address ?? '', // 주소도 같이 넘김(있으면)
+        address: matched.address ?? '',
       },
     });
   }, [topTree, plantedList, navigation]);
@@ -402,6 +399,8 @@ export default function FriendScreen({ navigation, route }: any) {
       },
     });
   }, [navigation]);
+
+  const isPlantedExpanded = plantedVisible >= plantedList.length && plantedList.length > 0;
 
   return (
     <SafeAreaView style={[styles.root, { paddingTop: insets.top }]}>
@@ -453,11 +452,29 @@ export default function FriendScreen({ navigation, route }: any) {
                     <Text style={styles.statValText}>{plantedCount}</Text>
                     <Text style={styles.statKeyText}>심은 나무</Text>
                   </View>
-                  <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={() => navigation.navigate('FollowList', { initialTab: 'followers', userId: friendId })}>
+                  <TouchableOpacity
+                    style={styles.statCol}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      navigation.navigate('FollowList', {
+                        initialTab: 'followers',
+                        userId: friendId,
+                      })
+                    }
+                  >
                     <Text style={styles.statValText}>{userDataCache?.followerCount ?? 0}</Text>
                     <Text style={styles.statKeyText}>팔로워</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={() => navigation.navigate('FollowList', { initialTab: 'following', userId: friendId })}>
+                  <TouchableOpacity
+                    style={styles.statCol}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      navigation.navigate('FollowList', {
+                        initialTab: 'following',
+                        userId: friendId,
+                      })
+                    }
+                  >
                     <Text style={styles.statValText}>{userDataCache?.followingCount ?? 0}</Text>
                     <Text style={styles.statKeyText}>팔로잉</Text>
                   </TouchableOpacity>
@@ -483,7 +500,12 @@ export default function FriendScreen({ navigation, route }: any) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightTray}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.highlightTray}
+          >
             {/* 하이라이트 카드 1 + 보러가기 버튼 */}
             <View style={[styles.highlightItem, { width: HIGHLIGHT_CARD_SIZE }]}>
               <LinearGradient
@@ -508,7 +530,11 @@ export default function FriendScreen({ navigation, route }: any) {
               </View>
 
               {/* ✅ 왼하단 하얀 타원 버튼 */}
-              <TouchableOpacity style={styles.highlightBtn} activeOpacity={0.85} onPress={goToCafeDetailByTopTree}>
+              <TouchableOpacity
+                style={styles.highlightBtn}
+                activeOpacity={0.85}
+                onPress={goToCafeDetailByTopTree}
+              >
                 <Text style={styles.highlightBtnText}>보러가기 &gt;</Text>
               </TouchableOpacity>
             </View>
@@ -520,7 +546,10 @@ export default function FriendScreen({ navigation, route }: any) {
                 start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
               />
-               <Image source={userDataCache?.recapImageUrl ? { uri: userDataCache.recapImageUrl } : treeImg} style={styles.recapImage} />
+              <Image
+                source={userDataCache?.recapImageUrl ? { uri: userDataCache.recapImageUrl } : treeImg}
+                style={styles.recapImage}
+              />
               <View style={styles.recapTopOverlay}>
                 {(recapEm || recapRest) ? (
                   <>
@@ -543,11 +572,22 @@ export default function FriendScreen({ navigation, route }: any) {
           <Section
             title="친구가 심은 나무"
             data={sortedPlantedList.slice(0, plantedVisible)}
-            hasMore={plantedVisible < plantedList.length}
-            onMore={() => setPlantedVisible(v => Math.min(v + 2, plantedList.length))}
+            // 2개 초과일 때만 토글 버튼 노출
+            hasMore={plantedList.length > 2}
+            // 현재 전체가 펼쳐진 상태인지 여부
+            isExpanded={isPlantedExpanded}
+            onMore={() =>
+              setPlantedVisible(v =>
+                v >= plantedList.length
+                  ? Math.min(2, plantedList.length)  // 👉 접기
+                  : plantedList.length               // 👉 전체 펼치기
+              )
+            }
             emptyText="아직 내역이 없어요."
             sortBy={plantedSortBy}
-            onSortChange={() => setPlantedSortBy(s => s === 'height' ? 'name' : 'height')}
+            onSortChange={() =>
+              setPlantedSortBy(s => (s === 'height' ? 'name' : 'height'))
+            }
             onItemPress={onPressTreeItem}
           />
         </ScrollView>
@@ -574,16 +614,25 @@ function TreeCard({ item, onPress }: { item: TreeItemT; onPress?: (item: TreeIte
 }
 
 function Section({
-  title, data, onMore, hasMore = false, emptyText, sortBy, onSortChange, onItemPress
+  title,
+  data,
+  onMore,
+  hasMore = false,
+  emptyText,
+  sortBy,
+  onSortChange,
+  onItemPress,
+  isExpanded = false,
 }: {
   title: string;
   data: TreeItemT[];
   onMore: () => void;
-  hasMore?: boolean;
+  hasMore?: boolean;          // 2개 초과일 때만 true
   emptyText?: string;
   sortBy: 'height' | 'name';
   onSortChange: () => void;
   onItemPress?: (item: TreeItemT) => void;
+  isExpanded?: boolean;       // 현재 전체 펼친 상태인지
 }) {
   const isEmpty = data.length === 0;
 
@@ -592,7 +641,11 @@ function Section({
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {!isEmpty && (
-          <TouchableOpacity style={styles.sortBtn} activeOpacity={0.7} onPress={onSortChange}>
+          <TouchableOpacity
+            style={styles.sortBtn}
+            activeOpacity={0.7}
+            onPress={onSortChange}
+          >
             <Text style={styles.sortText}>
               {sortBy === 'height' ? '높이순' : '가나다순'}
             </Text>
@@ -608,10 +661,19 @@ function Section({
           </View>
         ) : (
           <>
-            {data.map(it => <TreeCard key={it.id} item={it} onPress={onItemPress} />)}
-            {hasMore && (
-              <TouchableOpacity style={styles.moreBtn} onPress={onMore} activeOpacity={0.85}>
-                <Text style={styles.moreBtnText}>내역 더보기</Text>
+            {data.map(it => (
+              <TreeCard key={it.id} item={it} onPress={onItemPress} />
+            ))}
+
+            {hasMore && !isEmpty && (
+              <TouchableOpacity
+                style={styles.moreBtn}
+                onPress={onMore}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.moreBtnText}>
+                  {isExpanded ? '내역 접기' : '내역 더보기'}
+                </Text>
               </TouchableOpacity>
             )}
           </>
