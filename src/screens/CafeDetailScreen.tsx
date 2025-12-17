@@ -1,5 +1,5 @@
 // src/screens/CafeDetailScreen.tsx
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -14,17 +14,23 @@ import {
   Animated,
   Alert,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {RouteProp, useNavigation, useRoute} from '@react-navigation/native';
+
 import TopBar from '../components/TopBar';
 import PrimaryButton from '../components/PrimaryButton';
 import CommentBubble from '../components/CommentBubble';
-import { getRestaurant, postTreeWater } from '../apis/api/tree';
-import { Restaurant } from '../types/tree';
-import WateredIcon from '../assets/watered.svg';
-import { CLOUDFRONT_URL } from '@env';
 
-const { width, height } = Dimensions.get('window');
+import {getRestaurant, postTreeWater} from '../apis/api/tree';
+import {Restaurant} from '../types/tree';
+import WateredIcon from '../assets/watered.svg';
+import {CLOUDFRONT_URL} from '@env';
+
+// ✅ MapScreen에서 쓰던 유틸 그대로 재사용
+import {getTreeLevel, getTreeMarkerImage , getTreeName,} from '../apis/utils/treeImage';
+
+const {width, height} = Dimensions.get('window');
+
 const HERO_HEIGHT = 400;
 const TREE_WIDTH = 300;
 const TREE_HEIGHT = 320;
@@ -42,7 +48,7 @@ type TreeSlide = {
   review: string;
   levelText: string;
   infoText: string;
-  img: { uri: string };
+  treePng: any; // require()
   profileImageUrl: string | null;
 };
 
@@ -52,9 +58,9 @@ type ImgData = {
   treeId: string;
 };
 
-type CafeDetailRouteParams = { restaurant: Restaurant };
+type CafeDetailRouteParams = {restaurant: Restaurant};
 type CafeDetailScreenRouteProp = RouteProp<
-  { CafeDetail: CafeDetailRouteParams },
+  {CafeDetail: CafeDetailRouteParams},
   'CafeDetail'
 >;
 
@@ -63,9 +69,9 @@ export default function CafeDetailScreen() {
   const route = useRoute<CafeDetailScreenRouteProp>();
   const insets = useSafeAreaInsets();
 
-  const { restaurant } = route.params;
+  const {restaurant} = route.params;
 
-  const [restaurantList, setRestaurantList] = useState<Restaurant[]>([]);
+  const [restaurantList, setRestaurantList] = useState<any[]>([]);
   const [imgData, setImgData] = useState<ImgData[]>([]);
   const [remainPhotos, setRemainPhotos] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,19 +79,13 @@ export default function CafeDetailScreen() {
   const [page, setPage] = useState(0);
   const pagerRef = useRef<ScrollView>(null);
 
-  // 토스트
+  // toast
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
   const [toastCount, setToastCount] = useState<number>(0);
   const toastOpacity = useRef(new Animated.Value(0)).current;
 
-  // ▶ TopBar "씨앗심기" → 하단 탭의 'Plant'로 이동
-  const goToPlantTab = () => {
-    navigation.navigate('Map' as never, { screen: 'Plant' } as never);
-  };
-
-  // 성공/에러 토스트
   const showCustomToast = (
     message: string,
     type: 'success' | 'error',
@@ -93,7 +93,8 @@ export default function CafeDetailScreen() {
   ) => {
     setToastMessage(message);
     setToastType(type);
-    if (type === 'success' && count !== undefined) setToastCount(count);
+    if (type === 'success' && typeof count === 'number') setToastCount(count);
+
     setToastVisible(true);
     Animated.timing(toastOpacity, {
       toValue: 1,
@@ -122,8 +123,14 @@ export default function CafeDetailScreen() {
   };
 
   const goToPage = (idx: number) => {
-    pagerRef.current?.scrollTo({ x: width * idx, y: 0, animated: true });
+    pagerRef.current?.scrollTo({x: width * idx, y: 0, animated: true});
     setPage(idx);
+  };
+
+  // CafeDetail은 Map 탭 내부 Stack에 있어서
+  // Map으로 올라간 뒤 Tab screen 전환 방식 사용..약간야매
+  const goToPlantTab = () => {
+    navigation.navigate('Map' as never, {screen: 'Plant' } as never);
   };
 
   useEffect(() => {
@@ -135,19 +142,21 @@ export default function CafeDetailScreen() {
         const restaurantId = treeId.split('_')[1];
 
         const data = await getRestaurant(restaurantId);
+
         if (Array.isArray(data) && data.length > 0) {
           setRestaurantList(data);
 
-          const imagesWithUser: ImgData[] = data.flatMap(r =>
-            r.images.map((imageUri: string) => ({
+          const imagesWithUser: ImgData[] = data.flatMap((r: any) =>
+            (r.images ?? []).map((imageUri: string) => ({
               imageUri,
-              userId: r.userId,
+              userId: r.user?.id ?? r.userId ?? '',
               treeId: r.treeId,
             })),
           );
 
           setImgData(imagesWithUser);
-          const allImages = data.flatMap(r => r.images);
+
+          const allImages = data.flatMap((r: any) => r.images ?? []);
           setRemainPhotos(Math.max(0, allImages.length - 3));
         } else {
           setRestaurantList([]);
@@ -164,39 +173,51 @@ export default function CafeDetailScreen() {
     if (restaurant) fetchRestaurantData();
   }, [restaurant]);
 
-  // ✅ restaurantList에서 슬라이드용 데이터 파생
-  // ✅ restaurantList에서 슬라이드용 데이터 파생
-    const treeSlides: TreeSlide[] = useMemo(
-    () =>
-      restaurantList.map(item => {
-      // review를 항상 string 하나로 normalize
-        let reviewText = '';
+  // ✅ 중요: API 응답 필드명은 recommendationCount (스샷 기준)
+  const treeSlides: TreeSlide[] = useMemo(() => {
+    return (restaurantList ?? []).map((item: any) => {
+      const count = Number(item.recommendationCount ?? 0); // ✅ 여기!
+      const level = getTreeLevel(count); // 1/2/3
 
-        if (Array.isArray(item.review)) {
-          reviewText = item.review.join(' ').trim();
-        } else if (typeof item.review === 'string') {
-          reviewText = item.review.trim();
-        }
+      // 스샷에서 treeType은 0/1로 옴 → Map과 동일 체계
+      const type01 = Number(item.treeType ?? 0);
+      const treeName = getTreeName(type01);
+      const treePng = getTreeMarkerImage(type01, level);
 
-        if (!reviewText) {
-          reviewText = '한줄평이 없습니다.';
-        }
+      // review normalize
+      let reviewText = '한줄평이 없습니다.';
+      if (typeof item.review === 'string' && item.review.trim().length) {
+        reviewText = item.review.trim();
+      }
 
-        return {
-          id: item.treeId,
-          levelText: `나무 ${item.treeType + 1}단계`,
-          infoText: `참나무 · ${item.recommendationCount} M`,
-          img: { uri: item.images[0] || '' },
-          profileImageUrl: item.profileImageUrl
-            ? CLOUDFRONT_URL + item.profileImageUrl
-            : null,
-          review: reviewText,          // ✅ 여기서는 무조건 string
-          nickname: item.nickname ?? '', // ✅ 없으면 빈 문자열
+      const nickname =
+        item.user?.nickname ?? item.nickname ?? item.user?.name ?? '';
+
+      // profile 이미지 normalize (네 코드에선 다양한 키 섞여있을 수 있음)
+      const rawProfile =
+        item.user?.profileImage ??
+        item.profileImageUrl ??
+        item.profileImage ??
+        null;
+
+      const profileImageUrl =
+        typeof rawProfile === 'string' && rawProfile.length
+          ? rawProfile.startsWith('http')
+            ? rawProfile
+            : CLOUDFRONT_URL + rawProfile
+          : null;
+
+      return {
+        id: item.treeId,
+        nickname,
+        review: reviewText,
+        levelText: `나무 ${level}단계`,
+        infoText: `${treeName} · ${count} M`,
+        treePng,
+        profileImageUrl,
       };
-     }),
-    [restaurantList],
-  );
-
+    });
+  }, [restaurantList]);
 
   if (isLoading || restaurantList.length === 0) {
     return (
@@ -207,8 +228,8 @@ export default function CafeDetailScreen() {
   }
 
   const mainRestaurantData = restaurantList[0];
-  const { name } = mainRestaurantData;
-  const allImages = restaurantList.flatMap(r => r.images);
+  const name = mainRestaurantData?.name ?? restaurant?.name ?? '';
+  const allImages = (restaurantList ?? []).flatMap((r: any) => r.images ?? []);
 
   const goPhotoDetail = (startIndex: number) => {
     navigation.navigate('PhotoDetail', {
@@ -219,28 +240,29 @@ export default function CafeDetailScreen() {
     });
   };
 
-  // ✅ 물주기: 현재 슬라이드(page)에 해당하는 나무 기준으로 연동
+  // ✅ 물주기: 현재 슬라이드(page)의 treeId 대상으로 + recommendationCount 업데이트
   const onPressWater = async () => {
     try {
       const current = restaurantList[page] ?? restaurantList[0];
       if (!current) return;
 
-      const treeId = current.treeId;
-
-      await postTreeWater(treeId);
+      await postTreeWater(current.treeId);
 
       const newCount = Number(current.recommendationCount ?? 0) + 1;
 
       showCustomToast(`‘${current.name}’에 물을 주었어요!`, 'success', newCount);
 
-      // 추천수 상태도 업데이트 → 슬라이드/패널 숫자도 즉시 반영
       setRestaurantList(prev =>
-        prev.map(r =>
-          r.treeId === treeId ? { ...r, recommendationCount: newCount } : r,
+        (prev ?? []).map((r: any) =>
+          r.treeId === current.treeId ? {...r, recommendationCount: newCount} : r,
         ),
       );
     } catch (error: any) {
-      if (error?.response && error.response.status >= 400 && error.response.status < 500) {
+      if (
+        error?.response &&
+        error.response.status >= 400 &&
+        error.response.status < 500
+      ) {
         const errorMessage =
           error.response.data?.message || '요청을 처리할 수 없습니다.';
         showCustomToast(errorMessage, 'error');
@@ -255,14 +277,11 @@ export default function CafeDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.root]}>
+    <SafeAreaView style={styles.root}>
       <TopBar
         onPressBack={() => {
-          if (navigation.canGoBack()) {
-            navigation.goBack();
-          } else {
-            navigation.navigate('Map'); // 스택이 없으면 fallback
-          }
+          if (navigation.canGoBack()) navigation.goBack();
+          else navigation.navigate('Map');
         }}
         rightText="씨앗심기"
         onPressRight={goToPlantTab}
@@ -271,12 +290,12 @@ export default function CafeDetailScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        {/* 히어로 */}
+        {/* HERO */}
         <View style={styles.hero}>
           <Image
             source={
-              allImages[0]
-                ? { uri: allImages[0] }
+              allImages?.[0]
+                ? {uri: allImages[0]}
                 : require('../assets/dummypic.png')
             }
             style={styles.heroBackground}
@@ -293,16 +312,12 @@ export default function CafeDetailScreen() {
             decelerationRate="fast"
             snapToInterval={width}
             snapToAlignment="start"
-            style={[StyleSheet.absoluteFill, { zIndex: 3 }]}
-            contentContainerStyle={{ height: HERO_HEIGHT }}>
+            style={[StyleSheet.absoluteFill, {zIndex: 3}]}
+            contentContainerStyle={{height: HERO_HEIGHT}}>
             {treeSlides.map(slide => (
               <View
                 key={slide.id}
-                style={{
-                  width,
-                  height: HERO_HEIGHT,
-                  justifyContent: 'flex-end',
-                }}>
+                style={{width, height: HERO_HEIGHT, justifyContent: 'flex-end'}}>
                 <CommentBubble
                   name={slide.nickname}
                   text={slide.review}
@@ -315,11 +330,13 @@ export default function CafeDetailScreen() {
                 />
 
                 <View style={styles.treeWrapper}>
+                  {/* ✅ extree.png 고정 제거 → Map과 동일 유틸 기반 PNG */}
                   <Image
-                    source={require('../assets/extree.png')}
+                    source={slide.treePng}
                     style={styles.treeImg}
                     resizeMode="contain"
                   />
+
                   <View style={styles.panelGroup}>
                     <Image
                       source={require('../assets/wood_panel.png')}
@@ -337,7 +354,7 @@ export default function CafeDetailScreen() {
           </ScrollView>
         </View>
 
-        {/* 시트 */}
+        {/* SHEET */}
         <View style={[styles.sheet, sheetDynamicStyle]}>
           <View style={styles.pagerOnCard}>
             {treeSlides.map((_, idx) => (
@@ -355,6 +372,7 @@ export default function CafeDetailScreen() {
           </View>
           <Text style={styles.address}>{restaurant.address}</Text>
 
+          {/* Photos */}
           <View style={styles.photoView}>
             {imgData.length === 0 ? (
               <Image
@@ -368,8 +386,8 @@ export default function CafeDetailScreen() {
                 onPress={() => goPhotoDetail(0)}>
                 <Image
                   source={
-                    imgData[0].imageUri
-                      ? { uri: imgData[0].imageUri }
+                    imgData[0]?.imageUri
+                      ? {uri: imgData[0].imageUri}
                       : require('../assets/dummypic.png')
                   }
                   style={styles.Image0_1}
@@ -381,11 +399,11 @@ export default function CafeDetailScreen() {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => goPhotoDetail(0)}
-                  style={{ height: '100%', width: '50%' }}>
+                  style={{height: '100%', width: '50%'}}>
                   <Image
                     source={
-                      imgData[0].imageUri
-                        ? { uri: imgData[0].imageUri }
+                      imgData[0]?.imageUri
+                        ? {uri: imgData[0].imageUri}
                         : require('../assets/dummypic.png')
                     }
                     style={styles.Image0_2}
@@ -395,11 +413,11 @@ export default function CafeDetailScreen() {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => goPhotoDetail(1)}
-                  style={{ height: '100%', width: '100%' }}>
+                  style={{height: '100%', width: '100%'}}>
                   <Image
                     source={
-                      imgData[1].imageUri
-                        ? { uri: imgData[1].imageUri }
+                      imgData[1]?.imageUri
+                        ? {uri: imgData[1].imageUri}
                         : require('../assets/dummypic.png')
                     }
                     style={styles.Image1_2}
@@ -412,11 +430,11 @@ export default function CafeDetailScreen() {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => goPhotoDetail(0)}
-                  style={{ height: '100%', width: '50%' }}>
+                  style={{height: '100%', width: '50%'}}>
                   <Image
                     source={
-                      imgData[0].imageUri
-                        ? { uri: imgData[0].imageUri }
+                      imgData[0]?.imageUri
+                        ? {uri: imgData[0].imageUri}
                         : require('../assets/dummypic.png')
                     }
                     style={styles.Image0_3}
@@ -427,11 +445,11 @@ export default function CafeDetailScreen() {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => goPhotoDetail(1)}
-                    style={{ height: '50%', width: '100%' }}>
+                    style={{height: '50%', width: '100%'}}>
                     <Image
                       source={
-                        imgData[1].imageUri
-                          ? { uri: imgData[1].imageUri }
+                        imgData[1]?.imageUri
+                          ? {uri: imgData[1].imageUri}
                           : require('../assets/dummypic.png')
                       }
                       style={styles.Image1_3}
@@ -441,11 +459,11 @@ export default function CafeDetailScreen() {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => goPhotoDetail(2)}
-                    style={{ height: '50%', width: '100%' }}>
+                    style={{height: '50%', width: '100%'}}>
                     <Image
                       source={
-                        imgData[2].imageUri
-                          ? { uri: imgData[2].imageUri }
+                        imgData[2]?.imageUri
+                          ? {uri: imgData[2].imageUri}
                           : require('../assets/dummypic.png')
                       }
                       style={styles.Image2_3}
@@ -459,49 +477,49 @@ export default function CafeDetailScreen() {
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={() => goPhotoDetail(0)}
-                  style={{ height: '100%', width: '50%' }}>
+                  style={{height: '100%', width: '50%'}}>
                   <Image
                     source={
-                      imgData[0].imageUri
-                        ? { uri: imgData[0].imageUri }
+                      imgData[0]?.imageUri
+                        ? {uri: imgData[0].imageUri}
                         : require('../assets/dummypic.png')
                     }
                     style={styles.Image0_3}
                     resizeMode="cover"
                   />
                 </TouchableOpacity>
+
                 <View style={styles.photoViewVertical}>
                   <TouchableOpacity
                     activeOpacity={0.85}
                     onPress={() => goPhotoDetail(1)}
-                    style={{ height: '50%', width: '100%' }}>
+                    style={{height: '50%', width: '100%'}}>
                     <Image
                       source={
-                        imgData[1].imageUri
-                          ? { uri: imgData[1].imageUri }
+                        imgData[1]?.imageUri
+                          ? {uri: imgData[1].imageUri}
                           : require('../assets/dummypic.png')
                       }
                       style={styles.Image1_3}
                       resizeMode="cover"
                     />
                   </TouchableOpacity>
+
                   <View style={styles.imageContainer_4}>
                     <TouchableOpacity
                       activeOpacity={0.85}
                       onPress={() => goPhotoDetail(2)}>
                       <Image
                         source={
-                          imgData[2].imageUri
-                            ? { uri: imgData[2].imageUri }
+                          imgData[2]?.imageUri
+                            ? {uri: imgData[2].imageUri}
                             : require('../assets/dummypic.png')
                         }
                         style={styles.Image2_4}
                         resizeMode="cover"
                       />
                       <View style={styles.overlay}>
-                        <Text style={styles.plusText}>
-                          +{allImages.length - 3}
-                        </Text>
+                        <Text style={styles.plusText}>+{remainPhotos}</Text>
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -512,20 +530,18 @@ export default function CafeDetailScreen() {
         </View>
       </ScrollView>
 
-      <View
-        style={[styles.actionWrapper, { bottom: insets.bottom + BUTTON_GAP }]}>
-        <PrimaryButton
-          label="물주기"
-          onPress={onPressWater}
-        />
+      {/* CTA */}
+      <View style={[styles.actionWrapper, {bottom: insets.bottom + BUTTON_GAP}]}>
+        <PrimaryButton label="물주기" onPress={onPressWater} />
       </View>
 
+      {/* Toast */}
       {toastVisible && (
         <Animated.View
           pointerEvents="none"
           style={[
             styles.waterToast,
-            { bottom: insets.bottom + BUTTON_GAP, opacity: toastOpacity },
+            {bottom: insets.bottom + BUTTON_GAP, opacity: toastOpacity},
           ]}>
           <Text style={styles.waterToastText} numberOfLines={1}>
             {toastMessage}
@@ -543,10 +559,11 @@ export default function CafeDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { paddingBottom: 0 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  hero: { height: HERO_HEIGHT, justifyContent: 'flex-end', overflow: 'visible' },
+  root: {flex: 1, backgroundColor: '#fff'},
+  scrollContent: {paddingBottom: 0},
+  loadingContainer: {flex: 1, justifyContent: 'center', alignItems: 'center'},
+
+  hero: {height: HERO_HEIGHT, justifyContent: 'flex-end', overflow: 'visible'},
   heroBackground: {
     ...StyleSheet.absoluteFillObject,
     width: '100%',
@@ -558,6 +575,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     zIndex: 1,
   },
+
   treeWrapper: {
     position: 'absolute',
     top: 96,
@@ -566,7 +584,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 3,
   },
-  treeImg: { width: TREE_WIDTH, height: TREE_HEIGHT },
+  treeImg: {width: 130, height: TREE_HEIGHT},
+
   panelGroup: {
     position: 'absolute',
     width: PANEL_W,
@@ -603,6 +622,7 @@ const styles = StyleSheet.create({
     marginTop: 1.5,
     fontFamily: 'pannel',
   },
+
   sheet: {
     marginTop: -70,
     borderTopLeftRadius: 18,
@@ -625,9 +645,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#D5D5D5',
     marginHorizontal: 3,
   },
-  activeDot: { backgroundColor: '#3C3C3C' },
-  titleRow: { flexDirection: 'row', alignItems: 'baseline' },
-  title: { fontSize: 20, fontWeight: '600', marginLeft: 10 },
+  activeDot: {backgroundColor: '#3C3C3C'},
+
+  titleRow: {flexDirection: 'row', alignItems: 'baseline'},
+  title: {fontSize: 20, fontWeight: '600', marginLeft: 10},
   address: {
     fontSize: 14,
     color: '#767676',
@@ -635,10 +656,9 @@ const styles = StyleSheet.create({
     marginTop: 7,
     marginLeft: 10,
   },
-  photoScrollView: { marginTop: 12 },
-  photoScrollContainer: { flexDirection: 'row', gap: 8 },
-  scrollImage: { width: 150, height: 150, borderRadius: 4 },
-  actionWrapper: { position: 'absolute', left: 16, right: 16 },
+
+  actionWrapper: {position: 'absolute', left: 16, right: 16},
+
   waterToast: {
     position: 'absolute',
     left: 16,
@@ -659,8 +679,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     marginRight: 12,
   },
-  waterToastRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  waterToastCount: { color: '#fff', fontSize: 14, fontWeight: '400' },
+  waterToastRight: {flexDirection: 'row', alignItems: 'center', gap: 8},
+  waterToastCount: {color: '#fff', fontSize: 14, fontWeight: '400'},
+
   photoView: {
     marginTop: 20,
     flexDirection: 'row',
@@ -671,11 +692,7 @@ const styles = StyleSheet.create({
     paddingRight: 10,
     paddingLeft: 10,
   },
-  Image0_1: {
-    width: 180,
-    height: 180,
-    borderRadius: 10,
-  },
+  Image0_1: {width: 180, height: 180, borderRadius: 10},
   Image0_2: {
     width: '100%',
     height: '100%',
@@ -694,32 +711,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 10,
     borderBottomLeftRadius: 10,
   },
-  photoViewVertical: {
-    width: '50%',
-    height: '100%',
-    flexDirection: 'column',
-  },
-  Image1_3: {
-    width: '100%',
-    height: '100%',
-    borderTopRightRadius: 10,
-  },
-  Image2_3: {
-    width: '100%',
-    height: '100%',
-    borderBottomRightRadius: 10,
-  },
+  photoViewVertical: {width: '50%', height: '100%', flexDirection: 'column'},
+  Image1_3: {width: '100%', height: '100%', borderTopRightRadius: 10},
+  Image2_3: {width: '100%', height: '100%', borderBottomRightRadius: 10},
   imageContainer_4: {
     position: 'relative',
     width: '100%',
     height: '50%',
     borderBottomRightRadius: 10,
   },
-  Image2_4: {
-    width: '100%',
-    height: '100%',
-    borderBottomRightRadius: 10,
-  },
+  Image2_4: {width: '100%', height: '100%', borderBottomRightRadius: 10},
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -727,9 +728,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  plusText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
+  plusText: {color: 'white', fontSize: 24, fontWeight: 'bold'},
 });

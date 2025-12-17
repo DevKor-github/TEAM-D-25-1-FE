@@ -80,6 +80,7 @@ const AppContent = () => {
 
       {/* Map 스크린 항상 등록 */}
       <Stack.Screen name="Map" component={BottomNavigationBar} />
+      <Stack.Screen name="Complete" component={CompleteScreen}/>
 
       {/* 조건에 따라 초기 화면만 변경 */}
       {!isAuthenticated ? (
